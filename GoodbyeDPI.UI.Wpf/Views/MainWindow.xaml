@@ -11,7 +11,7 @@
         Background="Transparent" WindowStartupLocation="CenterScreen">
     
     <Window.DataContext>
-        <vm::MainViewModel />
+        <vm:MainViewModel />
     </Window.DataContext>
 
     <Window.Resources>
