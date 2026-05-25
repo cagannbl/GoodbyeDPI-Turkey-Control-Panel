@@ -50,10 +50,8 @@ namespace GoodbyeDPI.UI.Wpf.ViewModels
                 using (var pipeStream = new NamedPipeClientStream(".", "GoodbyeDPI_Secure_IPC", PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
                     await pipeStream.ConnectAsync(1500);
-                    using (var jsonRpc = JsonRpc.Attach<IGoodbyeDpiService>(pipeStream))
-                    {
-                        return await ipcFunc(jsonRpc);
-                    }
+                    var jsonRpc = JsonRpc.Attach<IGoodbyeDpiService>(pipeStream);
+                    return await ipcFunc(jsonRpc);
                 }
             }
             catch (Exception ex)
@@ -70,10 +68,8 @@ namespace GoodbyeDPI.UI.Wpf.ViewModels
                 using (var pipeStream = new NamedPipeClientStream(".", "GoodbyeDPI_Secure_IPC", PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
                     await pipeStream.ConnectAsync(1500);
-                    using (var jsonRpc = JsonRpc.Attach<IGoodbyeDpiService>(pipeStream))
-                    {
-                        return await ipcFunc(jsonRpc);
-                    }
+                    var jsonRpc = JsonRpc.Attach<IGoodbyeDpiService>(pipeStream);
+                    return await ipcFunc(jsonRpc);
                 }
             }
             catch (Exception ex)
