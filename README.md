@@ -41,6 +41,16 @@ GoodbyeDPI Turkey Control Panel is an enterprise-grade GUI and network tunneling
 
 ---
 
+## Safety & Troubleshooting
+
+### 1. Antivirus & WinDivert False Positives
+Since the application uses `WinDivert` (a standard, open-source Windows packet capture library) to redirect network traffic at the kernel level, some antivirus programs might raise false-positive flags. The entire codebase is open-source, completely clean, and safe.
+
+### 2. Kaspersky Antivirus Compatibility
+Kaspersky Antivirus actively blocks WinDivert's network interception drivers. If you have Kaspersky installed (even if disabled), the bypass may fail. It is highly recommended to add the application folder to exclusions or use Windows Defender/other alternatives.
+
+---
+
 ## Quick Start
 
 ### Compiling
@@ -96,6 +106,16 @@ GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcıla
 ### 5. Yüksek Kararlılık & İşletim Sistemi Entegrasyonu
 *   **Native UAC (Yönetici) Manifest**: Derlenen EXE içerisine gömülü `app.manifest` sayesinde sağ tıklamaya gerek kalmadan çift tıklamayla doğrudan yönetici ayrıcalıkları (UAC yetkisi) ile açılma.
 *   **Dosya Kilitlenme Koruması**: Geliştirme ve derleme sırasında arka planda çalışan ve kilitlenme hatasına (`CS0016`) sebep olan zombi süreçleri otomatik temizleyen `compile_gui.ps1` entegrasyonu.
+
+---
+
+## Güvenlik ve Sıkça Sorulan Sorular
+
+### 1. Antivirüs Uyarıları (WinDivert False-Positive)
+Uygulama, ağ paketlerini çekirdek (kernel) seviyesinde işlemek için açık kaynaklı ve güvenli bir kütüphane olan `WinDivert` sürücülerini kullanır. Sistem dosyalarına müdahale ettiği için bazı antivirüsler hatalı uyarı (false-positive) verebilir. Yazılım tamamen açık kaynak kodludur, güvenlidir ve herhangi bir zararlı kod barındırmaz.
+
+### 2. Kaspersky Antivirüs Engeli
+Kaspersky antivirüs yazılımı, çalışma mantığı gereği WinDivert sürücülerinin ağ paketlerini yakalamasını engeller. Bilgisayarınızda Kaspersky yüklüyse (pasif olsa dahi) bypass çalışmayabilir. Klasörü Kaspersky üzerinde "Dışlananlar" listesine eklemeniz veya alternatif antivirüs yazılımlarına geçmeniz önerilir.
 
 ---
 
