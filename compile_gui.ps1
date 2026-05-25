@@ -10,8 +10,8 @@ Start-Sleep -Milliseconds 500
 
 Write-Host "Modüler C# dosyaları derleniyor..." -ForegroundColor Cyan
 
-# Compile all .cs files in the directory referencing WPF and WinForms DLLs.
-$compileCmd = "& '$cscPath' /target:winexe /win32manifest:app.manifest /out:GoodbyeDPIGUI.exe /lib:C:\Windows\Microsoft.NET\Framework64\v4.0.30319,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.ServiceProcess.dll /reference:System.Core.dll /reference:System.Net.Http.dll /reference:System.Xaml.dll /reference:WindowsBase.dll /reference:PresentationCore.dll /reference:PresentationFramework.dll *.cs"
+# Compile all .cs files in the src directory referencing WPF and WinForms DLLs.
+$compileCmd = "& '$cscPath' /target:winexe /win32manifest:src\app.manifest /out:GoodbyeDPIGUI.exe /lib:C:\Windows\Microsoft.NET\Framework64\v4.0.30319,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.ServiceProcess.dll /reference:System.Core.dll /reference:System.Net.Http.dll /reference:System.Xaml.dll /reference:WindowsBase.dll /reference:PresentationCore.dll /reference:PresentationFramework.dll src\*.cs"
 
 Invoke-Expression $compileCmd
 
