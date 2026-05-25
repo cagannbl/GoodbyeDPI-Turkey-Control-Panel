@@ -87,7 +87,7 @@
                     <!-- Status Display Led -->
                     <Border Background="{StaticResource CardBrush}" BorderThickness="1" BorderBrush="{StaticResource CardBorderBrush}" CornerRadius="6" Padding="10,8,10,8" Margin="0,0,0,20">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Key="statusLed" x:Name="LedEllipse" Width="12" Height="12" Margin="2,0,8,0" VerticalAlignment="Center" Style="{StaticResource LedStyle}" />
+                            <Ellipse x:Name="LedEllipse" Width="12" Height="12" Margin="2,0,8,0" VerticalAlignment="Center" Style="{StaticResource LedStyle}" />
                             <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
