@@ -61,3 +61,11 @@ Oluşturulan `GoodbyeDPIGUI.exe` dosyasına çift tıklayarak uygulamayı başla
 *   `x86/` & `x86_64/` - 32-bit ve 64-bit platformlar için optimize edilmiş native `goodbyedpi.exe` motoru ve `WinDivert` sürücü kütüphaneleri.
 *   `compile_gui.ps1` - Tek tıkla süreç temizliği ve güvenlik manifestosu gömülü derleme otomasyon betiği.
 *   `custom_blacklist.txt` - Bypass işlemlerinin ve dinamik PAC dosyasının temel alacağı kişiselleştirilmiş engelli siteler listesi.
+
+---
+
+## 💖 Teşekkürler & Krediler (Credits)
+Bu proje, açık kaynak dünyasının gücü ve topluluk paylaşımları sayesinde geliştirilmiştir. Projenin temelini oluşturan ve ilham veren orijinal çalışmalara teşekkür ederiz:
+
+*   **[ValdikSS/GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI)** - Sansürleri aşmamızı sağlayan çekirdek bypass motorunun (`goodbyedpi.exe`) asıl mucidi ve geliştiricisi.
+*   **[cagritaskn/GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey)** - Orijinal C# WPF kontrol arayüzünün ilk sürümünü tasarlayan ve bu projenin temelini atan geliştirici.
