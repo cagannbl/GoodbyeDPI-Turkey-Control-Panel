@@ -27,3 +27,21 @@ jobs:
 
     - name: Run xUnit Unit and Integration Tests
       run: dotnet test GoodbyeDPI.Tests/GoodbyeDPI.Tests.csproj --configuration Release --no-build --verbosity normal
+
+    - name: Publish WPF GUI Application
+      run: |
+        dotnet publish GoodbyeDPI.UI.Wpf/GoodbyeDPI.UI.Wpf.csproj --configuration Release --output publish_output --no-build
+        rename publish_output\GoodbyeDPI.UI.Wpf.exe GoodbyeDPIGUI.exe
+        xcopy x86 publish_output\x86 /E /I /Y
+        xcopy x86_64 publish_output\x86_64 /E /I /Y
+        xcopy licenses publish_output\licenses /E /I /Y
+        copy profiles.json publish_output\profiles.json /Y
+        copy custom_blacklist.txt publish_output\custom_blacklist.txt /Y
+        copy README.md publish_output\README.md /Y
+      shell: cmd
+
+    - name: Upload Compiled Release Zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: GoodbyeDPI-Turkey-v5.0-Ready-To-Run
+        path: publish_output/
