@@ -1,0 +1,30 @@
+﻿[
+  {
+    "name": "Varsayılan Türkiye (Genel) [-5 --set-ttl 5]",
+    "arguments": "-5 --set-ttl 5"
+  },
+  {
+    "name": "Superonline Alternatif 1 [--set-ttl 3]",
+    "arguments": "--set-ttl 3"
+  },
+  {
+    "name": "Superonline Alternatif 2 [-5]",
+    "arguments": "-5"
+  },
+  {
+    "name": "Superonline Alternatif 3 [--set-ttl 3 + DNS]",
+    "arguments": "--set-ttl 3"
+  },
+  {
+    "name": "Superonline Alternatif 4 [-5 + DNS]",
+    "arguments": "-5"
+  },
+  {
+    "name": "Superonline Alternatif 5 [-9 + DNS]",
+    "arguments": "-9"
+  },
+  {
+    "name": "Superonline Alternatif 6 [-9]",
+    "arguments": "-9"
+  }
+]

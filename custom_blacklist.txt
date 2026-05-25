@@ -1,0 +1,5 @@
+discord.com
+gateway.discord.gg
+cdn.discordapp.com
+wikipedia.org
+tr.wikipedia.org
