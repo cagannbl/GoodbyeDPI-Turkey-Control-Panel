@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\" /> <!-- Wait! ProjectReference should point to GoodbyeDPI.Core\GoodbyeDPI.Core.csproj -->
     <ProjectReference Include="..\GoodbyeDPI.Core\GoodbyeDPI.Core.csproj" />
   </ItemGroup>
 

@@ -367,7 +367,7 @@ namespace GoodbyeDPI.Core.Network
                             _ = Task.Run(() => ListenToTargetUdpAsync(targetSocket, remoteEp, udpServer, clientUdpEndpoint, atyp, targetHost, ct), ct);
                         }
 
-                        await targetSocket.SendAsync(payload, payload.Length, remoteEp, ct);
+                        await targetSocket.SendAsync(payload.AsMemory(), remoteEp, ct);
                     }
                 }
             }
@@ -428,7 +428,7 @@ namespace GoodbyeDPI.Core.Network
                     Array.Copy(header, 0, fullReply, 0, headerLen);
                     Array.Copy(replyPayload, 0, fullReply, headerLen, replyPayload.Length);
 
-                    await udpServer.SendAsync(fullReply, fullReply.Length, clientEp, ct);
+                    await udpServer.SendAsync(fullReply.AsMemory(), clientEp, ct);
                 }
             }
             catch {}

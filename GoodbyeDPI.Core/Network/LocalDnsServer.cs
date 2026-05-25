@@ -135,7 +135,7 @@ namespace GoodbyeDPI.Core.Network
                         bw.Write(ip.GetAddressBytes());
 
                         byte[] responseData = ms.ToArray();
-                        await _udpListener.SendAsync(responseData, responseData.Length, request.RemoteEndPoint, ct);
+                        await _udpListener.SendAsync(responseData.AsMemory(), request.RemoteEndPoint, ct);
                     }
                 }
             }
@@ -184,7 +184,7 @@ namespace GoodbyeDPI.Core.Network
                         }
 
                         byte[] responseData = ms.ToArray();
-                        await _udpListener.SendAsync(responseData, responseData.Length, remoteEp, ct);
+                        await _udpListener.SendAsync(responseData.AsMemory(), remoteEp, ct);
                     }
                 }
             }
