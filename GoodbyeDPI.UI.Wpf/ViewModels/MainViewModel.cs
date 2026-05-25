@@ -19,7 +19,6 @@ namespace GoodbyeDPI.UI.Wpf.ViewModels
     {
         private readonly ProfileManager _profileManager;
         private readonly DiagnosticTools _diagnosticTools;
-        private readonly DohResolver _dohResolver;
         private readonly Dispatcher _dispatcher;
         private PipelinesProxyServer? _proxyServer;
         private LocalDnsServer? _dnsServer;
@@ -143,7 +142,6 @@ namespace GoodbyeDPI.UI.Wpf.ViewModels
             if (Presets.Count > 0) SelectedPreset = Presets[0];
 
             _diagnosticTools = new DiagnosticTools();
-            _dohResolver = new DohResolver();
 
             // Commands Wireup
             ToggleBypassCommand = new RelayCommandAsync(ExecuteToggleBypassAsync);
