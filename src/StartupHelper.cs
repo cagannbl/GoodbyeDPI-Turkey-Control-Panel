@@ -9,7 +9,7 @@ namespace GoodbyeDPILauncher
         private const string KeyName = "GoodbyeDPITurkey";
 
         /// <summary>
-        /// Registers or unregisters the application in Windows registry startup path.
+        /// Uygulamayı Windows başlangıç kayıt defteri (registry) yoluna kaydeder veya kaldırır.
         /// </summary>
         public static void SetStartup(bool enable)
         {
@@ -36,7 +36,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Checks if the application is set to start automatically on Windows launch.
+        /// Uygulamanın Windows başlangıcında otomatik olarak çalışacak şekilde ayarlanıp ayarlanmadığını kontrol eder.
         /// </summary>
         public static bool IsStartupEnabled()
         {

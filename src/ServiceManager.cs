@@ -53,7 +53,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Checks the service status. Accessible by Standard Users.
+        /// Servis durumunu kontrol eder. Standart kullanıcılar tarafından erişilebilir.
         /// </summary>
         public async Task<ServiceControllerStatus?> GetStatusAsync()
         {
@@ -68,13 +68,13 @@ namespace GoodbyeDPILauncher
                 }
                 catch
                 {
-                    return null; // Not installed
+                    return null; // Yüklü değil
                 }
             });
         }
 
         /// <summary>
-        /// Starts the service, requesting UAC if not Administrator.
+        /// Servisi başlatır. Yönetici değilse UAC yetkisi ister.
         /// </summary>
         public async Task<bool> StartServiceAsync()
         {
@@ -103,7 +103,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Stops the service, requesting UAC if not Administrator.
+        /// Servisi durdurur. Yönetici değilse UAC yetkisi ister.
         /// </summary>
         public async Task<bool> StopServiceAsync()
         {
@@ -132,13 +132,13 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Installs the GoodbyeDPI Windows service, requesting UAC if not Administrator.
+        /// GoodbyeDPI Windows servisini yükler. Yönetici değilse UAC yetkisi ister.
         /// </summary>
         public async Task<bool> InstallServiceAsync(string exePath, string arguments)
         {
             if (!IsAdministrator())
             {
-                // Put arguments inside double quotes for Command line parsing safety
+                // Komut satırı ayrıştırma güvenliği için argümanları çift tırnak içine al
                 string taskArgs = string.Format("service-install \"{0}\" \"{1}\"", exePath, arguments);
                 return await RunElevatedTaskAsync(taskArgs);
             }
@@ -171,7 +171,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Removes the GoodbyeDPI Windows service and all WinDivert drivers, requesting UAC if not Administrator.
+        /// GoodbyeDPI Windows servisini ve tüm WinDivert sürücülerini kaldırır. Yönetici değilse UAC yetkisi ister.
         /// </summary>
         public async Task<bool> RemoveServiceAsync()
         {

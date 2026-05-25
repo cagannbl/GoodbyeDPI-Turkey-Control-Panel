@@ -14,7 +14,7 @@ namespace GoodbyeDPILauncher
         {
             var handler = new HttpClientHandler
             {
-                // Bypass local intercept certificates to get clean DoH query
+                // Temiz DoH sorgusu alabilmek için yerel sertifika doğrulamasını yoksay
                 ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
             };
 
@@ -32,7 +32,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Asynchronously resolves the hostname's IPv4 address via Cloudflare/Google DoH JSON endpoint.
+        /// Belirtilen alan adının IPv4 adresini DoH (DNS over HTTPS) JSON uç noktası üzerinden asenkron olarak çözer.
         /// </summary>
         public async Task<string> ResolveIpAsync(string hostname)
         {
@@ -48,8 +48,8 @@ namespace GoodbyeDPILauncher
                     if (!response.IsSuccessStatusCode) return null;
                     string json = await response.Content.ReadAsStringAsync();
 
-                    // Iterate all "data" entries in the JSON Answer array, skipping CNAME (type 5).
-                    // We look for {"type":1, ... "data":"<ip>"} patterns.
+                    // JSON yanıtındaki tüm "Answer" dizisini tarar ve CNAME kayıtlarını (tip 5) atlar.
+                    // {"type":1, ... "data":"<ip>"} desenlerini arar.
                     int searchFrom = 0;
                     string typePattern = "\"type\":";
                     string dataPattern = "\"data\":\"";
@@ -71,7 +71,7 @@ namespace GoodbyeDPILauncher
                             continue;
                         }
 
-                        // Look for the "data" field in the same answer block (within next 512 chars)
+                        // Aynı yanıt bloğunda yer alan "data" alanını ara (sonraki 512 karakter içinde)
                         int dataIdx = json.IndexOf(dataPattern, typeValEnd);
                         if (dataIdx == -1 || dataIdx > typeValEnd + 512)
                         {
@@ -85,7 +85,7 @@ namespace GoodbyeDPILauncher
 
                         string dataVal = json.Substring(dataStart, dataEnd - dataStart);
 
-                        // Only return if this is an A record (type 1) and looks like an IP
+                        // Yalnızca A kaydı (tip 1) ise ve geçerli bir IP adresi ise geri döndür
                         if (typeVal == 1)
                         {
                             System.Net.IPAddress parsed;

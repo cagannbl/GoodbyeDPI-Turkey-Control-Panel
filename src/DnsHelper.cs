@@ -45,7 +45,7 @@ namespace GoodbyeDPILauncher
 
             if (ipv6List.Count == 0)
             {
-                ipv6List.Add("'::1'"); // Block IPv6 DNS leaks by default
+                ipv6List.Add("'::1'"); // IPv6 DNS sızıntılarını varsayılan olarak engelle
             }
 
             string ipv4String = string.Join(",", ipv4List);
@@ -62,7 +62,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Resets active network adapters to use automatic DNS (DHCP).
+        /// Aktif ağ bağdaştırıcılarını otomatik DNS (DHCP) kullanacak şekilde sıfırlar.
         /// </summary>
         public async Task<string> ResetDnsAsync()
         {
@@ -73,11 +73,11 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Base64 encodes and executes a PowerShell script safely using EncodedCommand.
+        /// PowerShell betiğini Base64 ile kodlayarak EncodedCommand parametresiyle güvenli bir şekilde çalıştırır.
         /// </summary>
         private async Task<string> ExecutePowerShellScriptAsync(string script)
         {
-            // Base64 encoding the script prevents any command string parsing conflicts or injection
+            // Betiğin Base64 olarak kodlanması, komut satırı ayrıştırma hatalarını ve enjeksiyonları önler
             byte[] bytes = Encoding.Unicode.GetBytes(script);
             string base64Script = Convert.ToBase64String(bytes);
 

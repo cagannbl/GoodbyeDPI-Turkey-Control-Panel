@@ -15,7 +15,8 @@ namespace GoodbyeDPILauncher
                 return;
             }
 
-            var app = new Application();
+            var app = new App();
+            app.InitializeComponent();
             var mainWindow = new MainWindow();
             app.Run(mainWindow);
         }

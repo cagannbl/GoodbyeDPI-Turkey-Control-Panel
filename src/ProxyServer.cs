@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
-// socks5 ve http proxy sunucusu - mobil cihazlar icin de kullanilabiliyor
 namespace GoodbyeDPILauncher
 {
     public class ProxyServer
@@ -82,7 +81,6 @@ namespace GoodbyeDPILauncher
                         int bytesRead = await clientStream.ReadAsync(buffer, 0, buffer.Length, ct);
                         if (bytesRead <= 0) return;
 
-                        // ilk byte 0x05 ise socks5, degilse http olarak isle
                         byte firstByte = buffer[0];
                         if (firstByte == 0x05)
                         {
@@ -90,7 +88,7 @@ namespace GoodbyeDPILauncher
                             return;
                         }
 
-                        // HTTP fallback
+                        // HTTP fallback mekanizması
                         string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
                         string[] lines = request.Split(new[] { "\r\n" }, StringSplitOptions.None);
                         if (lines.Length == 0) return;
@@ -107,7 +105,7 @@ namespace GoodbyeDPILauncher
                             return;
                         }
 
-                        if (method.ToUpper() == "CONNECT") // https tuneli
+                        if (method.ToUpper() == "CONNECT") // HTTPS Tünelleme
                         {
                             string[] parts = target.Split(':');
                             string host = parts[0];
@@ -129,7 +127,7 @@ namespace GoodbyeDPILauncher
                                 }
                             }
                         }
-                        else // normal http istekleri
+                        else // Çift yönlü HTTP Proxy yönlendirmesi
                         {
                             Uri uri = target.StartsWith("http") ? new Uri(target) : new Uri("http://" + target);
                             string host = uri.Host;
@@ -140,9 +138,9 @@ namespace GoodbyeDPILauncher
                                 await targetClient.ConnectAsync(host, port);
                                 using (NetworkStream targetStream = targetClient.GetStream())
                                 {
-                                    // istegi hedefe ilet, her iki taraf birden oku/yaz
+                                    // Orijinal isteği hedefe ilet
                                     await targetStream.WriteAsync(buffer, 0, bytesRead, ct);
-                                    // hangisi once kapanirsa diger de kapanir
+                                    // Çift yönlü tünel: taraflardan biri kapandığında tünel sonlanır
                                     var t1 = CopyStreamAsync(targetStream, clientStream, ct);
                                     var t2 = CopyStreamAsync(clientStream, targetStream, ct);
                                     await Task.WhenAny(t1, t2);
@@ -195,7 +193,7 @@ namespace GoodbyeDPILauncher
             await ReadExactlyAsync(clientStream, portBytes, 0, 2, ct);
             port = (portBytes[0] << 8) | portBytes[1];
 
-            if (cmd == 0x01) // CONNECT
+            if (cmd == 0x01) // CONNECT komutu
             {
                 bool connectSuccess = false;
                 try
@@ -228,7 +226,7 @@ namespace GoodbyeDPILauncher
                     try { await clientStream.WriteAsync(failureReply, 0, failureReply.Length, ct); } catch {}
                 }
             }
-            else if (cmd == 0x03) // UDP ASSOCIATE
+            else if (cmd == 0x03) // UDP ASSOCIATE komutu
             {
                 bool udpSuccess = false;
                 try
@@ -479,7 +477,7 @@ namespace GoodbyeDPILauncher
             }
             catch {}
 
-            // sabit liste + custom_blacklist.txt ten okunan domainleri birlestir
+            // Engellenen alan adları listesini oluştur
             var domains = new List<string>(new string[]
             {
                 "discord.com", "discordapp.com", "discord.gg", "gateway.discord.gg", "cdn.discordapp.com",

@@ -1,22 +1,22 @@
-$cscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if (-not (Test-Path $cscPath)) {
-    Write-Error "C# Derleyici (csc.exe) bulunamadı! .NET Framework 4.5 veya üzeri kurulu olmalıdır."
-    Exit 1
-}
-
 Write-Host "Mevcut GoodbyeDPIGUI.exe süreçleri kapatılıyor..." -ForegroundColor Yellow
 Get-Process -Name "GoodbyeDPIGUI" -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
 
-Write-Host "Modüler C# dosyaları derleniyor..." -ForegroundColor Cyan
+Write-Host "Modern C# ve WPF projesi derleniyor..." -ForegroundColor Cyan
 
-# Compile all .cs files in the src directory referencing WPF and WinForms DLLs.
-$compileCmd = "& '$cscPath' /target:winexe /win32manifest:src\app.manifest /out:GoodbyeDPIGUI.exe /lib:C:\Windows\Microsoft.NET\Framework64\v4.0.30319,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF /reference:System.dll /reference:System.Drawing.dll /reference:System.Windows.Forms.dll /reference:System.ServiceProcess.dll /reference:System.Core.dll /reference:System.Net.Http.dll /reference:System.Xaml.dll /reference:WindowsBase.dll /reference:PresentationCore.dll /reference:PresentationFramework.dll src\*.cs"
-
-Invoke-Expression $compileCmd
+# Run dotnet build targeting Release configuration
+dotnet build src/GoodbyeDPIGUI.csproj -c Release --output src/build_out
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "Derleme BAŞARILI! GoodbyeDPIGUI.exe başarıyla oluşturuldu." -ForegroundColor Green
+    Write-Host "Derleme BAŞARILI! Çıktılar kopyalanıyor..." -ForegroundColor Green
+    
+    # Copy build binaries and config to the root folder for direct execution
+    Copy-Item -Path src/build_out/* -Destination . -Force -Recurse
+    
+    # Remove temporary build output folder inside src
+    Remove-Item -Path src/build_out -Recurse -Force -ErrorAction SilentlyContinue
+    
+    Write-Host "GoodbyeDPIGUI.exe başarıyla güncellendi." -ForegroundColor Green
 } else {
     Write-Error "Derleme sırasında HATA oluştu!"
     Exit 1

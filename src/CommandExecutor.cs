@@ -8,7 +8,7 @@ namespace GoodbyeDPILauncher
     public class CommandExecutor
     {
         /// <summary>
-        /// Runs a program asynchronously and safely returns its combined standard output and error stream.
+        /// Bir programı asenkron olarak çalıştırır ve standart çıktı ile hata akışını döndürür.
         /// </summary>
         public async Task<string> RunCommandAsync(string fileName, string[] arguments)
         {
@@ -59,7 +59,7 @@ namespace GoodbyeDPILauncher
         }
 
         /// <summary>
-        /// Safely escapes command line arguments to prevent command injection under Windows.
+        /// Windows ortamında komut enjeksiyonunu önlemek için argümanları güvenli bir şekilde kaçırır.
         /// </summary>
         public static string EscapeArguments(params string[] args)
         {
@@ -76,7 +76,7 @@ namespace GoodbyeDPILauncher
                     continue;
                 }
 
-                // If argument contains no spaces, tabs, or double quotes, it doesn't need quote protection
+                // Boşluk, sekme veya tırnak işareti içermeyen argümanların tırnak içine alınmasına gerek yoktur
                 if (arg.IndexOfAny(new[] { ' ', '\t', '\"' }) == -1)
                 {
                     sb.Append(arg);

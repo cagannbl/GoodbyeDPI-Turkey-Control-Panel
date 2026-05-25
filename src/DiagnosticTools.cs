@@ -8,14 +8,14 @@ namespace GoodbyeDPILauncher
 {
     public class DiagnosticTools
     {
-        // Singleton HttpClient instance to avoid socket exhaustion
+        // Soket tükenmesini önlemek için statik HttpClient örneği
         private static readonly HttpClient _client;
 
         static DiagnosticTools()
         {
             var handler = new HttpClientHandler
             {
-                // DPI filters can sometimes trigger certificate chain validation issues, bypass to measure actual connection latency
+                // Sertifika zinciri doğrulama hatalarını yoksay
                 ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true,
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
             };
@@ -25,18 +25,17 @@ namespace GoodbyeDPILauncher
                 Timeout = TimeSpan.FromMilliseconds(3500)
             };
 
-            // Set user agent to resemble standard web browser
+            // Standart tarayıcı User-Agent bilgisi tanımla
             _client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         }
 
         /// <summary>
-        /// Asynchronously performs a web request to test reachability and latency.
-        /// Her çağrıda yeni bir HttpClient kullanır — bypass aktifken eski
-        /// keepalive bağlantılarının sonucu yanıltmaması için.
+        /// Erişilebilirliği ve gecikme süresini test etmek için asenkron bir web isteği gerçekleştirir.
+        /// Bypass aktifken eski keepalive bağlantılarının sonucu yanıltmaması için her çağrıda yeni HttpClient kullanılır.
         /// </summary>
         public async Task<TestResult> TestUrlAsync(string url)
         {
-            // Yeni handler + client — cached TCP bağlantısı bypass'ı atlatmasın
+            // Önbelleğe alınmış TCP bağlantılarının bypass mekanizmasını atlatmasını önlemek için yeni handler ve istemci
             var handler = new HttpClientHandler
             {
                 ServerCertificateCustomValidationCallback = (s, c, ch, e) => true,
@@ -58,13 +57,13 @@ namespace GoodbyeDPILauncher
                     var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
                     sw.Stop();
 
-                    // 2xx, 3xx veya 4xx → sunucuya ulaşıldı (DPI bypass başarılı)
-                    // Sadece bağlantı hatası (SocketException, timeout) → başarısız
+                    // 2xx, 3xx veya 4xx -> sunucuya ulaşıldı (DPI bypass başarılı)
+                    // Sadece bağlantı hatası (SocketException, zaman aşımı) -> başarısız
                     bool ok = (int)response.StatusCode < 500;
                     return new TestResult(ok, sw.ElapsedMilliseconds);
                 }
             }
-            catch (TaskCanceledException)  // timeout
+            catch (TaskCanceledException)  // Zaman aşımı
             {
                 sw.Stop();
                 return new TestResult(false, 0);
@@ -72,7 +71,7 @@ namespace GoodbyeDPILauncher
             catch (HttpRequestException ex)
             {
                 sw.Stop();
-                // Eğer iç exception bir WebException ve response varsa → ulaşıldı
+                // İç hata WebException ise ve yanıt varsa sunucuya ulaşılmıştır
                 var web = ex.InnerException as WebException;
                 if (web != null && web.Response != null)
                     return new TestResult(true, sw.ElapsedMilliseconds);

@@ -4,15 +4,39 @@ using System.Collections.Generic;
 using System.Text;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Encodings.Web;
 
 namespace GoodbyeDPILauncher
 {
+    /// <summary>
+    /// Engel aşma profillerini temsil eden sınıf.
+    /// </summary>
     public class BypassProfile
     {
-        public string Name { get; set; }
-        public string Arguments { get; set; }
+        /// <summary>
+        /// Profilin kullanıcı arayüzünde gösterilecek adı.
+        /// </summary>
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
 
+        /// <summary>
+        /// GoodbyeDPI aracı için kullanılacak komut satırı argümanları.
+        /// </summary>
+        [JsonPropertyName("arguments")]
+        public string Arguments { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Sınıfın varsayılan yapıcı metodu.
+        /// </summary>
         public BypassProfile() { }
+
+        /// <summary>
+        /// Belirtilen ad ve argümanlarla yeni bir profil örneği oluşturur.
+        /// </summary>
+        /// <param name="name">Profil adı.</param>
+        /// <param name="arguments">Profil argümanları.</param>
         public BypassProfile(string name, string arguments)
         {
             Name = name;
@@ -20,13 +44,24 @@ namespace GoodbyeDPILauncher
         }
     }
 
+    /// <summary>
+    /// Profil dosyalarının yüklenmesi, kaydedilmesi ve bulut ile senkronizasyon işlemlerini yöneten sınıf.
+    /// </summary>
     public class ProfileManager
     {
         private readonly string _filePath;
         private readonly string _cloudUrl;
 
+        /// <summary>
+        /// Mevcut bypass profillerinin listesi.
+        /// </summary>
         public List<BypassProfile> Profiles { get; private set; }
 
+        /// <summary>
+        /// Belirtilen dosya yolu ve bulut adresi ile bir profil yöneticisi örneği oluşturur.
+        /// </summary>
+        /// <param name="filePath">Yerel profil dosyasının yolu.</param>
+        /// <param name="cloudUrl">Güncel profillerin çekileceği bulut URL'si.</param>
         public ProfileManager(string filePath, string cloudUrl = "https://raw.githubusercontent.com/cagans/goodbyedpi-turkey-presets/main/profiles.json")
         {
             _filePath = filePath;
@@ -34,6 +69,9 @@ namespace GoodbyeDPILauncher
             Profiles = new List<BypassProfile>();
         }
 
+        /// <summary>
+        /// Yerel dosyadan profilleri yükler. Dosya yoksa veya geçersizse varsayılan profilleri yükler.
+        /// </summary>
         public void LoadProfiles()
         {
             Profiles.Clear();
@@ -50,6 +88,7 @@ namespace GoodbyeDPILauncher
                 }
             }
 
+            // Eğer liste boş kaldıysa varsayılan profilleri yükle ve yerel dosyaya kaydet.
             if (Profiles.Count == 0)
             {
                 LoadDefaultProfiles();
@@ -57,6 +96,9 @@ namespace GoodbyeDPILauncher
             }
         }
 
+        /// <summary>
+        /// Uygulamanın varsayılan Türkiye preseti profillerini yükler.
+        /// </summary>
         public void LoadDefaultProfiles()
         {
             Profiles.Clear();
@@ -69,6 +111,9 @@ namespace GoodbyeDPILauncher
             Profiles.Add(new BypassProfile("Superonline Alternatif 6 [-9]", "-9"));
         }
 
+        /// <summary>
+        /// Mevcut profilleri yerel JSON dosyasına kaydeder.
+        /// </summary>
         public void SaveProfiles()
         {
             try
@@ -76,9 +121,16 @@ namespace GoodbyeDPILauncher
                 string json = SerializeJson(Profiles);
                 File.WriteAllText(_filePath, json, Encoding.UTF8);
             }
-            catch {}
+            catch
+            {
+                // Dosyaya yazma hatasını sessizce yut.
+            }
         }
 
+        /// <summary>
+        /// Profilleri bulut üzerindeki JSON dosyasıyla senkronize eder.
+        /// </summary>
+        /// <returns>Senkronizasyon başarılı ise true, aksi takdirde false döner.</returns>
         public async Task<bool> SyncWithCloudAsync()
         {
             try
@@ -88,6 +140,7 @@ namespace GoodbyeDPILauncher
                     client.Timeout = TimeSpan.FromSeconds(5);
                     string content = await client.GetStringAsync(_cloudUrl);
                     var cloudProfiles = ParseJson(content);
+                    
                     if (cloudProfiles != null && cloudProfiles.Count > 0)
                     {
                         Profiles = cloudProfiles;
@@ -96,74 +149,86 @@ namespace GoodbyeDPILauncher
                     }
                 }
             }
-            catch {}
+            catch
+            {
+                // Senkronizasyon hatalarını yut ve başarısız döndür.
+            }
             return false;
         }
 
+        /// <summary>
+        /// Verilen JSON metnini ayrıştırarak profil listesine dönüştürür.
+        /// </summary>
+        /// <param name="json">Ayrıştırılacak JSON metni.</param>
+        /// <returns>Ayrıştırılan bypass profilleri listesi. Hata durumunda boş liste döner.</returns>
         public static List<BypassProfile> ParseJson(string json)
         {
             var list = new List<BypassProfile>();
-            if (string.IsNullOrEmpty(json)) return list;
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return list;
+            }
 
             try
             {
-                int index = 0;
-                while (true)
+                // Büyük-küçük harf duyarlılığını devre dışı bırakarak daha esnek eşleşme sağlıyoruz.
+                var options = new JsonSerializerOptions
                 {
-                    index = json.IndexOf("{", index);
-                    if (index == -1) break;
+                    PropertyNameCaseInsensitive = true
+                };
 
-                    int end = json.IndexOf("}", index);
-                    if (end == -1) break;
-
-                    string objStr = json.Substring(index, end - index + 1);
-                    string name = ExtractValue(objStr, "name");
-                    string args = ExtractValue(objStr, "arguments");
-
-                    if (name != null && args != null)
+                var deserializedList = JsonSerializer.Deserialize<List<BypassProfile>>(json, options);
+                if (deserializedList != null)
+                {
+                    foreach (var profile in deserializedList)
                     {
-                        list.Add(new BypassProfile(name, args));
+                        // Geçersiz veya eksik alanları olan profilleri dahil etmiyoruz.
+                        if (profile != null && !string.IsNullOrEmpty(profile.Name) && profile.Arguments != null)
+                        {
+                            list.Add(profile);
+                        }
                     }
-                    index = end + 1;
                 }
             }
-            catch {}
+            catch (JsonException)
+            {
+                // JSON biçimi geçersiz olduğunda boş liste döner.
+            }
+            catch (Exception)
+            {
+                // Olası diğer beklenmedik istisnaları ele al.
+            }
+
             return list;
         }
 
-        private static string ExtractValue(string json, string key)
-        {
-            string keyPattern = "\"" + key + "\":";
-            int idx = json.IndexOf(keyPattern);
-            if (idx == -1) return null;
-
-            int valStart = json.IndexOf("\"", idx + keyPattern.Length);
-            if (valStart == -1) return null;
-
-            int valEnd = json.IndexOf("\"", valStart + 1);
-            if (valEnd == -1) return null;
-
-            return json.Substring(valStart + 1, valEnd - valStart - 1)
-                       .Replace("\\\"", "\"")
-                       .Replace("\\\\", "\\");
-        }
-
+        /// <summary>
+        /// Profil listesini JSON biçimli bir metne dönüştürür.
+        /// </summary>
+        /// <param name="profiles">Serileştirilecek profil listesi.</param>
+        /// <returns>JSON biçimindeki metin.</returns>
         public static string SerializeJson(List<BypassProfile> profiles)
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("[");
-            for (int i = 0; i < profiles.Count; i++)
+            if (profiles == null)
             {
-                var p = profiles[i];
-                sb.AppendLine("  {");
-                sb.AppendFormat("    \"name\": \"{0}\",\n", p.Name.Replace("\\", "\\\\").Replace("\"", "\\\""));
-                sb.AppendFormat("    \"arguments\": \"{0}\"\n", p.Arguments.Replace("\\", "\\\\").Replace("\"", "\\\""));
-                sb.Append("  }");
-                if (i < profiles.Count - 1) sb.AppendLine(",");
-                else sb.AppendLine();
+                return "[]";
             }
-            sb.AppendLine("]");
-            return sb.ToString();
+
+            try
+            {
+                // Okunabilirliği artırmak için girintili yazdırıyoruz ve Türkçe karakterlerin kaçış karakterine dönüştürülmesini önlüyoruz.
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = JavaScriptEncoder.Unescaped
+                };
+
+                return JsonSerializer.Serialize(profiles, options);
+            }
+            catch (Exception)
+            {
+                return "[]";
+            }
         }
     }
 }
