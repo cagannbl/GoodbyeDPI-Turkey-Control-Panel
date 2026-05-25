@@ -1,14 +1,77 @@
-# GoodbyeDPI Türkiye Kontrol Paneli v5.0
-> **Türkiye İSS'leri İçin Optimize Edilmiş, Güvenlik ve Performans Odaklı Modern WPF Arayüzü & Ağ Yönetim Motoru**
+# GoodbyeDPI Turkey Control Panel v5.0
+> **A Security and Performance Oriented Modern WPF GUI & Network Tunneling Engine Optimized for Turkish ISPs**
+
+[English](#english) | [Türkçe](#türkçe)
+
+---
+
+<a name="english"></a>
+# English Description
 
 [![GitHub Actions Build](https://img.shields.io/github/actions/workflow/status/cagannbl/GoodbyeDPI-Turkey-Control-Panel/build.yml?branch=main&style=flat-square&logo=github&label=Build%20%26%20CI)](https://github.com/cagannbl/GoodbyeDPI-Turkey-Control-Panel/actions)
 [![Platform](https://img.shields.io/badge/Platform-Windows%207%20%2F%208%20%2F%2010%20%2F%2011-0078d7.svg?style=flat-square&logo=windows)](https://dotnet.microsoft.com/)
 [![Framework](https://img.shields.io/badge/.NET%20Framework-4.5%20%2F%204.8-512bd4.svg?style=flat-square&logo=.net)](https://dotnet.microsoft.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
-GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcılarının (Türk Telekom, Superonline, Vodafone vb.) uyguladığı DPI (Derin Paket İnceleme) engellemelerini ve DNS sansürlerini aşmak amacıyla tasarlanmış, kurumsal kalitede **v5.0 stabilite ve güvenlik mimarisine sahip** modern bir arayüz ve ağ tünelleme uygulamasıdır.
+GoodbyeDPI Turkey Control Panel is an enterprise-grade GUI and network tunneling wrapper designed to circumvent Deep Packet Inspection (DPI) blocks and DNS censorship applied by Turkish ISPs (Turk Telekom, Superonline, Vodafone, etc.). Built on a high-stability v5.0 architecture, it provides a seamless and robust anti-censorship experience on Windows.
+
+## Advanced Features
+
+### 1. Modern Flat Dark UI & Visual Feedback
+*   **Flat Dark Theme**: Custom programmatically loaded WPF `ControlTemplate` styles resolving all dark-mode ComboBox contrast and white text visibility issues.
+*   **GPU-Accelerated breathing LED**: Fluid, zero-leak visual LED reflecting real-time bypass status (Active/Passive) rendered entirely on the GPU.
+*   **Dynamic Administrative Privilege Badge**: Real-time sidebar indicator showing the current privilege status (`[Administrator]` in turquoise or `[Limited User]` in red).
+
+### 2. High-Performance Bypass & Heuristic Auto-Tune
+*   **ISP-Specific Presets**: Finely tuned bypass profiles pre-configured for Superonline, Turk Telekom, Vodafone, and more (Alternative 1-6).
+*   **Heuristic Auto-Tune (Connection Analyzer)**: Automatically probes latency and connection stability for critical hosts (Discord, YouTube, Wikipedia, etc.), choosing the most optimal bypass profile for your network in seconds.
+
+### 3. Mobile Hotspot, Dynamic PAC & SOCKS5 Proxy
+*   **Local SOCKS5 / HTTP Proxy (Port 8085)**: Full RFC 1928 compliance. Features a bidirectional asynchronous `CopyStreamAsync` / `Task.WhenAny` pipeline supporting SOCKS5 UDP Associate tunneling for Discord voice channels and YouTube QUIC protocols.
+*   **Dynamic PAC (Proxy Auto-Config) Server**: Dynamically reads `custom_blacklist.txt` and updates the PAC script array on the fly. Allows mobile devices (iOS/Android) or other applications to bypass DPI using your computer as a proxy.
+
+### 4. Robust Security & Leak Protection
+*   **IPv6 DNS Leak Protection**: Automatically locks IPv6 DNS addresses on active network adapters to loopback `::1`, preventing ISP-level DNS leakage and tracking.
+*   **DoH (DNS over HTTPS) Fallback Resolver**: Securely resolves DNS queries using sharded, fallback-enabled DoH protocols over Cloudflare, Google, AdGuard, and Quad9.
+*   **Local DNS Server (Port 53)**: Local UDP DNS server enabling mobile hotspot devices to bypass censorship simply by changing their DNS settings.
+
+### 5. OS Integration & Build Stability
+*   **Native UAC Manifest Integration**: Embedded `app.manifest` requesting administrative privileges on click—no need to manually right-click and select "Run as Administrator".
+*   **Process Lock Prevention**: Compilation script `compile_gui.ps1` forcefully stops running instances before recompiling to prevent file lock errors (`CS0016`).
 
 ---
+
+## Quick Start
+
+### Compiling
+To compile the launcher from scratch, open Windows PowerShell in the project directory and run:
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
+```
+
+### Running
+Double-click `GoodbyeDPIGUI.exe` to run.
+
+1.  Select a pre-configured **Bypass Preset** matching your ISP.
+2.  If you are unsure, click **Auto-Tune (Connection Analysis)** to automatically select the most optimal bypass profile.
+3.  Click **Start Bypass** to activate the bypass engine.
+
+---
+
+## File Structure
+
+*   `src/` - Core C# source files (`MainWindow.cs`, `ProcessManager.cs`, `ProxyServer.cs`, etc.).
+*   `GoodbyeDPI.Core/` - v5.0 enterprise network and security library.
+*   `x86/` & `x86_64/` - Architecture-optimized native `goodbyedpi.exe` and `WinDivert` libraries.
+*   `compile_gui.ps1` - Automated process cleanup and compilation script.
+*   `custom_blacklist.txt` - Custom blacklist containing blocked domains for the proxy.
+
+---
+
+<a name="türkçe"></a>
+# Türkçe Açıklama
+
+GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcılarının (Türk Telekom, Superonline, Vodafone vb.) uyguladığı DPI (Derin Paket İnceleme) engellemelerini ve DNS sansürlerini aşmak amacıyla tasarlanmış, kurumsal kalitede **v5.0 stabilite ve güvenlik mimarisine sahip** modern bir arayüz ve ağ tünelleme uygulamasıdır.
 
 ## Öne Çıkan Gelişmiş Özellikler
 
