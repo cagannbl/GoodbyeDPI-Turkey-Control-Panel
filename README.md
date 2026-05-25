@@ -15,6 +15,14 @@
 
 GoodbyeDPI Turkey Control Panel is an enterprise-grade GUI and network tunneling wrapper designed to circumvent Deep Packet Inspection (DPI) blocks and DNS censorship applied by Turkish ISPs (Turk Telekom, Superonline, Vodafone, etc.). Built on a high-stability v5.0 architecture, it provides a seamless and robust anti-censorship experience on Windows.
 
+> [!NOTE]
+> This application is **not a VPN**. It will not cause any slowdown in your general internet speed or gaming performance. It works by bypassing DPI inspection, not by routing your traffic through a remote server.
+
+> [!IMPORTANT]
+> The application must be run as **Administrator** on Windows 7, 8, 8.1, 10, and 11. The embedded UAC manifest handles this automatically — simply double-click `GoodbyeDPIGUI.exe`.
+
+---
+
 ## Advanced Features
 
 ### 1. Modern Flat Dark UI & Visual Feedback
@@ -36,28 +44,26 @@ GoodbyeDPI Turkey Control Panel is an enterprise-grade GUI and network tunneling
 *   **Local DNS Server (Port 53)**: Local UDP DNS server enabling mobile hotspot devices to bypass censorship simply by changing their DNS settings.
 
 ### 5. OS Integration & Build Stability
-*   **Native UAC Manifest Integration**: Embedded `app.manifest` requesting administrative privileges on click—no need to manually right-click and select "Run as Administrator".
+*   **Native UAC Manifest Integration**: Embedded `app.manifest` requesting administrative privileges on click — no need to manually right-click and select "Run as Administrator".
 *   **Process Lock Prevention**: Compilation script `compile_gui.ps1` forcefully stops running instances before recompiling to prevent file lock errors (`CS0016`).
 
 ---
 
-## Safety & Troubleshooting
+## Safety & Antivirus
 
-### 1. Antivirus & WinDivert False Positives
-Since the application uses `WinDivert` (a standard, open-source Windows packet capture library) to redirect network traffic at the kernel level, some antivirus programs might raise false-positive flags. The entire codebase is open-source, completely clean, and safe.
+### WinDivert False Positives
 
-### 2. Kaspersky Antivirus Compatibility
-Kaspersky Antivirus actively blocks WinDivert's network interception drivers. If you have Kaspersky installed (even if disabled), the bypass may fail. It is highly recommended to add the application folder to exclusions or use Windows Defender/other alternatives.
+> [!WARNING]
+> Some antivirus programs may flag `WinDivert.dll` or `WinDivert64.sys` as suspicious. This is a **false positive**. WinDivert is a well-known, open-source Windows packet capture library. The source code is fully public and auditable. If you encounter this, add the application folder to your antivirus exclusions.
+
+### Kaspersky Antivirus
+
+> [!CAUTION]
+> **Kaspersky Antivirus blocks WinDivert's kernel-level drivers** due to its agreement with the Russian government. If Kaspersky is installed on your system — even if disabled — the bypass will most likely **not work**. Adding the folder to exclusions or disabling Kaspersky temporarily is **not sufficient**. You must completely remove Kaspersky from your system and use an alternative such as Windows Defender. As of 2025, Windows Defender provides excellent protection against malware and malicious websites.
 
 ---
 
 ## Quick Start
-
-### Compiling
-To compile the launcher from scratch, open Windows PowerShell in the project directory and run:
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
-```
 
 ### Running
 Double-click `GoodbyeDPIGUI.exe` to run.
@@ -65,6 +71,15 @@ Double-click `GoodbyeDPIGUI.exe` to run.
 1.  Select a pre-configured **Bypass Preset** matching your ISP.
 2.  If you are unsure, click **Auto-Tune (Connection Analysis)** to automatically select the most optimal bypass profile.
 3.  Click **Start Bypass** to activate the bypass engine.
+
+### Compiling from Source
+To compile the launcher from scratch, open Windows PowerShell in the project directory and run:
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
+```
+
+> [!NOTE]
+> The compile script automatically terminates any running instances before recompiling to prevent file lock errors, and embeds the UAC manifest into the final executable.
 
 ---
 
@@ -78,10 +93,25 @@ Double-click `GoodbyeDPIGUI.exe` to run.
 
 ---
 
+## Legal Notice
+
+> [!IMPORTANT]
+> All legal responsibility arising from the use of this application belongs to the user. This application has been written and edited solely for educational and research purposes. Whether to use this application under these terms is entirely the user's own choice.
+
+---
+
 <a name="türkçe"></a>
 # Türkçe Açıklama
 
 GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcılarının (Türk Telekom, Superonline, Vodafone vb.) uyguladığı DPI (Derin Paket İnceleme) engellemelerini ve DNS sansürlerini aşmak amacıyla tasarlanmış, kurumsal kalitede **v5.0 stabilite ve güvenlik mimarisine sahip** modern bir arayüz ve ağ tünelleme uygulamasıdır.
+
+> [!NOTE]
+> Bu uygulama kesinlikle **bir VPN değildir** ve oyunlarda/genel internet kullanımında herhangi bir hız değişikliğine sebep olmayacaktır. Trafiğinizi uzak bir sunucuya yönlendirmek yerine DPI denetimini atlatarak çalışır.
+
+> [!IMPORTANT]
+> Uygulama, Windows 7, 8, 8.1, 10 ve 11 işletim sistemlerinde **yönetici olarak çalıştırılmalıdır.** Gömülü UAC manifestosu bunu otomatik olarak yönetir — `GoodbyeDPIGUI.exe` dosyasına çift tıklamanız yeterlidir.
+
+---
 
 ## Öne Çıkan Gelişmiş Özellikler
 
@@ -109,31 +139,38 @@ GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcıla
 
 ---
 
-## Güvenlik ve Sıkça Sorulan Sorular
+## Güvenlik & Antivirüs
 
-### 1. Antivirüs Uyarıları (WinDivert False-Positive)
-Uygulama, ağ paketlerini çekirdek (kernel) seviyesinde işlemek için açık kaynaklı ve güvenli bir kütüphane olan `WinDivert` sürücülerini kullanır. Sistem dosyalarına müdahale ettiği için bazı antivirüsler hatalı uyarı (false-positive) verebilir. Yazılım tamamen açık kaynak kodludur, güvenlidir ve herhangi bir zararlı kod barındırmaz.
+### WinDivert Hatalı Virüs Uyarısı (False-Positive)
 
-### 2. Kaspersky Antivirüs Engeli
-Kaspersky antivirüs yazılımı, çalışma mantığı gereği WinDivert sürücülerinin ağ paketlerini yakalamasını engeller. Bilgisayarınızda Kaspersky yüklüyse (pasif olsa dahi) bypass çalışmayabilir. Klasörü Kaspersky üzerinde "Dışlananlar" listesine eklemeniz veya alternatif antivirüs yazılımlarına geçmeniz önerilir.
+> [!WARNING]
+> Bazı antivirüs programları `WinDivert.dll` veya `WinDivert64.sys` dosyalarını şüpheli olarak işaretleyebilir. Bu **hatalı bir uyarıdır (false-positive)**. WinDivert, iyi bilinen ve açık kaynak kodlu bir Windows paket yakalama kütüphanesidir. Tüm kaynak kodu herkese açık ve incelenebilirdir. Bu sorunla karşılaşırsanız uygulama klasörünü antivirüs dışlamalarına ekleyin.
+
+### Kaspersky Antivirüs Engeli
+
+> [!CAUTION]
+> **Kaspersky antivirüs yazılımı, Rus hükümetiyle olan anlaşması nedeniyle WinDivert'in çekirdek (kernel) seviyesi sürücülerini engeller.** Kaspersky bilgisayarınızda yüklüyse — pasif olsa dahi — bypass büyük ihtimalle **çalışmayacaktır.** Klasörü dışlamalara eklemek veya Kaspersky'yi geçici olarak devre dışı bırakmak **yeterli değildir.** Kaspersky'yi sisteminizden tamamen kaldırmanız ve Windows Defender gibi alternatif bir antivirüs kullanmanız gerekmektedir. 2025 yılı itibarıyla Windows Defender, kötü amaçlı yazılım ve sitelere karşı son derece yeterli koruma sağlamaktadır.
 
 ---
 
 ## Hızlı Başlangıç
 
-### Derleme (Compile)
-Uygulamayı sıfırdan derlemek için Windows PowerShell üzerinde proje ana dizinine gidip aşağıdaki komutu çalıştırmanız yeterlidir. Betik süreç kilitlerini temizleyecek, manifestoyu gömecek ve `csc.exe` (C# 5) derleyicisiyle hatasız olarak EXE dosyasını oluşturacaktır:
+### Çalıştırma
+Oluşturulan `GoodbyeDPIGUI.exe` dosyasına çift tıklayarak uygulamayı başlatabilirsiniz.
+
+1.  Açılan ekranda **Bypass Preseti** menüsünden ağınıza en uygun yöntemi seçin.
+2.  Eğer en iyi yöntemi bilmiyorsanız, **Otomatik Ayarla (Bağlantı Analizi)** butonuna basarak ağınız için en kararlı profili otomatik olarak tespit edebilirsiniz.
+3.  **Bypass'ı Başlat** butonuna basarak bypass motorunu aktif hale getirin.
+
+### Kaynak Koddan Derleme
+Uygulamayı sıfırdan derlemek için Windows PowerShell üzerinde proje ana dizinine gidip aşağıdaki komutu çalıştırmanız yeterlidir:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
 ```
 
-### Çalıştırma
-Oluşturulan `GoodbyeDPIGUI.exe` dosyasına çift tıklayarak uygulamayı başlatabilirsiniz. 
-
-1.  Açılan ekranda **Bypass Preseti** menüsünden ağınıza en uygun yöntemi seçin.
-2.  Eğer en iyi yöntemi bilmiyorsanız, **Otomatik Ayarla (Bağlantı Analizi)** butonuna basarak ağınız için en kararlı profili otomatik olarak tespit edebilirsiniz.
-3.  **Bypass'ı Başlat** butonuna basarak bypass motorunu aktif hale getirin.
+> [!NOTE]
+> Derleme betiği, dosya kilitleme hatalarını önlemek için yeniden derleme öncesinde çalışan tüm örnekleri otomatik olarak sonlandırır ve UAC manifestosunu son yürütülebilir dosyaya gömer.
 
 ---
 
@@ -144,6 +181,13 @@ Oluşturulan `GoodbyeDPIGUI.exe` dosyasına çift tıklayarak uygulamayı başla
 *   `x86/` & `x86_64/` - 32-bit ve 64-bit platformlar için optimize edilmiş native `goodbyedpi.exe` motoru ve `WinDivert` sürücü kütüphaneleri.
 *   `compile_gui.ps1` - Tek tıkla süreç temizliği ve güvenlik manifestosu gömülü derleme otomasyon betiği.
 *   `custom_blacklist.txt` - Bypass işlemlerinin ve dinamik PAC dosyasının temel alacağı kişiselleştirilmiş engelli siteler listesi.
+
+---
+
+## Yasal Uyarı
+
+> [!IMPORTANT]
+> Bu uygulamanın kullanımından doğan her türlü yasal sorumluluk kullanan kişiye aittir. Uygulama yalnızca eğitim ve araştırma amaçları ile yazılmış ve düzenlenmiş olup; bu uygulamayı bu şartlar altında kullanmak ya da kullanmamak kullanıcının kendi seçimidir.
 
 ---
 
