@@ -26,4 +26,4 @@ jobs:
       run: dotnet build GoodbyeDPI.sln --configuration Release --no-restore
 
     - name: Run xUnit Unit and Integration Tests
-      run: dotnet test GoodbyeDPI.Tests/GoodbyeDPI.Tests.csproj --no-build --verbosity normal
+      run: dotnet test GoodbyeDPI.Tests/GoodbyeDPI.Tests.csproj --configuration Release --no-build --verbosity normal
