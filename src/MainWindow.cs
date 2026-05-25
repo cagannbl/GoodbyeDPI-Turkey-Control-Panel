@@ -19,14 +19,14 @@ namespace GoodbyeDPILauncher
 {
     public class MainWindow : Window
     {
-        // State variables
+        // durum degiskenleri
         private bool isBypassActive = false;
-        private bool isExiting = false;
+        private bool isExiting = false; // kapatma sirasinda tray ikonunun mudahale etmemesi icin
         private string activeArch = "x86_64";
         private string exePath = "";
         private string blacklistFilePath = "";
 
-        // Services
+        // servisler
         private readonly CommandExecutor _executor;
         private readonly DnsHelper _dnsHelper;
         private readonly DiagnosticTools _diagnosticTools;
@@ -36,18 +36,18 @@ namespace GoodbyeDPILauncher
         private readonly ProfileManager _profileManager;
         private ProxyServer _proxyServer;
 
-        // UI Controls
+        // arayuz kontrolleri
         private TextBlock txtStatusLedInfo;
         private TextBlock lblSub;
         private Ellipse statusLed;
         private SolidColorBrush ledBrush;
 
-        // Panels
+        // sayfalar
         private Grid panelDashboard;
         private Grid panelNetwork;
         private Grid panelBlacklist;
 
-        // Controls Dashboard
+        // dashboard icindeki kontroller
         private ComboBox cmbPreset;
         private ComboBox cmbDns;
         private TextBox txtCustomDns;
@@ -101,7 +101,7 @@ namespace GoodbyeDPILauncher
 
         public MainWindow()
         {
-            // Set window properties for modern transparent custom chrome
+            // pencere ozellikleri - sans custom chrome icin
             this.Title = "GoodbyeDPI - Türkiye Kontrol Paneli";
             this.Width = 840;
             this.Height = 640;
@@ -112,7 +112,8 @@ namespace GoodbyeDPILauncher
             this.AllowsTransparency = true;
             this.FontFamily = new FontFamily("Segoe UI");
 
-            // Load Custom Styles to resolve ComboBox contrast issues in dark mode
+            // dark mode combobox renk sorununu cozmek icin ozel stil yukle
+            // bu olmadan combobox icindeki yazi gorunmuyor - saatlerce ugrastim
             try
             {
                 string styleXaml = @"
@@ -260,7 +261,7 @@ namespace GoodbyeDPILauncher
             // Setup Tray Icon
             SetupTray();
 
-            // Trigger background cloud sync
+            // arka planda preset guncelleme kontrolu yap
             var ignoredSync = Task.Run(async () =>
             {
                 bool synced = await _profileManager.SyncWithCloudAsync();
@@ -370,11 +371,12 @@ namespace GoodbyeDPILauncher
                 Margin = new Thickness(2, 0, 8, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
-            ledBrush = new SolidColorBrush(Color.FromRgb(231, 76, 60)); // Red by default
+            // led rengi varsayilan olarak kirmizi
+            ledBrush = new SolidColorBrush(Color.FromRgb(231, 76, 60));
             statusLed.Fill = ledBrush;
             statusPanel.Children.Add(statusLed);
 
-            // breathing animation on GPU
+            // gpu uzerinde animasyon - memory leak yok, wpf handle ediyor
             var breathAnimation = new DoubleAnimation
             {
                 From = 0.3,

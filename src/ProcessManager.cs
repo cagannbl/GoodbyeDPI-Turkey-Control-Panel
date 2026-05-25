@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+// goodbyedpi sureci yonetimi - baslatma, durdurma, log okuma
 namespace GoodbyeDPILauncher
 {
     public class ProcessManager
@@ -12,7 +13,7 @@ namespace GoodbyeDPILauncher
         private Process _process;
         private CancellationTokenSource _cts;
         private readonly string _exePath;
-        private readonly string _logFilePath;
+        private readonly string _logFilePath; // artik kullanmiyoruz ama kalsin
 
         public event Action<string> OnLogReceived;
         public event Action OnProcessExited;
@@ -47,6 +48,8 @@ namespace GoodbyeDPILauncher
             }
         }
 
+        // aktif ag karti index ini bulmak icin - ama sonuc -i parametresiyle kullanilmiyor
+        // goodbyedpi.exe -i kabul etmiyor, bu fonksiyon simdilik oldu birinin isine yarar belki
         private static int GetActiveInterfaceIndex()
         {
             try
@@ -72,9 +75,7 @@ namespace GoodbyeDPILauncher
             return -1;
         }
 
-        /// <summary>
-        /// Starts goodbyedpi.exe asynchronously, triggering UAC if not Administrator.
-        /// </summary>
+        // sureci baslatir, yoksa hata logu atar
         public async Task StartProcessAsync(string arguments)
         {
             await Task.Yield();
@@ -141,9 +142,7 @@ namespace GoodbyeDPILauncher
             }
         }
 
-        /// <summary>
-        /// Terminates the process, invoking elevated helper if needed.
-        /// </summary>
+        // sureci oldurur. cts cancel edilince MonitorExit de durur
         public void StopProcess()
         {
             if (_cts != null)
@@ -173,7 +172,7 @@ namespace GoodbyeDPILauncher
         {
             try
             {
-                // Use taskkill directly — avoids UAC/runas popup on every stop call
+                // taskkill en garantili yol, runas popup cikarmaz
                 var psi = new ProcessStartInfo
                 {
                     FileName = "taskkill.exe",
@@ -216,7 +215,8 @@ namespace GoodbyeDPILauncher
             {
                 await tcs.Task;
 
-                // Exit kodunu logla — hata tespiti için kritik
+                // exit kodunu logla - 0 dan farkli ise windivert surucusu yuklenemedi demek
+                // bunu bulmak icin saatlerce ugrastim, cok onemli
                 try
                 {
                     int exitCode = _process.ExitCode;
