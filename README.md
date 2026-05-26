@@ -195,4 +195,4 @@ powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
 Bu proje, açık kaynak dünyasının gücü ve topluluk paylaşımları sayesinde geliştirilmiştir. Projenin temelini oluşturan ve ilham veren orijinal çalışmalara teşekkür ederiz:
 
 *   **[ValdikSS/GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI)** - Sansürleri aşmamızı sağlayan çekirdek bypass motorunun (`goodbyedpi.exe`) asıl mucidi ve geliştiricisi.
-*   **[cagritaskn/GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey)** - Orijinal C# WPF kontrol arayüzünün ilk sürümünü tasarlayan ve bu projenin temelini atan geliştirici.
+*   **[cagritaskn/GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey)** - Orijinal C# WPF kontrol arayüzünün ilk sürümünü tasarlayan, çekirdek bypass parametrelerini Türkiye internet altyapısına (Türk Telekom, Superonline, Vodafone vb.) göre ince ayarlarla entegre ederek uygulamanın İSS filtrelerine takılmadan çalışmasını sağlayan ve bu projenin temelini atan geliştirici.
