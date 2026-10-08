@@ -38,6 +38,9 @@ uniform float u_water;
 uniform float u_lava;
 uniform float u_gamma;
 uniform vec3 u_tint;
+uniform vec3 u_ambient;
+uniform float u_portal;
+uniform float u_endPortal;
 in vec3 v_uv;
 in vec2 v_light;
 in float v_shade;
@@ -49,12 +52,18 @@ void main() {
   vec3 uv = v_uv;
   if (abs(uv.z - u_water) < 0.5) uv.xy += vec2(sin(u_time * 0.7 + uv.y * 3.0) * 0.04, u_time * 0.06);
   else if (abs(uv.z - u_lava) < 0.5) uv.xy += vec2(sin(u_time * 0.4 + uv.y * 2.0) * 0.06, u_time * 0.025);
-  vec4 c = texture(u_tex, uv, -0.4);
+  else if (abs(uv.z - u_portal) < 0.5) uv.xy += vec2(sin(u_time * 1.3 + uv.y * 6.0) * 0.08, cos(u_time * 1.1 + uv.x * 5.0) * 0.08 + u_time * 0.1);
+  else if (abs(uv.z - u_endPortal) < 0.5) uv.xy = uv.xy * 0.5 + vec2(u_time * 0.01, u_time * 0.007);
+  // Keskin pikseller: mip seviyesini en dar ayak izine göre seç (eğik yüzeyler bulanıklaşmaz)
+  vec2 tc = v_uv.xy * 16.0;
+  vec2 ddx = dFdx(tc), ddy = dFdy(tc);
+  float lod = max(0.0, 0.5 * log2(min(dot(ddx, ddx), dot(ddy, ddy))) - 0.25);
+  vec4 c = textureLod(u_tex, uv, lod);
   if (c.a < u_alphaTest) discard;
   float sky = lv(v_light.x) * u_sun;
   float bl = lb(v_light.y);
   vec3 light = max(sky * u_sunTint, bl * vec3(1.08, 0.94, 0.74));
-  light = max(light, vec3(0.05));
+  light = max(light, u_ambient);
   vec3 col = c.rgb * light * v_shade * u_tint;
   float f = clamp((v_dist - u_fog.x) / (u_fog.y - u_fog.x), 0.0, 1.0);
   o = vec4(mix(col, u_fogColor, f), c.a);
@@ -74,6 +83,8 @@ uniform vec3 u_horizon;
 uniform vec3 u_sunset;
 uniform float u_night;
 uniform float u_underwater;
+uniform float u_dim;
+uniform vec3 u_dimColor;
 in vec2 v_ndc;
 out vec4 o;
 float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -112,6 +123,12 @@ void main() {
       col = vec3(0.86, 0.88, 0.95) * (cr > 0.75 ? 0.78 : 1.0);
     }
     col += vec3(0.4, 0.45, 0.6) * pow(max(md, 0.0), 300.0) * 0.4;
+  }
+  if (u_dim > 0.5 && u_dim < 1.5) col = u_dimColor;
+  else if (u_dim > 1.5) {
+    vec3 q = floor(d * 260.0);
+    float n = hash(q);
+    col = u_dimColor * (0.9 + 0.2 * hash(floor(d * 220.0))) + (n > 0.994 ? vec3(0.35, 0.3, 0.45) : vec3(0.0));
   }
   if (u_underwater > 0.5) col = vec3(0.05, 0.12, 0.35);
   o = vec4(col, 1.0);
@@ -334,7 +351,7 @@ class Renderer {
     gl.texImage3D(gl.TEXTURE_2D_ARRAY, 0, gl.RGBA8, 16, 16, n, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LEVEL, 4);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
@@ -404,6 +421,9 @@ class Renderer {
     gl.uniform1f(u.u_lava, TEX.lava);
     gl.uniform1f(u.u_gamma, S.gamma);
     gl.uniform3f(u.u_tint, 1, 1, 1);
+    gl.uniform3fv(u.u_ambient, S.ambient || [0.05, 0.05, 0.05]);
+    gl.uniform1f(u.u_portal, TEX.nether_portal);
+    gl.uniform1f(u.u_endPortal, TEX.end_portal);
     gl.uniform1i(u.u_tex, 0);
   }
 
@@ -440,6 +460,8 @@ class Renderer {
     gl.uniform3fv(su.u_sunset, S.sunset);
     gl.uniform1f(su.u_night, S.night);
     gl.uniform1f(su.u_underwater, S.underwater ? 1 : 0);
+    gl.uniform1f(su.u_dim, S.dim || 0);
+    gl.uniform3fv(su.u_dimColor, S.dimColor || [0, 0, 0]);
     gl.bindVertexArray(this.skyVAO);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
@@ -596,7 +618,7 @@ class Renderer {
     M4.rotY(t, -s2 * 0.6); M4.mul(m, m, t);
     M4.rotX(t, -s1 * 1.1); M4.mul(m, m, t);
     if (H.id) {
-      const cross = RENDER[H.id] === R_CROSS;
+      const cross = H.id >= 256 || RENDER[H.id] === R_CROSS;
       M4.rotY(t, cross ? -0.4 : Math.PI / 4 + 0.25); M4.mul(m, m, t);
       M4.scale(t, 0.36, 0.36, 0.36); M4.mul(m, m, t);
       M4.translate(t, -0.5, -0.5, -0.5); M4.mul(m, m, t);

@@ -56,7 +56,7 @@ function moveEntity(world, e, dt, sneakGuard) {
 }
 
 // DDA ışın izleme: ilk hedeflenebilir blok
-function raycast(world, o, d, maxDist) {
+function raycast(world, o, d, maxDist, liquids) {
   let x = Math.floor(o[0]), y = Math.floor(o[1]), z = Math.floor(o[2]);
   const sx = Math.sign(d[0]), sy = Math.sign(d[1]), sz = Math.sign(d[2]);
   const tdx = sx ? Math.abs(1 / d[0]) : Infinity, tdy = sy ? Math.abs(1 / d[1]) : Infinity, tdz = sz ? Math.abs(1 / d[2]) : Infinity;
@@ -66,7 +66,7 @@ function raycast(world, o, d, maxDist) {
   let nx = 0, ny = 0, nz = 0, t = 0;
   while (t <= maxDist) {
     const id = world.getBlock(x, y, z);
-    if (id && RENDER[id] !== R_LIQUID) return { x, y, z, nx, ny, nz, dist: t, id };
+    if (id && (RENDER[id] !== R_LIQUID || (liquids && (id === B.WATER || id === B.LAVA)))) return { x, y, z, nx, ny, nz, dist: t, id };
     if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
     else if (ty < tz) { y += sy; t = ty; ty += tdy; nx = 0; ny = -sy; nz = 0; }
     else { z += sz; t = tz; tz += tdz; nx = 0; ny = 0; nz = -sz; }

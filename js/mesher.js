@@ -84,7 +84,7 @@ class VBuf {
 const bufOpaque = new VBuf(65536);
 const bufTrans = new VBuf(16384);
 
-function computeLight(H) {
+function computeLight(H, hasSky) {
   // H: bölge yüksekliği (y = 0..H-1 gerçek), katman = y+1
   const LH = H + 2;
   const total = RW * RW * LH;
@@ -93,7 +93,7 @@ function computeLight(H) {
   for (let i = 0; i < 16; i++) buckets[i].length = 0;
 
   // Doğrudan güneş ışığı sütunları
-  for (let z = 0; z < RW; z++) for (let x = 0; x < RW; x++) {
+  if (hasSky) for (let z = 0; z < RW; z++) for (let x = 0; x < RW; x++) {
     let i = (LH - 1) * DY + z * DZ + x;
     let y = LH - 1;
     while (y > 0) {
@@ -105,7 +105,7 @@ function computeLight(H) {
     colTop[z * RW + x] = y + 1;
   }
   const b15 = buckets[15];
-  for (let z = 0; z < RW; z++) for (let x = 0; x < RW; x++) {
+  if (hasSky) for (let z = 0; z < RW; z++) for (let x = 0; x < RW; x++) {
     const t = colTop[z * RW + x];
     let m = t;
     if (x > 0) m = Math.max(m, colTop[z * RW + x - 1]);
@@ -115,7 +115,7 @@ function computeLight(H) {
     const top = Math.min(m, LH - 1);
     for (let y = t; y <= top; y++) b15.push(y * DY + z * DZ + x);
   }
-  propagate(rSky, LH);
+  if (hasSky) propagate(rSky, LH);
 
   // Blok ışığı kaynakları
   for (let i = 0; i < 16; i++) buckets[i].length = 0;
@@ -236,7 +236,7 @@ function buildChunkMesh(world, chunk) {
       }
     }
   }
-  computeLight(H);
+  computeLight(H, world.hasSky);
 
   bufOpaque.n = 0; bufTrans.n = 0;
   const maxY = Math.min(chunk.maxY, H - 1);
@@ -270,8 +270,8 @@ const itemBuf = new VBuf(256);
 function buildBlockMesh(id, sky, blk, layerOverride) {
   itemBuf.n = 0;
   const s = Math.round(sky * 255), l = Math.round(blk * 255);
-  if (RENDER[id] === R_CROSS && layerOverride === undefined) {
-    const layer = TEXF[id * 6 + 2];
+  if ((id >= 256 || RENDER[id] === R_CROSS) && layerOverride === undefined) {
+    const layer = heldLayer(id);
     const w = layer | (3 << 8) | (6 << 10);
     const q = [[8, 0, 0], [8, 16, 0], [8, 16, 16], [8, 0, 16]];
     const us = [0, 0, 16, 16], vs = [16, 0, 0, 16];

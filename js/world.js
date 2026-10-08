@@ -23,7 +23,9 @@ class Chunk {
 }
 
 class World {
-  constructor(seedStr, edits) {
+  constructor(seedStr, edits, dim = 'overworld') {
+    this.dim = dim;
+    this.hasSky = dim !== 'nether';
     this.seedStr = String(seedStr);
     this.seed = hashStr(seedStr);
     const s = this.seed;
@@ -40,6 +42,14 @@ class World {
     this.edits = edits || {};   // chunkKey -> { blockIndex: id }
     this._lk = -1; this._lc = null;
     this.onBlockChange = null;
+    this.nBiome = new Simplex(s + 10);
+    if (dim === 'end') {
+      this.pillars = [];
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        this.pillars.push({ x: Math.round(Math.cos(a) * 42), z: Math.round(Math.sin(a) * 42), r: 2 + (i % 3), h: 76 + Math.floor(hash2(i, 7, s) * 28) });
+      }
+    }
   }
 
   getChunk(cx, cz) {
@@ -111,6 +121,26 @@ class World {
 
   generate(cx, cz) {
     const c = new Chunk(cx, cz);
+    let maxY = this.dim === 'nether' ? this.genNether(c) : this.dim === 'end' ? this.genEnd(c) : this.genOverworld(c);
+    const b = c.blocks;
+    // Kayıtlı düzenlemeleri uygula
+    const e = this.edits[c.key];
+    if (e) {
+      for (const k in e) {
+        const i = k | 0, id = e[k];
+        b[i] = id;
+        const y = (i / 256) | 0;
+        if (id && y > maxY) maxY = y;
+      }
+    }
+    c.maxY = Math.min(CH - 1, maxY + 1);
+    this.chunks.set(c.key, c);
+    this._lk = -1;
+    return c;
+  }
+
+  genOverworld(c) {
+    const cx = c.cx, cz = c.cz;
     const b = c.blocks, seed = this.seed;
     const bx = cx * CS, bz = cz * CS;
     const H = new Int16Array(256), BI = new Uint8Array(256), TP = new Float32Array(256);
@@ -169,7 +199,7 @@ class World {
           const cv = this.nCavern.noise3D(wx * 0.016, y * 0.032, wz * 0.016);
           if (cv > 0.62 - (42 - y) * 0.003) cave = true;
         }
-        if (cave) { b[i] = y <= 10 ? B.LAVA : 0; continue; }
+        if (cave) { b[i] = y <= 10 ? (y === 10 && hash3(wx, y, wz, seed + 3) < 0.2 ? B.OBSIDIAN : B.LAVA) : 0; continue; }
         if (id === B.STONE) {
           const cr = hash3(wx >> 1, y >> 1, wz >> 1, seed + 99);
           if (cr < 0.024) {
@@ -179,6 +209,7 @@ class World {
             else if (cr < 0.0062) { if (y < 20) ore = B.REDSTONE; }
             else if (cr < 0.0072) { if (h > SEA + 20 && y < 60) ore = B.EMERALD; }
             else if (cr < 0.0132) { if (y < 64) ore = B.IRON; }
+            else if (cr < 0.0150) { if (y < 32) ore = B.LAPIS_ORE; }
             else if (y < 100) ore = B.COAL;
             if (ore && hash3(wx, y, wz, seed + 7) < 0.6) b[i] = ore;
           }
@@ -247,20 +278,170 @@ class World {
       }
     }
 
-    // Kayıtlı düzenlemeleri uygula
-    const e = this.edits[c.key];
-    if (e) {
-      for (const k in e) {
-        const i = k | 0, id = e[k];
-        b[i] = id;
-        const y = (i / 256) | 0;
-        if (id && y > maxY) maxY = y;
+    // Yıkık Nether geçidi (obsidyen kaynağı)
+    if (hash2(cx, cz, seed + 500) < 0.025) {
+      const h = H[8 * 16 + 5];
+      if (h > SEA && h < CH - 10) {
+        for (let y = h + 1; y <= h + 5; y++) for (let x = 4; x <= 7; x++) {
+          const frame = x === 4 || x === 7 || y === h + 1 || y === h + 5;
+          const i = bidx(x, y, 8);
+          if (!frame) { b[i] = 0; continue; }
+          const r = hash3(x, y, cx * 31 + cz, seed + 501);
+          b[i] = r < 0.3 ? 0 : r < 0.48 ? B.CRYING_OBSIDIAN : B.OBSIDIAN;
+        }
+        for (let k = 0; k < 10; k++) {
+          const x = 2 + Math.floor(hash2(k, cx, seed + 502) * 8), z = 5 + Math.floor(hash2(k, cz, seed + 503) * 7);
+          const hh = H[z * 16 + x];
+          b[bidx(x, hh, z)] = k % 3 ? B.NETHERRACK : B.MAGMA;
+        }
+        maxY = Math.max(maxY, h + 5);
       }
     }
-    c.maxY = Math.min(CH - 1, maxY + 1);
-    this.chunks.set(c.key, c);
-    this._lk = -1;
-    return c;
+    return maxY;
+  }
+
+  netherBiome(wx, wz) {
+    const n = this.nBiome.noise2D(wx * 0.006, wz * 0.006), m = this.nTemp.noise2D(wx * 0.005 + 99, wz * 0.005);
+    if (n > 0.35) return 1;          // kızıl orman
+    if (n < -0.35) return 2;         // çarpık orman
+    if (m > 0.4) return 3;           // ruh kumu vadisi
+    return 0;                        // Nether çorak toprakları
+  }
+
+  genNether(c) {
+    const b = c.blocks, seed = this.seed, bx = c.cx * CS, bz = c.cz * CS;
+    const dens = new Float32Array(33);
+    const BI = new Uint8Array(256);
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+      const wx = bx + x, wz = bz + z;
+      BI[z * 16 + x] = this.netherBiome(wx, wz);
+      for (let k = 0; k <= 32; k++) {
+        const y = k * 4;
+        let d = this.nCaveA.noise3D(wx * 0.021, y * 0.042, wz * 0.021) + this.nCaveB.noise3D(wx * 0.06, y * 0.1, wz * 0.06) * 0.35;
+        if (y < 38) d += (38 - y) / 38 * 1.1;
+        if (y > 94) d += (y - 94) / 30 * 1.3;
+        dens[k] = d;
+      }
+      for (let y = 0; y < CH; y++) {
+        let id;
+        if (y === 0 || y === CH - 1 || (y < 5 && hash3(wx, y, wz, seed) < (5 - y) * 0.22) || (y > CH - 6 && hash3(wx, y, wz, seed) < (y - CH + 6) * 0.22)) id = B.BEDROCK;
+        else {
+          const k = y >> 2, t = (y & 3) / 4;
+          const d = dens[k] + (dens[Math.min(32, k + 1)] - dens[k]) * t;
+          if (d > 0.18) {
+            id = B.NETHERRACK;
+            const r = hash3(wx, y, wz, seed + 31);
+            if (r < 0.012) id = B.QUARTZ_ORE;
+            else if (r < 0.018) id = B.NETHER_GOLD_ORE;
+            else if (r < 0.0192 && y >= 8 && y <= 22) id = B.ANCIENT_DEBRIS;
+            else if (y < 12 && r < 0.4) id = B.BLACKSTONE;
+          } else id = y <= 31 ? B.LAVA : 0;
+        }
+        b[bidx(x, y, z)] = id;
+      }
+    }
+    // Yüzeyler, magma, ışıktaşı, bitkiler
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+      const wx = bx + x, wz = bz + z, bio = BI[z * 16 + x];
+      for (let y = CH - 3; y > 1; y--) {
+        const i = bidx(x, y, z), id = b[i];
+        if (id !== B.NETHERRACK) continue;
+        const above = b[i + 256], below = b[i - 256];
+        if (above === B.LAVA && hash3(wx, y, wz, seed + 40) < 0.35) { b[i] = B.MAGMA; continue; }
+        if (above === 0) {
+          if (bio === 1) b[i] = B.CRIMSON_NYLIUM;
+          else if (bio === 2) b[i] = B.WARPED_NYLIUM;
+          else if (bio === 3 || (y <= 35 && this.nHill.noise2D(wx * 0.05, wz * 0.05) > 0.2)) {
+            b[i] = hash2(wx, wz, seed + 41) < 0.6 ? B.SOUL_SAND : B.SOUL_SOIL;
+            if (b[i - 256] === B.NETHERRACK) b[i - 256] = B.SOUL_SOIL;
+          }
+          const r = hash3(wx, y, wz, seed + 42);
+          if ((bio === 1 || bio === 2) && y < CH - 12) {
+            const inner = x >= 3 && x <= 12 && z >= 3 && z <= 12;
+            if (inner && r < 0.018) this.hugeFungus(b, x, y + 1, z, bio === 1, wx, wz);
+            else if (r < 0.1) b[i + 256] = bio === 1 ? B.CRIMSON_FUNGUS : B.WARPED_FUNGUS;
+          }
+        } else if (below === 0 && y > 60 && hash3(wx, y, wz, seed + 43) < 0.01) {
+          // Tavandan sarkan ışıktaşı
+          for (let k = 1; k <= 4; k++) {
+            if (y - k < 2) break;
+            const j = bidx(x, y - k, z);
+            if (b[j] === 0 && hash3(wx, y - k, wz, seed + 44) < 0.85) b[j] = B.GLOWSTONE; else break;
+          }
+          for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const nx = x + dx, nz = z + dz;
+            if (nx < 0 || nz < 0 || nx > 15 || nz > 15) continue;
+            const j = bidx(nx, y - 1, nz);
+            if (b[j] === 0 && hash3(nx, y, nz, seed + 45) < 0.6) b[j] = B.GLOWSTONE;
+          }
+        }
+      }
+    }
+    return CH - 1;
+  }
+
+  hugeFungus(b, x, y, z, crimson, wx, wz) {
+    const h = 4 + Math.floor(hash2(wx, wz, this.seed + 46) * 4);
+    const stem = crimson ? B.CRIMSON_STEM : B.WARPED_STEM, wart = crimson ? B.NETHER_WART_BLOCK : B.WARPED_WART_BLOCK;
+    const set = (xx, yy, zz, id) => { if (xx >= 0 && zz >= 0 && xx < 16 && zz < 16 && yy < CH - 1) { const i = bidx(xx, yy, zz); if (b[i] === 0 || b[i] === B.CRIMSON_FUNGUS || b[i] === B.WARPED_FUNGUS) b[i] = id; } };
+    for (let k = -2; k <= 0; k++) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      const r = k === 0 ? 1 : 2;
+      if (Math.abs(dx) > r || Math.abs(dz) > r) continue;
+      if (Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
+      const edge = Math.abs(dx) === r || Math.abs(dz) === r || k === 0;
+      if (!edge && k < 0) continue;
+      set(x + dx, y + h + k, z + dz, hash3(x + dx, y + h + k, z + dz, this.seed + 47) < 0.08 ? B.SHROOMLIGHT : wart);
+    }
+    for (let k = 0; k < h; k++) set(x, y + k, z, stem);
+  }
+
+  genEnd(c) {
+    const b = c.blocks, seed = this.seed, bx = c.cx * CS, bz = c.cz * CS;
+    let maxY = 0;
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
+      const wx = bx + x, wz = bz + z;
+      const d = Math.hypot(wx, wz);
+      let top = -1, bot = 0;
+      if (d < 96) {
+        const n = this.nHill.noise2D(wx * 0.03, wz * 0.03), f = d / 96;
+        top = Math.floor(60 + n * 3 - f * f * 8);
+        bot = Math.floor(60 - (1 - f * f) * (30 + n * 8));
+      } else if (d > 200) {
+        const n = this.nCont.fbm2(wx * 0.012, wz * 0.012, 3);
+        if (n > 0.3) { top = Math.floor(56 + (n - 0.3) * 24); bot = Math.floor(top - (n - 0.3) * 80); }
+      }
+      for (let y = Math.max(1, bot); y <= top; y++) b[bidx(x, y, z)] = B.END_STONE;
+      if (top > maxY) maxY = top;
+      for (const P of this.pillars) {
+        if (Math.hypot(wx - P.x, wz - P.z) <= P.r + 0.5) {
+          for (let y = 40; y <= P.h; y++) b[bidx(x, y, z)] = B.OBSIDIAN;
+          if (P.h > maxY) maxY = P.h;
+        }
+      }
+      // Çıkış geçidi (merkez)
+      const dd = Math.hypot(wx, wz);
+      if (dd <= 3.6) {
+        const ty = 61;
+        for (let y = ty + 1; y < ty + 7; y++) b[bidx(x, y, z)] = 0;
+        b[bidx(x, ty - 1, z)] = B.BEDROCK;
+        b[bidx(x, ty, z)] = dd > 2.6 ? B.BEDROCK : B.END_PORTAL;
+        if (wx === 0 && wz === 0) {
+          for (let y = ty; y <= ty + 3; y++) b[bidx(x, y, z)] = B.BEDROCK;
+          b[bidx(x, ty + 4, z)] = B.DRAGON_EGG;
+        }
+        maxY = Math.max(maxY, ty + 4);
+      }
+      // Koro bitkileri (dış adalar)
+      if (d > 200 && top > 0 && x >= 2 && x <= 13 && z >= 2 && z <= 13 && hash2(wx, wz, seed + 60) < 0.012) {
+        const h = 3 + Math.floor(hash2(wx, wz, seed + 61) * 5);
+        for (let k = 1; k <= h; k++) b[bidx(x, top + k, z)] = B.CHORUS_PLANT;
+        b[bidx(x, top + h + 1, z)] = B.CHORUS_FLOWER;
+        const bxo = hash2(wx, wz, seed + 62) < 0.5 ? 1 : -1, by = top + 2 + Math.floor(h / 2);
+        b[bidx(x + bxo, by, z)] = B.CHORUS_PLANT; b[bidx(x + bxo, by + 1, z)] = B.CHORUS_FLOWER;
+        maxY = Math.max(maxY, top + h + 1);
+      }
+    }
+    return maxY;
   }
 
   oakTree(put, x, y, z, th, log, leaves, seed) {

@@ -41,7 +41,40 @@ const PINK = [0.95, 0.63, 0.62], PINK2 = [0.85, 0.48, 0.5];
 const COW = [0.33, 0.23, 0.15], WHITE = [0.92, 0.92, 0.9], BLACK = [0.08, 0.08, 0.08];
 const CREEP = [0.36, 0.72, 0.3], WOOLC = [0.93, 0.93, 0.9], SHEEPF = [0.78, 0.66, 0.56];
 
+const ENDER = [0.07, 0.05, 0.09], ENDEYE = [0.85, 0.45, 1.0];
+const PIGSKIN = [0.88, 0.6, 0.56], PIGSNOUT = [0.75, 0.45, 0.45], ROT = [0.45, 0.62, 0.38], PIGPANTS = [0.42, 0.3, 0.2], GOLDC = [0.98, 0.84, 0.25];
+
 const MOB_TYPES = {
+  enderman: {
+    name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'zombie',
+    parts: [
+      part([-4, 40, -4, 4, 48, 4], ENDER, 'head', [0, 40, 0]),
+      part([-3, 43, -4.2, -1, 44, -4], ENDEYE, 'head', [0, 40, 0]),
+      part([1, 43, -4.2, 3, 44, -4], ENDEYE, 'head', [0, 40, 0]),
+      part([-4, 28, -2, 4, 40, 2], ENDER),
+      part([4, 12, -1, 6, 40, 1], ENDER, 'legB', [5, 39, 0]),
+      part([-6, 12, -1, -4, 40, 1], ENDER, 'legA', [-5, 39, 0]),
+      part([-3, 0, -1, -1, 28, 1], ENDER, 'legA', [-2, 28, 0]),
+      part([1, 0, -1, 3, 28, 1], ENDER, 'legB', [2, 28, 0]),
+    ],
+  },
+  zpiglin: {
+    name: 'Zombi Piglin', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'pig',
+    parts: [
+      part([-4.5, 24, -4, 4.5, 32, 4], PIGSKIN, 'head', [0, 24, 0]),
+      part([-2, 25, -5, 2, 28, -4], PIGSNOUT, 'head', [0, 24, 0]),
+      part([-3, 28, -4.2, -1.5, 29, -4], BLACK, 'head', [0, 24, 0]),
+      part([1.5, 28, -4.2, 3, 29, -4], BLACK, 'head', [0, 24, 0]),
+      part([-4.6, 30, -1, -4.4, 32, 1], ROT, 'head', [0, 24, 0]),
+      part([-4, 12, -2, 4, 24, 2], PIGSKIN),
+      part([0, 14, -2.1, 4, 20, 2.1], ROT),
+      part([4, 12, -2, 8, 24, 2], PIGSKIN, 'legB', [6, 22, 0]),
+      part([-8, 12, -2, -4, 24, 2], ROT, 'legA', [-6, 22, 0]),
+      part([5, 10, -6, 7, 12.5, 6], GOLDC, 'legB', [6, 22, 0]),
+      part([-4, 0, -2, 0, 12, 2], PIGPANTS, 'legA', [-2, 12, 0]),
+      part([0, 0, -2, 4, 12, 2], PIGPANTS, 'legB', [2, 12, 0]),
+    ],
+  },
   pig: {
     name: 'Domuz', hw: 0.45, h: 0.9, health: 10, speed: 1.3, hostile: false, sound: 'pig',
     parts: [
@@ -144,11 +177,28 @@ class Mob {
     this.hurtTime = 0.4;
     const l = Math.hypot(fx, fz) || 1;
     this.vel[0] += (fx / l) * 7; this.vel[2] += (fz / l) * 7; this.vel[1] = 5.5;
-    if (!this.T.hostile) { this.panic = 4; this.aiTimer = 0; }
+    if (this.T.neutral) this.angry = true;
+    else if (!this.T.hostile) { this.panic = 4; this.aiTimer = 0; }
     if (this.health <= 0) { this.dead = true; this.deathTime = 0; }
+    else if (this.type === 'enderman' && this.game && Math.random() < 0.6) this.teleportAway(this.game.world);
+  }
+
+  teleportAway(world) {
+    for (let k = 0; k < 12; k++) {
+      const x = Math.floor(this.pos[0] + (Math.random() - 0.5) * 24), z = Math.floor(this.pos[2] + (Math.random() - 0.5) * 24);
+      if (!world.isLoadedAt(x, z)) continue;
+      for (let y = Math.floor(this.pos[1]) + 8; y > Math.floor(this.pos[1]) - 8; y--) {
+        if (SOLID[world.getBlock(x, y - 1, z)] && !world.getBlock(x, y, z) && !world.getBlock(x, y + 1, z) && !world.getBlock(x, y + 2, z)) {
+          if (this.game) { this.game.particles.puff(this.pos[0], this.pos[1] + 1.4, this.pos[2], 10, 0.5); this.game.audio.play('pop', this.pos); }
+          this.pos = [x + 0.5, y, z + 0.5]; this.vel = [0, 0, 0];
+          return;
+        }
+      }
+    }
   }
 
   update(dt, game) {
+    this.game = game;
     const world = game.world, pl = game.player, p = this.pos, v = this.vel;
     this.hurtTime = Math.max(0, this.hurtTime - dt);
     if (this.dead) {
@@ -163,14 +213,14 @@ class Mob {
     const dist = Math.hypot(dx, dz);
     let speed = 0;
 
-    if (this.T.hostile && !pl.dead && !pl.creative && dist < 22 && Math.abs(dy) < 12) {
+    if ((this.T.hostile || this.angry) && !pl.dead && !pl.creative && dist < (this.angry ? 40 : 22) && Math.abs(dy) < 12) {
       this.targetYaw = Math.atan2(-dx, -dz);
-      speed = this.T.speed;
-      if (this.type === 'zombie') {
+      speed = this.T.speed * (this.angry ? 1.3 : 1);
+      if (this.type !== 'creeper') {
         this.attackCd -= dt;
-        if (dist < 1.1 && Math.abs(dy) < 1.6 && this.attackCd <= 0) {
+        if (dist < 1.1 && Math.abs(dy) < 2 && this.attackCd <= 0) {
           this.attackCd = 1;
-          pl.hurt(game.difficultyDmg(3), (dx / (dist || 1)) * 6, (dz / (dist || 1)) * 6);
+          pl.hurt(game.difficultyDmg(this.T.dmg || 3), (dx / (dist || 1)) * 6, (dz / (dist || 1)) * 6);
         }
         if (dist < 0.8) speed = 0;
       } else if (this.type === 'creeper') {
@@ -209,7 +259,7 @@ class Mob {
     while (dyaw < -Math.PI) dyaw += Math.PI * 2;
     this.yaw += dyaw * Math.min(1, dt * 6);
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-    if (speed > 0 && !this.T.hostile && this.onGround) {
+    if (speed > 0 && !this.T.hostile && !this.angry && this.onGround) {
       const ax = Math.floor(p[0] + fx * 0.9), az = Math.floor(p[2] + fz * 0.9), ay = Math.floor(p[1]);
       const below = world.getBlock(ax, ay - 1, az), below2 = world.getBlock(ax, ay - 2, az);
       if ((!SOLID[below] && !SOLID[below2]) || below === B.WATER || below === B.LAVA) { this.targetYaw += Math.PI; speed = 0; this.aiTimer = 1; }
@@ -305,7 +355,7 @@ class EntityManager {
       m.update(dt, g);
       const d = Math.hypot(m.pos[0] - g.player.pos[0], m.pos[2] - g.player.pos[2]);
       if (d > 110) m.remove = true;
-      if (m.T.hostile && g.player.creative && d > 40) m.remove = true;
+      if ((m.T.hostile || m.T.neutral) && g.player.creative && d > 40) m.remove = true;
     }
     this.mobs = this.mobs.filter((m) => !m.remove);
     // Mob'lar birbirini itsin
@@ -325,8 +375,24 @@ class EntityManager {
   trySpawn() {
     const g = this.game, w = g.world, pl = g.player;
     let passive = 0, hostile = 0;
-    for (const m of this.mobs) m.T.hostile ? hostile++ : passive++;
+    for (const m of this.mobs) (m.T.hostile || m.T.neutral) ? hostile++ : passive++;
     const ang = Math.random() * Math.PI * 2;
+    if (w.dim !== 'overworld') {
+      if (hostile >= (w.dim === 'end' ? 12 : 10)) return;
+      const r = 16 + Math.random() * 30;
+      const x = Math.floor(pl.pos[0] + Math.cos(ang) * r), z = Math.floor(pl.pos[2] + Math.sin(ang) * r);
+      if (!w.isLoadedAt(x, z)) return;
+      for (let y = Math.floor(pl.pos[1]) + 12; y > Math.floor(pl.pos[1]) - 12; y--) {
+        const fl = w.getBlock(x, y - 1, z);
+        if (SOLID[fl] && fl !== B.BEDROCK && !w.getBlock(x, y, z) && !w.getBlock(x, y + 1, z) && !w.getBlock(x, y + 2, z)) {
+          let type = 'enderman';
+          if (w.dim === 'nether') type = fl === B.WARPED_NYLIUM && Math.random() < 0.6 ? 'enderman' : 'zpiglin';
+          this.mobs.push(new Mob(type, x + 0.5, y, z + 0.5));
+          return;
+        }
+      }
+      return;
+    }
     if (passive < 10 && Math.random() < 0.5) {
       const r = 24 + Math.random() * 40;
       const x = Math.floor(pl.pos[0] + Math.cos(ang) * r), z = Math.floor(pl.pos[2] + Math.sin(ang) * r);
@@ -354,7 +420,8 @@ class EntityManager {
       const y = w.surfaceY(x, z);
       const top = w.getBlock(x, y, z);
       if (y < 0 || !SOLID[top] || top === B.LEAVES || SOLID[w.getBlock(x, y + 1, z)] || SOLID[w.getBlock(x, y + 2, z)]) return;
-      this.mobs.push(new Mob(Math.random() < 0.65 ? 'zombie' : 'creeper', x + 0.5, y + 1, z + 0.5));
+      const rr = Math.random();
+      this.mobs.push(new Mob(rr < 0.08 ? 'enderman' : rr < 0.62 ? 'zombie' : 'creeper', x + 0.5, y + 1, z + 0.5));
       return;
     }
     // Mağaralarda karanlık yerler
@@ -388,8 +455,13 @@ class EntityManager {
     for (const m of this.mobs) {
       const d = Math.hypot(m.pos[0] - cam[0], m.pos[2] - cam[2]);
       if (d > g.settings.renderDist * 16) continue;
-      const sky = g.world.skyLightAt(Math.floor(m.pos[0]), Math.floor(m.pos[1] + 1), Math.floor(m.pos[2]));
-      const light = Math.max(0.12, sky ? g.sunLevel : 0.25);
+      let light;
+      if (g.world.dim === 'nether') light = 0.6;
+      else if (g.world.dim === 'end') light = 0.7;
+      else {
+        const sky = g.world.skyLightAt(Math.floor(m.pos[0]), Math.floor(m.pos[1] + 1), Math.floor(m.pos[2]));
+        light = Math.max(0.12, sky ? g.sunLevel : 0.25);
+      }
       n = m.buildMesh(this.verts, n, cam, light);
     }
     return n;

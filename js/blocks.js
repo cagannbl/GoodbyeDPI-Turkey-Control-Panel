@@ -12,6 +12,14 @@ const B = {
   DANDELION: 38, TALL_GRASS: 39, TORCH: 40, WOOL_WHITE: 41, WOOL_RED: 42, WOOL_ORANGE: 43,
   WOOL_YELLOW: 44, WOOL_LIME: 45, WOOL_BLUE: 46, WOOL_PURPLE: 47, WOOL_BLACK: 48, SANDSTONE: 49,
   DEAD_BUSH: 50, MOSSY_COBBLE: 51, BIRCH_PLANKS: 52, SPRUCE_PLANKS: 53, EMERALD: 54, BLUE_FLOWER: 55,
+  NETHERRACK: 56, SOUL_SAND: 57, SOUL_SOIL: 58, QUARTZ_ORE: 59, NETHER_GOLD_ORE: 60, ANCIENT_DEBRIS: 61,
+  MAGMA: 62, NETHER_BRICKS: 63, BASALT: 64, BLACKSTONE: 65, CRIMSON_NYLIUM: 66, WARPED_NYLIUM: 67,
+  CRIMSON_STEM: 68, WARPED_STEM: 69, NETHER_WART_BLOCK: 70, WARPED_WART_BLOCK: 71, SHROOMLIGHT: 72,
+  CRIMSON_FUNGUS: 73, WARPED_FUNGUS: 74, CRIMSON_PLANKS: 75, WARPED_PLANKS: 76, NETHER_PORTAL: 77,
+  NETHERITE_BLOCK: 78, QUARTZ_BLOCK: 79, END_STONE: 80, END_STONE_BRICKS: 81, PURPUR: 82, PURPUR_PILLAR: 83,
+  END_FRAME: 84, END_FRAME_EYE: 85, END_PORTAL: 86, DRAGON_EGG: 87, CHORUS_PLANT: 88, CHORUS_FLOWER: 89,
+  CRYING_OBSIDIAN: 90, IRON_BLOCK: 91, GOLD_BLOCK: 92, DIAMOND_BLOCK: 93, EMERALD_BLOCK: 94, COAL_BLOCK: 95,
+  REDSTONE_BLOCK: 96, LAPIS_ORE: 97, LAPIS_BLOCK: 98, CHEST: 99, END_ROD: 100,
 };
 
 // Render tipleri
@@ -128,8 +136,8 @@ function leavesTex(d, rng, c) {
   }
 }
 
-function oreTex(d, rng, col, hi) {
-  copyTex(d, 'stone');
+function oreTex(d, rng, col, hi, base = 'stone') {
+  copyTex(d, base);
   const n = 4 + Math.floor(rng() * 2);
   for (let i = 0; i < n; i++) {
     const cx = 2 + Math.floor(rng() * 12), cy = 2 + Math.floor(rng() * 12);
@@ -442,6 +450,7 @@ function buildTextures() {
     px(d, 7, 6, 255, 230, 120); px(d, 8, 6, 255, 200, 80); px(d, 7, 5, 255, 250, 200); px(d, 8, 5, 255, 220, 110);
     px(d, 7, 4, 255, 180, 60);
   });
+  buildTexturesNetherEnd();
   // Kırılma çatlakları (10 aşama)
   const crackRng = mulberry32(1337);
   const path = [];
@@ -466,58 +475,275 @@ function buildTextures() {
   }
 }
 
+function brickTex(d, rng, brick, mortar, bh = 4, bw = 8) {
+  for (let y = 0; y < 16; y++) {
+    const row = Math.floor(y / bh), off = (row % 2) * (bw / 2);
+    for (let x = 0; x < 16; x++) {
+      const isM = (y % bh) === bh - 1 || ((x + off) % bw) === bw - 1;
+      const c = isM ? mortar : brick;
+      const bid = row * 7 + Math.floor((x + off) / bw);
+      const f = (isM ? 1 : 0.9 + ((bid * 37) % 5) * 0.04) * (0.9 + rng() * 0.16);
+      px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+    }
+  }
+}
+function metalBlock(d, rng, c) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let f = 0.96 + rng() * 0.06;
+    if (x === 0 || y === 0) f = 1.22; else if (x === 15 || y === 15) f = 0.7;
+    else if (x === 1 || y === 1) f = 1.08;
+    if ((x + y) % 7 === 0 && x > 2 && y > 2 && x < 13 && y < 13) f *= 1.06;
+    px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+  }
+}
+function crossFungus(d, rng, cap, stem, dots) {
+  for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+  for (let y = 9; y < 16; y++) { px(d, 7, y, stem[0], stem[1], stem[2]); px(d, 8, y, stem[0] * 0.8, stem[1] * 0.8, stem[2] * 0.8); }
+  for (let y = 4; y < 9; y++) {
+    const w = y === 4 ? 2 : y < 7 ? 4 : 5;
+    for (let x = 8 - w; x < 8 + w; x++) { const f = 0.85 + rng() * 0.3; px(d, x, y, cap[0] * f, cap[1] * f, cap[2] * f); }
+  }
+  for (let i = 0; i < 4; i++) px(d, 4 + Math.floor(rng() * 8), 5 + Math.floor(rng() * 3), dots[0], dots[1], dots[2]);
+}
+
+function buildTexturesNetherEnd() {
+  makeTex('netherrack', (d, r) => {
+    noiseFill(d, r, [112, 42, 42], 0.32);
+    for (let i = 0; i < 30; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), r() < 0.6 ? 0.72 : 1.2);
+  });
+  makeTex('soul_sand', (d, r) => {
+    noiseFill(d, r, [84, 64, 51], 0.25);
+    for (let k = 0; k < 4; k++) {
+      const cx = 2 + Math.floor(r() * 11), cy = 2 + Math.floor(r() * 11);
+      px(d, cx, cy, 45, 32, 25); px(d, cx + 2, cy, 45, 32, 25); px(d, cx + 1, cy + 2, 40, 28, 22); px(d, cx, cy + 2, 55, 40, 30);
+    }
+  });
+  makeTex('soul_soil', (d, r) => {
+    noiseFill(d, r, [76, 58, 47], 0.3);
+    for (let i = 0; i < 20; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), 0.7);
+  });
+  makeTex('quartz_ore', (d, r) => oreTex(d, r, [230, 222, 214], [255, 255, 255], 'netherrack'));
+  makeTex('nether_gold_ore', (d, r) => oreTex(d, r, [250, 200, 50], [255, 240, 140], 'netherrack'));
+  makeTex('debris_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const w = Math.sin((x + Math.sin(y * 0.8) * 2) * 1.1) * 0.5 + 0.5;
+      const f = (0.75 + w * 0.35) * (0.9 + r() * 0.15);
+      px(d, x, y, 98 * f, 72 * f, 66 * f);
+    }
+    for (let i = 0; i < 16; i++) { mulPx(d, i, 0, 0.7); mulPx(d, i, 15, 0.7); }
+  });
+  makeTex('debris_top', (d, r) => logTop(d, r, [80, 60, 56], [120, 90, 80]));
+  makeTex('magma', (d, r) => {
+    noiseFill(d, r, [60, 20, 10], 0.4);
+    for (let i = 0; i < 5; i++) {
+      let x = Math.floor(r() * 16), y = Math.floor(r() * 16);
+      for (let k = 0; k < 6; k++) { px(d, x, y, 255, 120 + r() * 60, 20); x = (x + (r() < 0.5 ? 1 : 0)) & 15; y = (y + (r() < 0.5 ? 1 : -1)) & 15; }
+    }
+  });
+  makeTex('nether_bricks', (d, r) => brickTex(d, r, [58, 28, 34], [28, 14, 17], 4, 8));
+  makeTex('basalt_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = (x % 4 === 0 ? 0.75 : 1) * (0.88 + r() * 0.2);
+      px(d, x, y, 76 * f, 76 * f, 82 * f);
+    }
+  });
+  makeTex('basalt_top', (d, r) => logTop(d, r, [60, 60, 66], [88, 88, 94]));
+  makeTex('blackstone', (d, r) => {
+    noiseFill(d, r, [42, 36, 44], 0.35);
+    for (let i = 0; i < 16; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), 1.4);
+  });
+  makeTex('crimson_nylium', (d, r) => noiseFill(d, r, [140, 24, 26], 0.35));
+  makeTex('crimson_nylium_side', (d, r) => {
+    copyTex(d, 'netherrack');
+    for (let x = 0; x < 16; x++) { const h = 3 + Math.floor(r() * 3); for (let y = 0; y < h; y++) { const f = 0.8 + r() * 0.4; px(d, x, y, 140 * f, 24 * f, 26 * f); } }
+  });
+  makeTex('warped_nylium', (d, r) => noiseFill(d, r, [40, 120, 110], 0.32));
+  makeTex('warped_nylium_side', (d, r) => {
+    copyTex(d, 'netherrack');
+    for (let x = 0; x < 16; x++) { const h = 3 + Math.floor(r() * 3); for (let y = 0; y < h; y++) { const f = 0.8 + r() * 0.4; px(d, x, y, 40 * f, 120 * f, 110 * f); } }
+  });
+  makeTex('crimson_stem', (d, r) => logSide(d, r, [112, 42, 62], [160, 70, 90]));
+  makeTex('crimson_stem_top', (d, r) => logTop(d, r, [112, 42, 62], [150, 60, 70]));
+  makeTex('warped_stem', (d, r) => logSide(d, r, [56, 90, 98], [40, 170, 150]));
+  makeTex('warped_stem_top', (d, r) => logTop(d, r, [56, 90, 98], [60, 140, 130]));
+  makeTex('nether_wart_block', (d, r) => noiseFill(d, r, [120, 12, 12], 0.45));
+  makeTex('warped_wart_block', (d, r) => noiseFill(d, r, [22, 130, 120], 0.4));
+  makeTex('shroomlight', (d, r) => {
+    noiseFill(d, r, [238, 146, 72], 0.2);
+    for (let i = 0; i < 14; i++) { const x = Math.floor(r() * 15), y = Math.floor(r() * 15); px(d, x, y, 255, 230, 140); px(d, x + 1, y, 255, 210, 120); }
+  });
+  makeTex('crimson_fungus', (d, r) => crossFungus(d, r, [170, 30, 30], [220, 160, 120], [255, 160, 60]));
+  makeTex('warped_fungus', (d, r) => crossFungus(d, r, [30, 150, 130], [220, 160, 120], [255, 140, 40]));
+  makeTex('crimson_planks', (d, r) => planksTex(d, r, [106, 52, 74]));
+  makeTex('warped_planks', (d, r) => planksTex(d, r, [44, 106, 100]));
+  makeTex('nether_portal', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const w = Math.sin(x * 0.9 + Math.sin(y * 0.6) * 3) * 0.5 + 0.5;
+      const f = 0.7 + w * 0.5 + r() * 0.1;
+      px(d, x, y, 110 * f, 30 * f, 200 * f, 190);
+    }
+  });
+  makeTex('netherite_block', (d, r) => {
+    metalBlock(d, r, [66, 60, 63]);
+    for (let i = 3; i < 13; i++) { mulPx(d, i, 5, 1.25); mulPx(d, i, 10, 0.8); }
+  });
+  makeTex('quartz_block', (d, r) => noiseFill(d, r, [236, 230, 222], 0.05));
+  makeTex('end_stone', (d, r) => {
+    noiseFill(d, r, [221, 223, 160], 0.12);
+    for (let i = 0; i < 12; i++) { const x = Math.floor(r() * 15), y = Math.floor(r() * 15); mulPx(d, x, y, 0.8); mulPx(d, x + 1, y, 0.85); }
+  });
+  makeTex('end_stone_bricks', (d, r) => brickTex(d, r, [224, 226, 164], [170, 170, 120], 8, 16));
+  makeTex('purpur', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = 0.92 + r() * 0.1;
+      if (x % 8 === 0 || y % 8 === 0) f = 1.12; else if (x % 8 === 7 || y % 8 === 7) f = 0.78;
+      px(d, x, y, 170 * f, 124 * f, 170 * f);
+    }
+  });
+  makeTex('purpur_pillar', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = (x % 4 === 0 ? 0.82 : x % 4 === 1 ? 1.1 : 1) * (0.94 + r() * 0.08);
+      px(d, x, y, 172 * f, 126 * f, 172 * f);
+    }
+  });
+  makeTex('purpur_pillar_top', (d, r) => logTop(d, r, [150, 105, 150], [175, 130, 175]));
+  makeTex('end_frame_side', (d, r) => {
+    noiseFill(d, r, [62, 92, 82], 0.25);
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { const f = 0.9 + r() * 0.15; px(d, x, y, 215 * f, 218 * f, 155 * f); }
+  });
+  makeTex('end_frame_top', (d, r) => {
+    noiseFill(d, r, [210, 214, 150], 0.12);
+    for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) px(d, x, y, 40, 70, 62);
+  });
+  makeTex('end_frame_eye', (d, r) => {
+    copyTex(d, 'end_frame_top');
+    for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) {
+      const dd = Math.hypot(x - 7.5, y - 7.5);
+      if (dd < 3.8) px(d, x, y, 40 + (3.8 - dd) * 30, 140 + (3.8 - dd) * 20, 90);
+      if (dd < 1.3) px(d, x, y, 15, 25, 20);
+    }
+  });
+  makeTex('end_portal', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const s = r();
+      if (s > 0.93) { const c = [[120, 200, 190], [80, 120, 220], [200, 230, 255], [120, 90, 200]][Math.floor(r() * 4)]; px(d, x, y, c[0], c[1], c[2]); }
+      else px(d, x, y, 8 + s * 10, 12 + s * 12, 20 + s * 16);
+    }
+  });
+  makeTex('dragon_egg', (d, r) => {
+    noiseFill(d, r, [14, 8, 18], 0.4);
+    for (let i = 0; i < 20; i++) px(d, Math.floor(r() * 16), Math.floor(r() * 16), 70, 30, 90);
+  });
+  makeTex('chorus_plant', (d, r) => {
+    noiseFill(d, r, [94, 60, 94], 0.3);
+    for (let i = 0; i < 10; i++) px(d, Math.floor(r() * 16), Math.floor(r() * 16), 140, 100, 140);
+  });
+  makeTex('chorus_flower', (d, r) => {
+    noiseFill(d, r, [150, 110, 150], 0.2);
+    for (let y = 3; y < 13; y++) for (let x = 3; x < 13; x++) if ((x + y) % 3 === 0) px(d, x, y, 200, 170, 205);
+  });
+  makeTex('crying_obsidian', (d, r) => {
+    copyTex(d, 'obsidian');
+    for (let i = 0; i < 6; i++) {
+      const x = Math.floor(r() * 16); let y = Math.floor(r() * 10);
+      for (let k = 0; k < 4; k++) px(d, x, y + k, 130 + k * 20, 40, 230);
+    }
+  });
+  const METALS = { iron_block: [218, 218, 218], gold_block: [250, 212, 56], diamond_block: [98, 226, 220], emerald_block: [42, 196, 92], coal_block: [26, 26, 28], redstone_block: [176, 18, 10], lapis_block: [32, 64, 168] };
+  for (const k in METALS) makeTex(k, (d, r) => metalBlock(d, r, METALS[k]));
+  makeTex('lapis_ore', (d, r) => oreTex(d, r, [30, 70, 180], [90, 130, 230]));
+  makeTex('chest_side', (d, r) => {
+    planksTex(d, r, [160, 112, 52]);
+    for (let i = 0; i < 16; i++) { px(d, i, 0, 70, 45, 20); px(d, i, 15, 70, 45, 20); px(d, 0, i, 70, 45, 20); px(d, 15, i, 70, 45, 20); px(d, i, 5, 70, 45, 20); }
+  });
+  makeTex('chest_front', (d, r) => {
+    copyTex(d, 'chest_side');
+    for (let y = 4; y < 8; y++) for (let x = 7; x < 9; x++) px(d, x, y, 200, 200, 210);
+    px(d, 7, 7, 60, 60, 60);
+  });
+  makeTex('chest_top', (d, r) => {
+    planksTex(d, r, [168, 118, 56]);
+    for (let i = 0; i < 16; i++) { px(d, i, 0, 70, 45, 20); px(d, i, 15, 70, 45, 20); px(d, 0, i, 70, 45, 20); px(d, 15, i, 70, 45, 20); }
+  });
+  makeTex('end_rod', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 1; y < 14; y++) { px(d, 7, y, 250, 245, 235); px(d, 8, y, 225, 220, 210); }
+    for (let x = 5; x < 11; x++) { px(d, x, 14, 200, 180, 150); px(d, x, 15, 170, 150, 120); }
+  });
+}
+
 // --- Blok tanımları -------------------------------------------------------
 function def(id, name, tex, o = {}) {
   const t = typeof tex === 'string' ? { top: tex, bottom: tex, side: tex } : tex;
   BLOCKS[id] = Object.assign({
     id, name, tex: t, solid: true, opaque: true, render: R_CUBE, pass: 0, liquid: false, filter: 0, emit: 0,
-    hardness: 1, drop: id, cullSame: false, sound: 'stone', creative: true,
+    hardness: 1, drop: id, cullSame: false, sound: 'stone', creative: true, tool: null, tier: 0,
   }, o);
 }
 
+// tool: doğru alet türü (hızlı kazar), tier: düşmesi için gereken en düşük alet seviyesi
+// (1 tahta/altın, 2 taş, 3 demir, 4 elmas). Sertlik değerleri Minecraft ile aynıdır.
 function defineBlocks() {
-  def(B.GRASS, 'Çimen Bloğu', { top: 'grass_top', bottom: 'dirt', side: 'grass_side' }, { hardness: 0.6, drop: B.DIRT, sound: 'grass' });
-  def(B.DIRT, 'Toprak', 'dirt', { hardness: 0.5, sound: 'gravel' });
-  def(B.STONE, 'Taş', 'stone', { hardness: 1.5, drop: B.COBBLE });
-  def(B.COBBLE, 'Kırık Taş', 'cobble', { hardness: 2 });
-  def(B.MOSSY_COBBLE, 'Yosunlu Kırık Taş', 'mossy_cobble', { hardness: 2 });
-  def(B.STONE_BRICKS, 'Taş Tuğla', 'stone_bricks', { hardness: 1.5 });
-  def(B.BRICKS, 'Tuğla', 'bricks', { hardness: 2 });
-  def(B.PLANKS, 'Meşe Kalası', 'planks', { hardness: 1, sound: 'wood' });
-  def(B.BIRCH_PLANKS, 'Huş Kalası', 'birch_planks', { hardness: 1, sound: 'wood' });
-  def(B.SPRUCE_PLANKS, 'Ladin Kalası', 'spruce_planks', { hardness: 1, sound: 'wood' });
-  def(B.LOG, 'Meşe Kütüğü', { top: 'log_top', bottom: 'log_top', side: 'log_side' }, { hardness: 1.4, sound: 'wood' });
-  def(B.BIRCH_LOG, 'Huş Kütüğü', { top: 'birch_top', bottom: 'birch_top', side: 'birch_side' }, { hardness: 1.4, sound: 'wood' });
-  def(B.SPRUCE_LOG, 'Ladin Kütüğü', { top: 'spruce_top', bottom: 'spruce_top', side: 'spruce_side' }, { hardness: 1.4, sound: 'wood' });
+  const P = (tier, o = {}) => Object.assign({ tool: 'pick', tier }, o);
+  const AX = (o = {}) => Object.assign({ tool: 'axe', sound: 'wood' }, o);
+  const SH = (o = {}) => Object.assign({ tool: 'shovel' }, o);
+  def(B.GRASS, 'Çimen Bloğu', { top: 'grass_top', bottom: 'dirt', side: 'grass_side' }, SH({ hardness: 0.6, drop: B.DIRT, sound: 'grass' }));
+  def(B.DIRT, 'Toprak', 'dirt', SH({ hardness: 0.5, sound: 'gravel' }));
+  def(B.STONE, 'Taş', 'stone', P(1, { hardness: 1.5, drop: B.COBBLE }));
+  def(B.COBBLE, 'Kırık Taş', 'cobble', P(1, { hardness: 2 }));
+  def(B.MOSSY_COBBLE, 'Yosunlu Kırık Taş', 'mossy_cobble', P(1, { hardness: 2 }));
+  def(B.STONE_BRICKS, 'Taş Tuğla', 'stone_bricks', P(1, { hardness: 1.5 }));
+  def(B.BRICKS, 'Tuğla', 'bricks', P(1, { hardness: 2 }));
+  def(B.PLANKS, 'Meşe Kalası', 'planks', AX({ hardness: 2 }));
+  def(B.BIRCH_PLANKS, 'Huş Kalası', 'birch_planks', AX({ hardness: 2 }));
+  def(B.SPRUCE_PLANKS, 'Ladin Kalası', 'spruce_planks', AX({ hardness: 2 }));
+  def(B.CRIMSON_PLANKS, 'Kızıl Kalas', 'crimson_planks', AX({ hardness: 2 }));
+  def(B.WARPED_PLANKS, 'Çarpık Kalas', 'warped_planks', AX({ hardness: 2 }));
+  def(B.LOG, 'Meşe Kütüğü', { top: 'log_top', bottom: 'log_top', side: 'log_side' }, AX({ hardness: 2 }));
+  def(B.BIRCH_LOG, 'Huş Kütüğü', { top: 'birch_top', bottom: 'birch_top', side: 'birch_side' }, AX({ hardness: 2 }));
+  def(B.SPRUCE_LOG, 'Ladin Kütüğü', { top: 'spruce_top', bottom: 'spruce_top', side: 'spruce_side' }, AX({ hardness: 2 }));
+  def(B.CRIMSON_STEM, 'Kızıl Gövde', { top: 'crimson_stem_top', bottom: 'crimson_stem_top', side: 'crimson_stem' }, AX({ hardness: 2 }));
+  def(B.WARPED_STEM, 'Çarpık Gövde', { top: 'warped_stem_top', bottom: 'warped_stem_top', side: 'warped_stem' }, AX({ hardness: 2 }));
   const leaf = { opaque: false, filter: 1, cullSame: true, hardness: 0.2, drop: 0, sound: 'grass' };
   def(B.LEAVES, 'Meşe Yaprağı', 'leaves', leaf);
   def(B.BIRCH_LEAVES, 'Huş Yaprağı', 'birch_leaves', leaf);
   def(B.SPRUCE_LEAVES, 'Ladin Yaprağı', 'spruce_leaves', leaf);
-  def(B.SAND, 'Kum', 'sand', { hardness: 0.5, sound: 'sand' });
-  def(B.SANDSTONE, 'Kumtaşı', { top: 'sandstone_top', bottom: 'sandstone_top', side: 'sandstone_side' }, { hardness: 0.8 });
-  def(B.GRAVEL, 'Çakıl', 'gravel', { hardness: 0.6, sound: 'gravel' });
-  def(B.SNOW, 'Kar Bloğu', 'snow', { hardness: 0.3, sound: 'snow' });
-  def(B.SNOWY_GRASS, 'Karlı Çimen', { top: 'snow', bottom: 'dirt', side: 'snowy_grass_side' }, { hardness: 0.6, drop: B.DIRT, sound: 'snow' });
-  def(B.ICE, 'Buz', 'ice', { opaque: false, pass: 1, cullSame: true, hardness: 0.5, drop: 0, sound: 'glass' });
-  def(B.WATER, 'Su', 'water', { solid: false, opaque: false, render: R_LIQUID, pass: 1, liquid: true, filter: 2, cullSame: true, hardness: -1, drop: 0, creative: true, sound: 'water' });
+  def(B.SAND, 'Kum', 'sand', SH({ hardness: 0.5, sound: 'sand' }));
+  def(B.SANDSTONE, 'Kumtaşı', { top: 'sandstone_top', bottom: 'sandstone_top', side: 'sandstone_side' }, P(1, { hardness: 0.8 }));
+  def(B.GRAVEL, 'Çakıl', 'gravel', SH({ hardness: 0.6, sound: 'gravel' }));
+  def(B.SNOW, 'Kar Bloğu', 'snow', SH({ hardness: 0.2, sound: 'snow' }));
+  def(B.SNOWY_GRASS, 'Karlı Çimen', { top: 'snow', bottom: 'dirt', side: 'snowy_grass_side' }, SH({ hardness: 0.6, drop: B.DIRT, sound: 'snow' }));
+  def(B.ICE, 'Buz', 'ice', { opaque: false, pass: 1, cullSame: true, hardness: 0.5, drop: 0, sound: 'glass', tool: 'pick' });
+  def(B.WATER, 'Su', 'water', { solid: false, opaque: false, render: R_LIQUID, pass: 1, liquid: true, filter: 2, cullSame: true, hardness: -1, drop: 0, sound: 'water' });
   def(B.LAVA, 'Lav', 'lava', { solid: false, opaque: false, render: R_LIQUID, liquid: true, emit: 15, cullSame: true, hardness: -1, drop: 0, sound: 'water' });
   def(B.GLASS, 'Cam', 'glass', { opaque: false, cullSame: true, hardness: 0.3, drop: 0, sound: 'glass' });
   def(B.BEDROCK, 'Ana Kaya', 'bedrock', { hardness: -1 });
-  def(B.OBSIDIAN, 'Obsidyen', 'obsidian', { hardness: 12 });
-  def(B.COAL, 'Kömür Cevheri', 'coal_ore', { hardness: 2.2 });
-  def(B.IRON, 'Demir Cevheri', 'iron_ore', { hardness: 2.6 });
-  def(B.GOLD, 'Altın Cevheri', 'gold_ore', { hardness: 2.8 });
-  def(B.REDSTONE, 'Kızıltaş Cevheri', 'redstone_ore', { hardness: 2.8 });
-  def(B.DIAMOND, 'Elmas Cevheri', 'diamond_ore', { hardness: 3.2 });
-  def(B.EMERALD, 'Zümrüt Cevheri', 'emerald_ore', { hardness: 3.2 });
-  def(B.GLOWSTONE, 'Işıktaşı', 'glowstone', { emit: 15, hardness: 0.4, sound: 'glass' });
-  def(B.BOOKSHELF, 'Kitaplık', { top: 'planks', bottom: 'planks', side: 'bookshelf' }, { hardness: 1.2, sound: 'wood' });
-  def(B.CRAFTING, 'Çalışma Masası', { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' }, { hardness: 1.4, sound: 'wood' });
-  def(B.FURNACE, 'Fırın', { top: 'furnace_top', bottom: 'furnace_top', side: 'furnace_side', front: 'furnace_front' }, { hardness: 2 });
+  def(B.OBSIDIAN, 'Obsidyen', 'obsidian', P(4, { hardness: 50 }));
+  def(B.CRYING_OBSIDIAN, 'Ağlayan Obsidyen', 'crying_obsidian', P(4, { hardness: 50, emit: 10 }));
+  def(B.COAL, 'Kömür Cevheri', 'coal_ore', P(1, { hardness: 3 }));
+  def(B.IRON, 'Demir Cevheri', 'iron_ore', P(2, { hardness: 3 }));
+  def(B.LAPIS_ORE, 'Lapis Lazuli Cevheri', 'lapis_ore', P(2, { hardness: 3 }));
+  def(B.GOLD, 'Altın Cevheri', 'gold_ore', P(3, { hardness: 3 }));
+  def(B.REDSTONE, 'Kızıltaş Cevheri', 'redstone_ore', P(3, { hardness: 3 }));
+  def(B.DIAMOND, 'Elmas Cevheri', 'diamond_ore', P(3, { hardness: 3 }));
+  def(B.EMERALD, 'Zümrüt Cevheri', 'emerald_ore', P(3, { hardness: 3 }));
+  def(B.COAL_BLOCK, 'Kömür Bloğu', 'coal_block', P(1, { hardness: 5 }));
+  def(B.IRON_BLOCK, 'Demir Bloğu', 'iron_block', P(2, { hardness: 5 }));
+  def(B.LAPIS_BLOCK, 'Lapis Lazuli Bloğu', 'lapis_block', P(2, { hardness: 3 }));
+  def(B.GOLD_BLOCK, 'Altın Bloğu', 'gold_block', P(3, { hardness: 3 }));
+  def(B.REDSTONE_BLOCK, 'Kızıltaş Bloğu', 'redstone_block', P(1, { hardness: 5, emit: 7 }));
+  def(B.DIAMOND_BLOCK, 'Elmas Bloğu', 'diamond_block', P(3, { hardness: 5 }));
+  def(B.EMERALD_BLOCK, 'Zümrüt Bloğu', 'emerald_block', P(3, { hardness: 5 }));
+  def(B.NETHERITE_BLOCK, 'Netherit Bloğu', 'netherite_block', P(4, { hardness: 50 }));
+  def(B.GLOWSTONE, 'Işıktaşı', 'glowstone', { emit: 15, hardness: 0.3, sound: 'glass' });
+  def(B.BOOKSHELF, 'Kitaplık', { top: 'planks', bottom: 'planks', side: 'bookshelf' }, AX({ hardness: 1.5 }));
+  def(B.CRAFTING, 'Çalışma Masası', { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' }, AX({ hardness: 2.5 }));
+  def(B.FURNACE, 'Fırın', { top: 'furnace_top', bottom: 'furnace_top', side: 'furnace_side', front: 'furnace_front' }, P(1, { hardness: 3.5 }));
+  def(B.CHEST, 'Sandık', { top: 'chest_top', bottom: 'chest_top', side: 'chest_side', front: 'chest_front' }, AX({ hardness: 2.5 }));
   def(B.TNT, 'TNT', { top: 'tnt_top', bottom: 'tnt_top', side: 'tnt_side' }, { hardness: 0, sound: 'grass' });
-  def(B.PUMPKIN, 'Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face' }, { hardness: 1, sound: 'wood' });
-  def(B.JACK, 'Fener Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_face' }, { hardness: 1, emit: 15, sound: 'wood' });
-  def(B.CACTUS, 'Kaktüs', { top: 'cactus_top', bottom: 'cactus_top', side: 'cactus_side' }, { opaque: false, hardness: 0.4, sound: 'grass' });
+  def(B.PUMPKIN, 'Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face' }, AX({ hardness: 1 }));
+  def(B.JACK, 'Fener Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_face' }, AX({ hardness: 1, emit: 15 }));
+  def(B.CACTUS, 'Kaktüs', { top: 'cactus_top', bottom: 'cactus_top', side: 'cactus_side' }, { opaque: false, hardness: 0.4, sound: 'cloth' });
   const plant = { solid: false, opaque: false, render: R_CROSS, hardness: 0, sound: 'grass' };
   def(B.POPPY, 'Gelincik', 'poppy', plant);
   def(B.DANDELION, 'Karahindiba', 'dandelion', plant);
@@ -525,8 +751,42 @@ function defineBlocks() {
   def(B.TALL_GRASS, 'Uzun Çimen', 'tall_grass', Object.assign({}, plant, { drop: 0 }));
   def(B.DEAD_BUSH, 'Kuru Çalı', 'dead_bush', Object.assign({}, plant, { drop: 0 }));
   def(B.TORCH, 'Meşale', 'torch', Object.assign({}, plant, { emit: 14, sound: 'wood' }));
+  def(B.END_ROD, 'End Çubuğu', 'end_rod', Object.assign({}, plant, { emit: 14, sound: 'glass' }));
+  def(B.CRIMSON_FUNGUS, 'Kızıl Mantar', 'crimson_fungus', plant);
+  def(B.WARPED_FUNGUS, 'Çarpık Mantar', 'warped_fungus', plant);
   const WN = { WHITE: 'Beyaz', RED: 'Kırmızı', ORANGE: 'Turuncu', YELLOW: 'Sarı', LIME: 'Açık Yeşil', BLUE: 'Mavi', PURPLE: 'Mor', BLACK: 'Siyah' };
-  for (const k in WN) def(B['WOOL_' + k], WN[k] + ' Yün', 'wool_' + k.toLowerCase(), { hardness: 0.6, sound: 'cloth' });
+  for (const k in WN) def(B['WOOL_' + k], WN[k] + ' Yün', 'wool_' + k.toLowerCase(), { hardness: 0.8, sound: 'cloth' });
+
+  // Nether
+  def(B.NETHERRACK, 'Nether Taşı', 'netherrack', P(1, { hardness: 0.4 }));
+  def(B.SOUL_SAND, 'Ruh Kumu', 'soul_sand', SH({ hardness: 0.5, sound: 'sand' }));
+  def(B.SOUL_SOIL, 'Ruh Toprağı', 'soul_soil', SH({ hardness: 0.5, sound: 'sand' }));
+  def(B.QUARTZ_ORE, 'Nether Kuvars Cevheri', 'quartz_ore', P(1, { hardness: 3 }));
+  def(B.NETHER_GOLD_ORE, 'Nether Altın Cevheri', 'nether_gold_ore', P(1, { hardness: 3 }));
+  def(B.ANCIENT_DEBRIS, 'Kadim Kalıntı', { top: 'debris_top', bottom: 'debris_top', side: 'debris_side' }, P(4, { hardness: 30 }));
+  def(B.MAGMA, 'Magma Bloğu', 'magma', P(1, { hardness: 0.5, emit: 3 }));
+  def(B.NETHER_BRICKS, 'Nether Tuğlası', 'nether_bricks', P(1, { hardness: 2 }));
+  def(B.BASALT, 'Bazalt', { top: 'basalt_top', bottom: 'basalt_top', side: 'basalt_side' }, P(1, { hardness: 1.25 }));
+  def(B.BLACKSTONE, 'Karataş', 'blackstone', P(1, { hardness: 1.5 }));
+  def(B.CRIMSON_NYLIUM, 'Kızıl Nilyum', { top: 'crimson_nylium', bottom: 'netherrack', side: 'crimson_nylium_side' }, P(1, { hardness: 0.4, drop: B.NETHERRACK }));
+  def(B.WARPED_NYLIUM, 'Çarpık Nilyum', { top: 'warped_nylium', bottom: 'netherrack', side: 'warped_nylium_side' }, P(1, { hardness: 0.4, drop: B.NETHERRACK }));
+  def(B.NETHER_WART_BLOCK, 'Nether Siğili Bloğu', 'nether_wart_block', { hardness: 1, sound: 'grass' });
+  def(B.WARPED_WART_BLOCK, 'Çarpık Siğil Bloğu', 'warped_wart_block', { hardness: 1, sound: 'grass' });
+  def(B.SHROOMLIGHT, 'Mantar Işığı', 'shroomlight', { hardness: 1, emit: 15, sound: 'grass' });
+  def(B.QUARTZ_BLOCK, 'Kuvars Bloğu', 'quartz_block', P(1, { hardness: 0.8 }));
+  def(B.NETHER_PORTAL, 'Nether Geçidi', 'nether_portal', { solid: false, opaque: false, pass: 1, cullSame: true, emit: 11, hardness: 0, drop: 0, sound: 'glass', creative: false });
+
+  // End
+  def(B.END_STONE, 'End Taşı', 'end_stone', P(1, { hardness: 3 }));
+  def(B.END_STONE_BRICKS, 'End Taşı Tuğlası', 'end_stone_bricks', P(1, { hardness: 3 }));
+  def(B.PURPUR, 'Purpur Bloğu', 'purpur', P(1, { hardness: 1.5 }));
+  def(B.PURPUR_PILLAR, 'Purpur Sütunu', { top: 'purpur_pillar_top', bottom: 'purpur_pillar_top', side: 'purpur_pillar' }, P(1, { hardness: 1.5 }));
+  def(B.END_FRAME, 'End Geçidi Çerçevesi', { top: 'end_frame_top', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3 }));
+  def(B.END_FRAME_EYE, 'Gözlü End Çerçevesi', { top: 'end_frame_eye', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3, emit: 1, drop: B.END_FRAME, creative: false }));
+  def(B.END_PORTAL, 'End Geçidi', 'end_portal', { solid: false, opaque: false, render: R_LIQUID, emit: 15, cullSame: true, hardness: -1, drop: 0, creative: false });
+  def(B.DRAGON_EGG, 'Ejderha Yumurtası', 'dragon_egg', { hardness: 3, emit: 1 });
+  def(B.CHORUS_PLANT, 'Koro Bitkisi', 'chorus_plant', AX({ hardness: 0.4, opaque: false, drop: 0 }));
+  def(B.CHORUS_FLOWER, 'Koro Çiçeği', 'chorus_flower', AX({ hardness: 0.4, opaque: false }));
 
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 
@@ -551,16 +811,6 @@ function defineBlocks() {
     }
   }
 }
-
-// Envanter/yaratıcı mod sırası
-const CREATIVE_ORDER = [
-  B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.MOSSY_COBBLE, B.STONE_BRICKS, B.BRICKS, B.SAND, B.SANDSTONE, B.GRAVEL,
-  B.PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS, B.LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES,
-  B.GLASS, B.ICE, B.SNOW, B.SNOWY_GRASS, B.OBSIDIAN, B.BEDROCK, B.COAL, B.IRON, B.GOLD, B.REDSTONE, B.DIAMOND, B.EMERALD,
-  B.GLOWSTONE, B.TORCH, B.JACK, B.PUMPKIN, B.BOOKSHELF, B.CRAFTING, B.FURNACE, B.TNT, B.CACTUS,
-  B.POPPY, B.DANDELION, B.BLUE_FLOWER, B.TALL_GRASS, B.DEAD_BUSH, B.WATER, B.LAVA,
-  B.WOOL_WHITE, B.WOOL_RED, B.WOOL_ORANGE, B.WOOL_YELLOW, B.WOOL_LIME, B.WOOL_BLUE, B.WOOL_PURPLE, B.WOOL_BLACK,
-];
 
 // --- Arayüz için izometrik blok ikonları ---------------------------------
 const ICONS = [];
@@ -611,5 +861,10 @@ function buildIcons() {
 function initBlocks() {
   buildTextures();
   defineBlocks();
+  defineItems();
+  if (texLayers.length > 255) throw new Error('Doku katmanı sınırı aşıldı: ' + texLayers.length);
   buildIcons();
+  buildItemIcons();
+  defineRecipes();
+  defineCreativeTabs();
 }

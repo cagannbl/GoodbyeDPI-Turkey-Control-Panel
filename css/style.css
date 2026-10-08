@@ -143,32 +143,65 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 .panel .big { font-size: 34px; color: #3a3a3a; }
 .panel .hint { color: #555; }
 
-/* ---------- Envanter ---------- */
-.invWrap { display: flex; gap: 10px; align-items: flex-start; max-width: 98vw; max-height: 96vh; }
-.inv { display: flex; flex-direction: column; gap: 4px; max-height: 94vh; }
-.invTitle { font-size: 24px; color: #404040; }
-.invTitle.sub { margin-top: 6px; }
-.grid { display: grid; grid-template-columns: repeat(9, 44px); gap: 0; }
-#invGrid { overflow-y: auto; max-height: 52vh; padding-right: 2px; }
+/* ---------- Envanter (Minecraft düzeni) ---------- */
+:root { --sl: 40px; }
+.invWrap { display: flex; gap: 8px; align-items: flex-start; max-width: 98vw; max-height: 96vh; }
+.panel.mc { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; border-radius: 4px; max-height: 96vh; overflow-y: auto; }
+.invTitle { font-size: 24px; color: #404040; line-height: 1; margin: 2px 0; }
+.grid { display: grid; grid-template-columns: repeat(9, var(--sl)); }
+.grid.hb { margin-top: 8px; }
+.grid.hb.withTrash { grid-template-columns: repeat(9, var(--sl)) var(--sl); column-gap: 0; }
+.grid.g2 { grid-template-columns: repeat(2, var(--sl)); }
+.grid.g3 { grid-template-columns: repeat(3, var(--sl)); }
+.grid.pal { max-height: calc(var(--sl) * 5); overflow-y: auto; margin-bottom: 6px; }
 .slot {
-  width: 44px; height: 44px; position: relative; background: var(--slot); cursor: pointer;
-  border: 2px solid; border-color: #373737 #fff #fff #373737;
+  width: var(--sl); height: var(--sl); position: relative; background: #8b8b8b; cursor: pointer;
+  border: 2px solid; border-color: #373737 #fff #fff #373737; touch-action: none;
 }
-.slot:hover { background: #a9a9a9; }
-.slot img { width: 32px; height: 32px; }
-#invSearch { width: 100%; font-family: var(--font); font-size: 22px; padding: 2px 6px; border: 2px solid #555; background: #000; color: #fff; margin-bottom: 4px; }
-.recipes { width: 270px; max-height: 80vh; overflow-y: auto; }
-.recipe { display: flex; align-items: center; gap: 4px; padding: 4px; border: 2px solid transparent; cursor: pointer; font-size: 19px; color: #444; }
-.recipe img { width: 28px; height: 28px; image-rendering: pixelated; }
-.recipe .rin { display: flex; align-items: center; gap: 2px; }
-.recipe .rc { font-size: 18px; margin-right: 4px; }
-.recipe.ok:hover { border-color: #fff; background: #b0b0b0; }
-.recipe.no { opacity: 0.4; cursor: default; }
-.recipe .arrow { font-size: 22px; margin: 0 4px; }
+.slot:hover { background: #a6a6a6; }
+.slot.big { width: calc(var(--sl) + 12px); height: calc(var(--sl) + 12px); }
+.slot img { width: calc(var(--sl) - 8px); height: calc(var(--sl) - 8px); position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); image-rendering: pixelated; pointer-events: none; }
+.slot .cnt, .hslot .cnt { position: absolute; right: 1px; bottom: -3px; font-size: 21px; color: #fff; text-shadow: 2px 2px 0 #3f3f3f; pointer-events: none; }
+.slot.dragsel { background: #c0c0c0; }
+.slot.trash { color: #7a1a1a; font-size: 26px; display: flex; align-items: center; justify-content: center; margin-left: 6px; }
+.dur { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; background: #000; pointer-events: none; }
+.dur i { display: block; height: 2px; }
+.ptop { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 6px; position: relative; }
+.steve { width: 84px; height: 116px; background: #000; border: 2px solid; border-color: #373737 #fff #fff #373737; display: flex; align-items: center; justify-content: center; }
+.steve img { height: 104px; image-rendering: pixelated; }
+.craftArea { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.crow { display: flex; align-items: center; gap: 12px; }
+.crow.c3 { margin: 4px 0 8px 10px; }
+.arrow { width: 34px; height: 24px; position: relative; background: linear-gradient(#8b8b8b, #8b8b8b) 0 8px / 22px 8px no-repeat; }
+.arrow::after { content: ''; position: absolute; right: 0; top: 0; border: 12px solid transparent; border-left: 12px solid #8b8b8b; border-right: 0; }
+.arrow.prog i { position: absolute; left: 0; top: 8px; height: 8px; background: #fff; max-width: 22px; }
+.furn { margin: 4px 0 8px 30px; gap: 18px; }
+.fcol { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.flame { width: 18px; height: 18px; background: #8b8b8b; position: relative; clip-path: polygon(50% 0, 85% 45%, 100% 100%, 0 100%, 15% 45%); }
+.flame i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(#ffe066, #ff6a00); }
+.bookBtn { width: 40px; height: 36px; padding: 0; background: #8b8b8b; border: 2px solid; border-color: #fff #373737 #373737 #fff; cursor: pointer; align-self: center; }
+.ptop .bookBtn { position: absolute; right: 0; bottom: 0; }
+.bookBtn img { width: 28px; height: 28px; image-rendering: pixelated; }
+.ctabs { display: flex; gap: 3px; margin-bottom: 6px; flex-wrap: wrap; }
+.ctab { width: 46px; height: 42px; background: #a8a8a8; border: 2px solid; border-color: #fff #555 #555 #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ctab.on { background: #c6c6c6; border-color: #fff #555 #c6c6c6 #fff; transform: translateY(2px); }
+.ctab img { width: 30px; height: 30px; image-rendering: pixelated; pointer-events: none; }
+#invSearch, #bookSearch { width: 100%; font-family: var(--font); font-size: 22px; padding: 2px 6px; border: 2px solid #555; background: #000; color: #fff; margin-bottom: 4px; }
+.panel.book { width: 252px; max-height: 92vh; display: flex; flex-direction: column; gap: 4px; }
+.bookOk { font-size: 18px; color: #444; display: flex; gap: 6px; align-items: center; }
+.bookGrid { display: grid; grid-template-columns: repeat(5, 40px); gap: 2px; overflow-y: auto; max-height: 70vh; }
+.rbook { width: 40px; height: 40px; position: relative; background: #8b8b8b; border: 2px solid; border-color: #fff #373737 #373737 #fff; cursor: pointer; }
+.rbook img { width: 30px; height: 30px; position: absolute; left: 3px; top: 3px; image-rendering: pixelated; pointer-events: none; }
+.rbook.no { background: #b06060; }
+.rbook .cnt { position: absolute; right: 1px; bottom: -3px; font-size: 18px; color: #fff; text-shadow: 2px 2px 0 #333; }
 #cursorItem { position: fixed; width: 40px; height: 40px; pointer-events: none; z-index: 30; transform: translate(-50%, -50%); }
 #cursorItem img { width: 36px; height: 36px; image-rendering: pixelated; }
-#cursorItem .cnt { right: -2px; bottom: -6px; color: #fff; }
-#tooltip { position: fixed; pointer-events: none; z-index: 31; background: #100010; color: #fff; border: 2px solid #2b0a5e; padding: 2px 8px; font-size: 20px; display: none; }
+#cursorItem .cnt { position: absolute; right: -2px; bottom: -6px; color: #fff; font-size: 21px; text-shadow: 2px 2px 0 #3f3f3f; }
+#cursorItem .dur { left: 4px; right: 4px; bottom: 0; }
+#tooltip { position: fixed; pointer-events: none; z-index: 31; background: rgba(16, 0, 16, 0.94); color: #fff; border: 2px solid #2b0a5e; padding: 3px 8px; font-size: 20px; display: none; line-height: 1.05; max-width: 320px; }
+#tooltip .tt2 { color: #a8a8a8; font-size: 18px; }
+.hslot .dur { left: 5px; right: 5px; bottom: 4px; }
+#portalOverlay { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, rgba(140, 40, 220, 0.35), rgba(90, 10, 160, 0.9)); pointer-events: none; }
 
 /* ---------- Dokunmatik ---------- */
 #touch { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
@@ -184,10 +217,9 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 @media (max-width: 720px) {
   .hslot { width: 38px; height: 38px; }
   .hslot img { width: 28px; height: 28px; }
-  .grid { grid-template-columns: repeat(9, 34px); }
-  .slot { width: 34px; height: 34px; }
-  .slot img { width: 26px; height: 26px; }
-  .recipes { display: none; }
+  :root { --sl: 34px; }
+  .panel.book { display: none; }
+  .steve { width: 64px; height: 90px; } .steve img { height: 80px; }
   .helpGrid { grid-template-columns: 1fr; font-size: 19px; }
   .screen h2 { font-size: 32px; }
   #bottom { bottom: 4px; }

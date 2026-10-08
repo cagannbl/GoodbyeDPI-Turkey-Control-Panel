@@ -21,6 +21,7 @@
     <div id="vignette"></div>
     <div id="hurtFlash"></div>
     <div id="liquidOverlay"></div>
+    <div id="portalOverlay"></div>
     <div id="toast"></div>
     <div id="bottom">
       <div id="itemName"></div>
@@ -119,19 +120,20 @@
       <div><kbd>Shift</kbd> Eğil (kenardan düşmezsin)</div>
       <div><kbd>R</kbd> / <kbd>Ctrl</kbd> / <kbd>W W</kbd> Koş</div>
       <div><kbd>Sol Tık</kbd> Blok kır / Saldır</div>
-      <div><kbd>Sağ Tık</kbd> Blok koy / TNT ateşle</div>
+      <div><kbd>Sağ Tık</kbd> Koy / ye / kullan / masa, fırın, sandık aç</div>
       <div><kbd>Orta Tık</kbd> Bloğu seç</div>
       <div><kbd>1-9</kbd> / <kbd>Tekerlek</kbd> Eşya seç</div>
-      <div><kbd>E</kbd> Envanter ve tarifler</div>
+      <div><kbd>E</kbd> Envanter (2x2 üretim)</div>
       <div><kbd>Boşluk Boşluk</kbd> Uç (Yaratıcı)</div>
       <div><kbd>F3</kbd> Hata ayıklama ekranı</div>
       <div><kbd>F1</kbd> Arayüzü gizle</div>
       <div><kbd>F2</kbd> Ekran görüntüsü</div>
       <div><kbd>Esc</kbd> Duraklat</div>
     </div>
-    <p class="hint">Hayatta Kalma modunda kırdığın bloklar envanterine gelir. E ile envanteri açıp tariflerle yeni bloklar üretebilirsin.
-      Geceleri zombiler ve creeper'lar ortaya çıkar — meşale koyarak mağaraları aydınlat! TNT'ye sağ tıklayarak ateşleyebilirsin.
-      Dünyan tarayıcına otomatik kaydedilir.</p>
+    <p class="hint">Ağaç kır → kalas → çalışma masası → tahta kazma ile başla. Taş, demir ve elmas aletlerle daha sert cevherleri kazabilirsin.
+      Cevherleri fırında eritip külçe yap. Envanterdeki kitap düğmesi tarif kitabını açar.
+      Nether: obsidyenden en az 4x5 çerçeve kur, çakmakla yak. Netherit için Nether'da kadim kalıntı ara.
+      End: 12 End çerçevesini 3x3 boşluk etrafında halka yap ve hepsine Sonveren Gözü koy.</p>
     <div class="row"><button class="btn" data-action="back">Geri</button></div>
   </div>
 
@@ -166,16 +168,18 @@
   <!-- Envanter -->
   <div id="inventory" class="overlay hidden">
     <div class="invWrap">
-      <div class="panel inv" id="invPanel">
-        <div class="invTitle" id="invTitle">Envanter</div>
-        <div id="invTabs" class="hidden"><input id="invSearch" type="text" placeholder="Ara…"></div>
-        <div id="invGrid" class="grid"></div>
-        <div class="invTitle sub">Eşya Çubuğu</div>
-        <div id="invHotbar" class="grid"></div>
+      <div class="panel book hidden" id="recipePanel">
+        <div class="invTitle">Tarif Kitabı</div>
+        <input id="bookSearch" type="text" placeholder="Tarif ara…">
+        <label class="bookOk"><input type="checkbox" id="bookOk"> Sadece yapılabilenler</label>
+        <div id="recipeList" class="bookGrid"></div>
       </div>
-      <div class="panel recipes" id="recipePanel">
-        <div class="invTitle">Tarifler</div>
-        <div id="recipeList"></div>
+      <div class="panel mc" id="invPanel">
+        <input id="invSearch" class="hidden" type="text" placeholder="Eşya ara…">
+        <div id="containerArea"></div>
+        <div class="invTitle" id="invLabel">Envanter</div>
+        <div id="invMain" class="grid"></div>
+        <div id="invHotbar" class="grid hb"></div>
       </div>
     </div>
     <div id="cursorItem"></div>
@@ -206,6 +210,7 @@
 
   <script src="js/util.js"></script>
   <script src="js/blocks.js"></script>
+  <script src="js/items.js"></script>
   <script src="js/world.js"></script>
   <script src="js/mesher.js"></script>
   <script src="js/renderer.js"></script>
