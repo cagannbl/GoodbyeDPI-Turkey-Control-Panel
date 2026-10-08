@@ -1,0 +1,615 @@
+'use strict';
+// ---------------------------------------------------------------------------
+// Blok tanımları + tamamen kodla üretilen 16x16 piksel-art dokular
+// ---------------------------------------------------------------------------
+
+const B = {
+  AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, PLANKS: 5, LOG: 6, LEAVES: 7, SAND: 8, WATER: 9,
+  GLASS: 10, BEDROCK: 11, COAL: 12, IRON: 13, GOLD: 14, DIAMOND: 15, REDSTONE: 16, BRICKS: 17,
+  SNOW: 18, SNOWY_GRASS: 19, GRAVEL: 20, GLOWSTONE: 21, BIRCH_LOG: 22, BIRCH_LEAVES: 23,
+  SPRUCE_LOG: 24, SPRUCE_LEAVES: 25, CACTUS: 26, STONE_BRICKS: 27, BOOKSHELF: 28, CRAFTING: 29,
+  FURNACE: 30, TNT: 31, OBSIDIAN: 32, PUMPKIN: 33, JACK: 34, LAVA: 35, ICE: 36, POPPY: 37,
+  DANDELION: 38, TALL_GRASS: 39, TORCH: 40, WOOL_WHITE: 41, WOOL_RED: 42, WOOL_ORANGE: 43,
+  WOOL_YELLOW: 44, WOOL_LIME: 45, WOOL_BLUE: 46, WOOL_PURPLE: 47, WOOL_BLACK: 48, SANDSTONE: 49,
+  DEAD_BUSH: 50, MOSSY_COBBLE: 51, BIRCH_PLANKS: 52, SPRUCE_PLANKS: 53, EMERALD: 54, BLUE_FLOWER: 55,
+};
+
+// Render tipleri
+const R_NONE = 0, R_CUBE = 1, R_CROSS = 2, R_LIQUID = 3;
+
+const BLOCKS = [];
+const OPAQUE = new Uint8Array(256);   // ışığı keser + komşu yüzleri gizler
+const SOLID = new Uint8Array(256);    // çarpışma
+const FILTER = new Uint8Array(256);   // ışığı ekstra zayıflatma
+const EMIT = new Uint8Array(256);     // ışık yayma (0-15)
+const RENDER = new Uint8Array(256);
+const PASS = new Uint8Array(256);     // 0: opak/kesik, 1: yarı saydam
+const CULLSAME = new Uint8Array(256); // aynı bloğa komşu yüzleri çizme
+const TEXF = new Uint8Array(256 * 6); // yüz başına doku katmanı
+
+// --- Doku üretimi --------------------------------------------------------
+const TEX = {};
+const texLayers = [];
+
+function px(d, x, y, r, g, b, a = 255) {
+  if (x < 0 || y < 0 || x > 15 || y > 15) return;
+  const i = (y * 16 + x) * 4;
+  d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = a;
+}
+function getPx(d, x, y) { const i = (y * 16 + x) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; }
+function mulPx(d, x, y, f) {
+  if (x < 0 || y < 0 || x > 15 || y > 15) return;
+  const i = (y * 16 + x) * 4; d[i] *= f; d[i + 1] *= f; d[i + 2] *= f;
+}
+function noiseFill(d, rng, c, v, a = 255) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const f = 1 + (rng() - 0.5) * v;
+    px(d, x, y, c[0] * f, c[1] * f, c[2] * f, a);
+  }
+}
+function copyTex(d, name) { d.set(texLayers[TEX[name]]); }
+
+function makeTex(name, fn) {
+  const d = new Uint8ClampedArray(16 * 16 * 4);
+  const rng = mulberry32(hashStr(name) ^ 0x9e3779b9);
+  fn(d, rng);
+  // Saydam piksellerin rengini ortalamaya çek (mipmap kenar kararmasını önler)
+  let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < 1024; i += 4) if (d[i + 3] > 0) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  if (n) for (let i = 0; i < 1024; i += 4) if (d[i + 3] === 0) { d[i] = r / n; d[i + 1] = g / n; d[i + 2] = b / n; }
+  TEX[name] = texLayers.length;
+  texLayers.push(d);
+}
+
+function cobbleTex(d, rng, base, mortar) {
+  const pts = [];
+  for (let i = 0; i < 11; i++) pts.push([rng() * 16, rng() * 16, 0.75 + rng() * 0.45]);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let d1 = 1e9, d2 = 1e9, best = 0;
+    for (let i = 0; i < pts.length; i++) {
+      for (let ox = -16; ox <= 16; ox += 16) for (let oy = -16; oy <= 16; oy += 16) {
+        const dx = x + 0.5 - pts[i][0] - ox, dy = y + 0.5 - pts[i][1] - oy;
+        const dd = Math.sqrt(dx * dx + dy * dy);
+        if (dd < d1) { d2 = d1; d1 = dd; best = i; } else if (dd < d2) d2 = dd;
+      }
+    }
+    if (d2 - d1 < 1.1) { const f = 0.85 + rng() * 0.2; px(d, x, y, mortar[0] * f, mortar[1] * f, mortar[2] * f); }
+    else {
+      const f = pts[best][2] * (0.9 + rng() * 0.2) * (d1 < 2 ? 1.08 : 1);
+      px(d, x, y, base[0] * f, base[1] * f, base[2] * f);
+    }
+  }
+}
+
+function planksTex(d, rng, c) {
+  for (let y = 0; y < 16; y++) {
+    const row = y >> 2, rf = 0.92 + ((row * 37) % 5) * 0.035;
+    for (let x = 0; x < 16; x++) {
+      let f = rf * (0.93 + rng() * 0.12);
+      if ((y & 3) === 3) f *= 0.68;
+      const seam = row % 2 === 0 ? 3 : 11;
+      if (x === seam && (y & 3) !== 3) f *= 0.72;
+      if (rng() < 0.08) f *= 0.88;
+      px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+    }
+  }
+}
+
+function logSide(d, rng, c, dark) {
+  const cols = [];
+  for (let x = 0; x < 16; x++) cols.push(0.82 + rng() * 0.3);
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let f = cols[x] * (0.92 + rng() * 0.14);
+    px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+  }
+  for (let i = 0; i < 6; i++) {
+    const x = Math.floor(rng() * 16), y0 = Math.floor(rng() * 16), len = 2 + Math.floor(rng() * 5);
+    for (let y = y0; y < y0 + len; y++) px(d, x, y & 15, dark[0], dark[1], dark[2]);
+  }
+}
+
+function logTop(d, rng, bark, inner) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const r = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+    if (r > 6.6) { const f = 0.85 + rng() * 0.25; px(d, x, y, bark[0] * f, bark[1] * f, bark[2] * f); }
+    else {
+      const ring = Math.floor(r) % 2 === 0 ? 1 : 0.84;
+      const f = ring * (0.94 + rng() * 0.1);
+      px(d, x, y, inner[0] * f, inner[1] * f, inner[2] * f);
+    }
+  }
+}
+
+function leavesTex(d, rng, c) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if (rng() < 0.16) { px(d, x, y, 0, 0, 0, 0); continue; }
+    const f = 0.68 + rng() * 0.5;
+    px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+  }
+}
+
+function oreTex(d, rng, col, hi) {
+  copyTex(d, 'stone');
+  const n = 4 + Math.floor(rng() * 2);
+  for (let i = 0; i < n; i++) {
+    const cx = 2 + Math.floor(rng() * 12), cy = 2 + Math.floor(rng() * 12);
+    const pts = [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]];
+    for (const [ox, oy] of pts) {
+      if (rng() < 0.75) {
+        const h = (ox + oy) <= 0 ? hi : col;
+        px(d, cx + ox, cy + oy, h[0], h[1], h[2]);
+      }
+    }
+  }
+}
+
+function woolTex(d, rng, c) {
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    let f = 0.93 + rng() * 0.1;
+    if (((x + y * 3) % 5) === 0) f *= 0.9;
+    if (((x * 2 + y) % 7) === 0) f *= 1.06;
+    px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+  }
+}
+
+function crossFlower(d, rng, petal, center) {
+  for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+  for (let y = 7; y < 16; y++) px(d, 7, y, 50, 120 + y * 3, 30);
+  px(d, 6, 11, 60, 140, 35); px(d, 5, 10, 60, 140, 35); px(d, 8, 13, 60, 140, 35); px(d, 9, 12, 60, 140, 35);
+  const P = [[6, 4], [7, 4], [8, 4], [5, 5], [6, 5], [7, 5], [8, 5], [9, 5], [5, 6], [6, 6], [8, 6], [9, 6], [6, 7], [7, 7], [8, 7], [7, 3]];
+  for (const [x, y] of P) { const f = 0.85 + rng() * 0.25; px(d, x, y, petal[0] * f, petal[1] * f, petal[2] * f); }
+  px(d, 7, 6, center[0], center[1], center[2]);
+}
+
+const FONT3x5 = { T: ['111', '010', '010', '010', '010'], N: ['101', '111', '111', '111', '101'] };
+
+function buildTextures() {
+  makeTex('stone', (d, r) => {
+    noiseFill(d, r, [127, 127, 127], 0.22);
+    for (let i = 0; i < 14; i++) {
+      const x = Math.floor(r() * 16), y = Math.floor(r() * 16), l = 1 + Math.floor(r() * 3), f = r() < 0.5 ? 0.82 : 1.12;
+      for (let k = 0; k < l; k++) mulPx(d, (x + k) & 15, y, f);
+    }
+  });
+  makeTex('dirt', (d, r) => {
+    noiseFill(d, r, [134, 96, 67], 0.28);
+    for (let i = 0; i < 26; i++) { const f = r() < 0.6 ? 0.75 : 1.2; mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), f); }
+  });
+  makeTex('grass_top', (d, r) => {
+    noiseFill(d, r, [98, 162, 58], 0.3);
+    for (let i = 0; i < 30; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), r() < 0.5 ? 0.8 : 1.15);
+  });
+  makeTex('grass_side', (d, r) => {
+    copyTex(d, 'dirt');
+    for (let x = 0; x < 16; x++) {
+      const depth = 3 + (r() < 0.5 ? 1 : 0) + (r() < 0.25 ? 1 : 0);
+      for (let y = 0; y < depth; y++) { const f = 0.8 + r() * 0.35; px(d, x, y, 98 * f, 162 * f, 58 * f); }
+    }
+  });
+  makeTex('snow', (d, r) => noiseFill(d, r, [240, 247, 250], 0.07));
+  makeTex('snowy_grass_side', (d, r) => {
+    copyTex(d, 'dirt');
+    for (let x = 0; x < 16; x++) {
+      const depth = 3 + (r() < 0.5 ? 1 : 0);
+      for (let y = 0; y < depth; y++) { const f = 0.94 + r() * 0.08; px(d, x, y, 240 * f, 247 * f, 250 * f); }
+    }
+  });
+  makeTex('sand', (d, r) => {
+    noiseFill(d, r, [220, 207, 160], 0.1);
+    for (let i = 0; i < 20; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), r() < 0.5 ? 0.88 : 1.06);
+  });
+  makeTex('sandstone_side', (d, r) => {
+    noiseFill(d, r, [216, 201, 150], 0.08);
+    for (let x = 0; x < 16; x++) { mulPx(d, x, 3, 0.86); mulPx(d, x, 4, 0.92); mulPx(d, x, 0, 1.06); mulPx(d, x, 15, 0.85); }
+    for (let i = 0; i < 18; i++) mulPx(d, Math.floor(r() * 16), 5 + Math.floor(r() * 10), 0.9);
+  });
+  makeTex('sandstone_top', (d, r) => noiseFill(d, r, [220, 206, 156], 0.07));
+  makeTex('gravel', (d, r) => {
+    const cols = [[128, 122, 120], [155, 150, 146], [100, 95, 93], [136, 118, 105], [170, 165, 160]];
+    for (let by = 0; by < 16; by += 2) for (let bx = 0; bx < 16; bx += 2) {
+      const c = cols[Math.floor(r() * cols.length)];
+      for (let y = by; y < by + 2; y++) for (let x = bx; x < bx + 2; x++) {
+        const f = 0.9 + r() * 0.15; px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+      }
+    }
+  });
+  makeTex('cobble', (d, r) => cobbleTex(d, r, [128, 128, 128], [70, 70, 70]));
+  makeTex('mossy_cobble', (d, r) => {
+    copyTex(d, 'cobble');
+    for (let i = 0; i < 70; i++) {
+      const x = Math.floor(r() * 16), y = Math.floor(r() * 16), f = 0.8 + r() * 0.4;
+      px(d, x, y, 70 * f, 120 * f, 45 * f);
+    }
+  });
+  makeTex('stone_bricks', (d, r) => {
+    noiseFill(d, r, [122, 122, 122], 0.12);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const row = y >> 3, ly = y & 7;
+      const sx = row === 0 ? 15 : 7;
+      if (ly === 7 || x === sx) px(d, x, y, 72, 72, 72);
+      else if (ly === 0 || x === (sx + 1) % 16) mulPx(d, x, y, 1.12);
+    }
+  });
+  makeTex('bricks', (d, r) => {
+    for (let y = 0; y < 16; y++) {
+      const row = y >> 2, off = (row % 2) * 4;
+      for (let x = 0; x < 16; x++) {
+        const isM = (y & 3) === 3 || ((x + off) & 7) === 7;
+        if (isM) { const f = 0.9 + r() * 0.15; px(d, x, y, 175 * f, 168 * f, 160 * f); }
+        else {
+          const bid = row * 3 + (((x + off) >> 3) & 1);
+          const bf = 0.85 + ((bid * 53) % 7) * 0.04;
+          const f = bf * (0.9 + r() * 0.16);
+          px(d, x, y, 152 * f, 72 * f, 56 * f);
+        }
+      }
+    }
+  });
+  makeTex('planks', (d, r) => planksTex(d, r, [162, 130, 78]));
+  makeTex('birch_planks', (d, r) => planksTex(d, r, [196, 178, 123]));
+  makeTex('spruce_planks', (d, r) => planksTex(d, r, [115, 85, 49]));
+  makeTex('log_side', (d, r) => logSide(d, r, [104, 82, 50], [62, 48, 28]));
+  makeTex('log_top', (d, r) => logTop(d, r, [104, 82, 50], [178, 143, 88]));
+  makeTex('birch_side', (d, r) => {
+    noiseFill(d, r, [216, 215, 205], 0.08);
+    for (let i = 0; i < 9; i++) {
+      const x = Math.floor(r() * 14), y = Math.floor(r() * 16), l = 2 + Math.floor(r() * 3);
+      for (let k = 0; k < l; k++) px(d, x + k, y, 45, 45, 40);
+    }
+  });
+  makeTex('birch_top', (d, r) => logTop(d, r, [216, 215, 205], [196, 176, 120]));
+  makeTex('spruce_side', (d, r) => logSide(d, r, [62, 44, 25], [38, 26, 14]));
+  makeTex('spruce_top', (d, r) => logTop(d, r, [62, 44, 25], [118, 88, 52]));
+  makeTex('leaves', (d, r) => leavesTex(d, r, [58, 130, 36]));
+  makeTex('birch_leaves', (d, r) => leavesTex(d, r, [100, 150, 64]));
+  makeTex('spruce_leaves', (d, r) => leavesTex(d, r, [44, 92, 58]));
+  makeTex('water', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = 0.85 + 0.12 * Math.sin((x + y * 2) * 0.8) + r() * 0.08;
+      px(d, x, y, 44 * f, 90 * f, 210 * f, 175);
+    }
+  });
+  makeTex('lava', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const w = Math.sin(x * 0.9 + Math.sin(y * 0.7) * 2) * 0.5 + 0.5;
+      const f = 0.85 + r() * 0.2;
+      px(d, x, y, (200 + w * 55) * f, (70 + w * 110) * f, (10 + w * 30) * f);
+    }
+  });
+  makeTex('glass', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let i = 0; i < 16; i++) {
+      px(d, i, 0, 215, 235, 240); px(d, i, 15, 190, 215, 225); px(d, 0, i, 215, 235, 240); px(d, 15, i, 190, 215, 225);
+    }
+    for (let k = 0; k < 4; k++) px(d, 3 + k, 6 - k, 235, 245, 250, 230);
+    for (let k = 0; k < 2; k++) px(d, 3 + k, 8 - k, 235, 245, 250, 230);
+    for (let k = 0; k < 3; k++) px(d, 10 + k, 12 - k, 235, 245, 250, 200);
+  });
+  makeTex('ice', (d, r) => {
+    noiseFill(d, r, [150, 190, 250], 0.08, 190);
+    for (let k = 0; k < 6; k++) { px(d, 2 + k, 9 - k, 220, 235, 255, 200); px(d, 9 + (k >> 1), 14 - k, 220, 235, 255, 200); }
+  });
+  makeTex('bedrock', (d, r) => {
+    const cols = [[45, 45, 45], [85, 85, 85], [115, 115, 115], [62, 62, 62], [30, 30, 30]];
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const c = cols[Math.floor(r() * cols.length)]; px(d, x, y, c[0], c[1], c[2]); }
+  });
+  makeTex('coal_ore', (d, r) => oreTex(d, r, [35, 35, 35], [60, 60, 60]));
+  makeTex('iron_ore', (d, r) => oreTex(d, r, [210, 170, 140], [235, 205, 180]));
+  makeTex('gold_ore', (d, r) => oreTex(d, r, [250, 220, 60], [255, 250, 170]));
+  makeTex('diamond_ore', (d, r) => oreTex(d, r, [80, 220, 230], [200, 255, 255]));
+  makeTex('redstone_ore', (d, r) => oreTex(d, r, [190, 10, 10], [255, 60, 60]));
+  makeTex('emerald_ore', (d, r) => oreTex(d, r, [30, 200, 90], [150, 255, 170]));
+  makeTex('glowstone', (d, r) => {
+    noiseFill(d, r, [200, 150, 80], 0.25);
+    for (let i = 0; i < 26; i++) {
+      const x = Math.floor(r() * 15), y = Math.floor(r() * 15);
+      px(d, x, y, 255, 236, 160); px(d, x + 1, y, 255, 220, 130);
+    }
+    for (let i = 0; i < 12; i++) px(d, Math.floor(r() * 16), Math.floor(r() * 16), 130, 90, 45);
+  });
+  makeTex('obsidian', (d, r) => {
+    noiseFill(d, r, [22, 16, 34], 0.4);
+    for (let i = 0; i < 18; i++) px(d, Math.floor(r() * 16), Math.floor(r() * 16), 65, 45, 100);
+  });
+  const WOOL = { white: [234, 236, 236], red: [160, 39, 34], orange: [240, 118, 19], yellow: [248, 198, 39], lime: [112, 185, 25], blue: [53, 57, 157], purple: [121, 42, 172], black: [25, 25, 29] };
+  for (const k in WOOL) makeTex('wool_' + k, (d, r) => woolTex(d, r, WOOL[k]));
+  makeTex('bookshelf', (d, r) => {
+    planksTex(d, r, [162, 130, 78]);
+    const BC = [[150, 40, 40], [40, 80, 150], [50, 120, 50], [140, 110, 40], [100, 50, 120], [180, 160, 120]];
+    for (const y0 of [2, 9]) {
+      let x = 1;
+      while (x < 15) {
+        const w = 1 + (r() < 0.4 ? 1 : 0), c = BC[Math.floor(r() * BC.length)], h = 4 + (r() < 0.5 ? 1 : 0);
+        for (let xx = x; xx < Math.min(15, x + w); xx++) for (let y = y0 + 5 - h; y < y0 + 5; y++) {
+          const f = 0.85 + r() * 0.2; px(d, xx, y, c[0] * f, c[1] * f, c[2] * f);
+        }
+        for (let y = y0; y < y0 + 5 - h; y++) for (let xx = x; xx < Math.min(15, x + w); xx++) px(d, xx, y, 50, 36, 20);
+        x += w + (r() < 0.2 ? 1 : 0);
+      }
+    }
+  });
+  makeTex('crafting_top', (d, r) => {
+    planksTex(d, r, [168, 128, 76]);
+    for (let i = 0; i < 16; i++) { px(d, i, 0, 90, 64, 34); px(d, i, 15, 90, 64, 34); px(d, 0, i, 90, 64, 34); px(d, 15, i, 90, 64, 34); }
+    for (let i = 2; i < 14; i++) { px(d, i, 5, 110, 80, 45); px(d, i, 10, 110, 80, 45); px(d, 5, i, 110, 80, 45); px(d, 10, i, 110, 80, 45); }
+  });
+  makeTex('crafting_side', (d, r) => {
+    planksTex(d, r, [150, 112, 66]);
+    for (let x = 0; x < 16; x++) { px(d, x, 0, 100, 72, 40); px(d, x, 1, 120, 88, 50); }
+    // testere ve çekiç
+    for (let x = 2; x < 7; x++) px(d, x, 5, 150, 150, 155);
+    for (let x = 2; x < 7; x++) if (x % 2) px(d, x, 6, 120, 120, 125);
+    px(d, 7, 5, 90, 60, 30); px(d, 8, 5, 90, 60, 30);
+    for (let y = 5; y < 12; y++) px(d, 11, y, 90, 60, 30);
+    for (let x = 9; x < 14; x++) { px(d, x, 4, 120, 120, 125); px(d, x, 5, 150, 150, 155); }
+  });
+  makeTex('furnace_side', (d, r) => {
+    noiseFill(d, r, [120, 120, 120], 0.15);
+    for (let i = 0; i < 16; i++) { mulPx(d, i, 0, 1.15); mulPx(d, 0, i, 1.15); mulPx(d, i, 15, 0.7); mulPx(d, 15, i, 0.7); }
+  });
+  makeTex('furnace_front', (d, r) => {
+    copyTex(d, 'furnace_side');
+    for (let y = 8; y < 14; y++) for (let x = 3; x < 13; x++) px(d, x, y, 25, 22, 22);
+    for (let x = 3; x < 13; x++) px(d, x, 7, 80, 80, 80);
+    for (let x = 4; x < 12; x++) px(d, x, 3, 70, 70, 70);
+  });
+  makeTex('furnace_top', (d, r) => {
+    noiseFill(d, r, [110, 110, 110], 0.15);
+    for (let i = 0; i < 16; i++) { mulPx(d, i, 0, 0.75); mulPx(d, 0, i, 0.75); mulPx(d, i, 15, 0.75); mulPx(d, 15, i, 0.75); }
+  });
+  makeTex('tnt_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = 0.88 + r() * 0.16;
+      if (x % 4 === 3) f *= 0.8;
+      px(d, x, y, 200 * f, 50 * f, 35 * f);
+    }
+    for (let y = 5; y < 11; y++) for (let x = 0; x < 16; x++) { const f = 0.94 + r() * 0.06; px(d, x, y, 236 * f, 232 * f, 225 * f); }
+    const word = ['T', 'N', 'T'];
+    word.forEach((ch, i) => {
+      const g = FONT3x5[ch], ox = 2 + i * 4;
+      for (let yy = 0; yy < 5; yy++) for (let xx = 0; xx < 3; xx++) if (g[yy][xx] === '1') px(d, ox + xx, 6 + yy, 30, 30, 30);
+    });
+  });
+  makeTex('tnt_top', (d, r) => {
+    noiseFill(d, r, [190, 50, 35], 0.15);
+    for (let y = 5; y < 11; y++) for (let x = 5; x < 11; x++) px(d, x, y, 150, 150, 150);
+    for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) px(d, x, y, 80, 80, 80);
+    px(d, 7, 7, 40, 40, 40); px(d, 8, 8, 40, 40, 40);
+  });
+  makeTex('cactus_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = 0.88 + r() * 0.14;
+      if (x === 0 || x === 15) { px(d, x, y, 0, 0, 0, 0); continue; }
+      if (x % 4 === 2) f *= 0.8;
+      px(d, x, y, 75 * f, 135 * f, 45 * f);
+    }
+    for (let i = 0; i < 10; i++) px(d, 1 + Math.floor(r() * 14), Math.floor(r() * 16), 220, 230, 190);
+  });
+  makeTex('cactus_top', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      if (x === 0 || x === 15 || y === 0 || y === 15) { px(d, x, y, 0, 0, 0, 0); continue; }
+      const rr = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+      const f = (Math.floor(rr) % 2 ? 0.85 : 1) * (0.92 + r() * 0.12);
+      px(d, x, y, 90 * f, 150 * f, 55 * f);
+    }
+  });
+  makeTex('pumpkin_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = 0.9 + r() * 0.14;
+      if (x % 4 === 0) f *= 0.78;
+      if (y === 0 || y === 15) f *= 0.85;
+      px(d, x, y, 222 * f, 130 * f, 28 * f);
+    }
+  });
+  makeTex('pumpkin_top', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const rr = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+      const f = (Math.floor(rr) % 3 === 0 ? 0.85 : 1) * (0.9 + r() * 0.14);
+      px(d, x, y, 215 * f, 125 * f, 25 * f);
+    }
+    for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) px(d, x, y, 90, 70, 30);
+  });
+  const face = (d, c) => {
+    const P = [[3, 4], [4, 4], [3, 5], [4, 5], [5, 5], [11, 4], [12, 4], [10, 5], [11, 5], [12, 5],
+      [3, 9], [4, 10], [5, 10], [6, 10], [7, 10], [8, 10], [9, 10], [10, 10], [11, 10], [12, 9], [5, 11], [6, 11], [8, 11], [9, 11], [10, 11], [7, 9]];
+    for (const [x, y] of P) px(d, x, y, c[0], c[1], c[2]);
+  };
+  makeTex('pumpkin_face', (d, r) => { copyTex(d, 'pumpkin_side'); face(d, [40, 20, 5]); });
+  makeTex('jack_face', (d, r) => { copyTex(d, 'pumpkin_side'); face(d, [255, 220, 90]); });
+  makeTex('poppy', (d, r) => crossFlower(d, r, [210, 30, 25], [40, 30, 20]));
+  makeTex('dandelion', (d, r) => crossFlower(d, r, [250, 220, 40], [230, 160, 20]));
+  makeTex('blue_flower', (d, r) => crossFlower(d, r, [70, 130, 230], [230, 230, 120]));
+  makeTex('tall_grass', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let k = 0; k < 9; k++) {
+      let x = 1 + Math.floor(r() * 14);
+      const h = 5 + Math.floor(r() * 9);
+      for (let y = 15; y > 15 - h; y--) {
+        const f = 0.7 + r() * 0.4 + (15 - y) * 0.02;
+        px(d, x, y, 80 * f, 145 * f, 50 * f);
+        if (r() < 0.15) x += r() < 0.5 ? -1 : 1;
+      }
+    }
+  });
+  makeTex('dead_bush', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    const br = (x, y, dx, n) => { for (let i = 0; i < n; i++) { px(d, x, y, 120, 82, 40); y--; if (i % 2) x += dx; } };
+    br(7, 15, 0, 5); br(7, 11, -1, 6); br(8, 11, 1, 6); br(7, 9, 1, 4); br(6, 12, -1, 3);
+  });
+  makeTex('torch', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 7; y < 16; y++) { px(d, 7, y, 120, 85, 45); px(d, 8, y, 95, 65, 32); }
+    px(d, 7, 6, 255, 230, 120); px(d, 8, 6, 255, 200, 80); px(d, 7, 5, 255, 250, 200); px(d, 8, 5, 255, 220, 110);
+    px(d, 7, 4, 255, 180, 60);
+  });
+  // Kırılma çatlakları (10 aşama)
+  const crackRng = mulberry32(1337);
+  const path = [];
+  for (let w = 0; w < 7; w++) {
+    let x = 7 + Math.floor(crackRng() * 3) - 1, y = 7 + Math.floor(crackRng() * 3) - 1;
+    const ang = (w / 7) * Math.PI * 2 + crackRng();
+    for (let s = 0; s < 14; s++) {
+      path.push([x, y]);
+      x += Math.round(Math.cos(ang) + (crackRng() - 0.5) * 1.2);
+      y += Math.round(Math.sin(ang) + (crackRng() - 0.5) * 1.2);
+    }
+  }
+  for (let st = 0; st < 10; st++) {
+    makeTex('crack' + st, (d) => {
+      for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+      const n = Math.floor(((st + 1) / 10) * path.length);
+      for (let i = 0; i < n; i++) {
+        const w = Math.floor(i / 14), s = i % 14;
+        if (s < Math.ceil((st + 1) * 1.4)) px(d, path[i][0], path[i][1], 20, 20, 20, 210);
+      }
+    });
+  }
+}
+
+// --- Blok tanımları -------------------------------------------------------
+function def(id, name, tex, o = {}) {
+  const t = typeof tex === 'string' ? { top: tex, bottom: tex, side: tex } : tex;
+  BLOCKS[id] = Object.assign({
+    id, name, tex: t, solid: true, opaque: true, render: R_CUBE, pass: 0, liquid: false, filter: 0, emit: 0,
+    hardness: 1, drop: id, cullSame: false, sound: 'stone', creative: true,
+  }, o);
+}
+
+function defineBlocks() {
+  def(B.GRASS, 'Çimen Bloğu', { top: 'grass_top', bottom: 'dirt', side: 'grass_side' }, { hardness: 0.6, drop: B.DIRT, sound: 'grass' });
+  def(B.DIRT, 'Toprak', 'dirt', { hardness: 0.5, sound: 'gravel' });
+  def(B.STONE, 'Taş', 'stone', { hardness: 1.5, drop: B.COBBLE });
+  def(B.COBBLE, 'Kırık Taş', 'cobble', { hardness: 2 });
+  def(B.MOSSY_COBBLE, 'Yosunlu Kırık Taş', 'mossy_cobble', { hardness: 2 });
+  def(B.STONE_BRICKS, 'Taş Tuğla', 'stone_bricks', { hardness: 1.5 });
+  def(B.BRICKS, 'Tuğla', 'bricks', { hardness: 2 });
+  def(B.PLANKS, 'Meşe Kalası', 'planks', { hardness: 1, sound: 'wood' });
+  def(B.BIRCH_PLANKS, 'Huş Kalası', 'birch_planks', { hardness: 1, sound: 'wood' });
+  def(B.SPRUCE_PLANKS, 'Ladin Kalası', 'spruce_planks', { hardness: 1, sound: 'wood' });
+  def(B.LOG, 'Meşe Kütüğü', { top: 'log_top', bottom: 'log_top', side: 'log_side' }, { hardness: 1.4, sound: 'wood' });
+  def(B.BIRCH_LOG, 'Huş Kütüğü', { top: 'birch_top', bottom: 'birch_top', side: 'birch_side' }, { hardness: 1.4, sound: 'wood' });
+  def(B.SPRUCE_LOG, 'Ladin Kütüğü', { top: 'spruce_top', bottom: 'spruce_top', side: 'spruce_side' }, { hardness: 1.4, sound: 'wood' });
+  const leaf = { opaque: false, filter: 1, cullSame: true, hardness: 0.2, drop: 0, sound: 'grass' };
+  def(B.LEAVES, 'Meşe Yaprağı', 'leaves', leaf);
+  def(B.BIRCH_LEAVES, 'Huş Yaprağı', 'birch_leaves', leaf);
+  def(B.SPRUCE_LEAVES, 'Ladin Yaprağı', 'spruce_leaves', leaf);
+  def(B.SAND, 'Kum', 'sand', { hardness: 0.5, sound: 'sand' });
+  def(B.SANDSTONE, 'Kumtaşı', { top: 'sandstone_top', bottom: 'sandstone_top', side: 'sandstone_side' }, { hardness: 0.8 });
+  def(B.GRAVEL, 'Çakıl', 'gravel', { hardness: 0.6, sound: 'gravel' });
+  def(B.SNOW, 'Kar Bloğu', 'snow', { hardness: 0.3, sound: 'snow' });
+  def(B.SNOWY_GRASS, 'Karlı Çimen', { top: 'snow', bottom: 'dirt', side: 'snowy_grass_side' }, { hardness: 0.6, drop: B.DIRT, sound: 'snow' });
+  def(B.ICE, 'Buz', 'ice', { opaque: false, pass: 1, cullSame: true, hardness: 0.5, drop: 0, sound: 'glass' });
+  def(B.WATER, 'Su', 'water', { solid: false, opaque: false, render: R_LIQUID, pass: 1, liquid: true, filter: 2, cullSame: true, hardness: -1, drop: 0, creative: true, sound: 'water' });
+  def(B.LAVA, 'Lav', 'lava', { solid: false, opaque: false, render: R_LIQUID, liquid: true, emit: 15, cullSame: true, hardness: -1, drop: 0, sound: 'water' });
+  def(B.GLASS, 'Cam', 'glass', { opaque: false, cullSame: true, hardness: 0.3, drop: 0, sound: 'glass' });
+  def(B.BEDROCK, 'Ana Kaya', 'bedrock', { hardness: -1 });
+  def(B.OBSIDIAN, 'Obsidyen', 'obsidian', { hardness: 12 });
+  def(B.COAL, 'Kömür Cevheri', 'coal_ore', { hardness: 2.2 });
+  def(B.IRON, 'Demir Cevheri', 'iron_ore', { hardness: 2.6 });
+  def(B.GOLD, 'Altın Cevheri', 'gold_ore', { hardness: 2.8 });
+  def(B.REDSTONE, 'Kızıltaş Cevheri', 'redstone_ore', { hardness: 2.8 });
+  def(B.DIAMOND, 'Elmas Cevheri', 'diamond_ore', { hardness: 3.2 });
+  def(B.EMERALD, 'Zümrüt Cevheri', 'emerald_ore', { hardness: 3.2 });
+  def(B.GLOWSTONE, 'Işıktaşı', 'glowstone', { emit: 15, hardness: 0.4, sound: 'glass' });
+  def(B.BOOKSHELF, 'Kitaplık', { top: 'planks', bottom: 'planks', side: 'bookshelf' }, { hardness: 1.2, sound: 'wood' });
+  def(B.CRAFTING, 'Çalışma Masası', { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' }, { hardness: 1.4, sound: 'wood' });
+  def(B.FURNACE, 'Fırın', { top: 'furnace_top', bottom: 'furnace_top', side: 'furnace_side', front: 'furnace_front' }, { hardness: 2 });
+  def(B.TNT, 'TNT', { top: 'tnt_top', bottom: 'tnt_top', side: 'tnt_side' }, { hardness: 0, sound: 'grass' });
+  def(B.PUMPKIN, 'Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'pumpkin_face' }, { hardness: 1, sound: 'wood' });
+  def(B.JACK, 'Fener Balkabağı', { top: 'pumpkin_top', bottom: 'pumpkin_top', side: 'pumpkin_side', front: 'jack_face' }, { hardness: 1, emit: 15, sound: 'wood' });
+  def(B.CACTUS, 'Kaktüs', { top: 'cactus_top', bottom: 'cactus_top', side: 'cactus_side' }, { opaque: false, hardness: 0.4, sound: 'grass' });
+  const plant = { solid: false, opaque: false, render: R_CROSS, hardness: 0, sound: 'grass' };
+  def(B.POPPY, 'Gelincik', 'poppy', plant);
+  def(B.DANDELION, 'Karahindiba', 'dandelion', plant);
+  def(B.BLUE_FLOWER, 'Mavi Orkide', 'blue_flower', plant);
+  def(B.TALL_GRASS, 'Uzun Çimen', 'tall_grass', Object.assign({}, plant, { drop: 0 }));
+  def(B.DEAD_BUSH, 'Kuru Çalı', 'dead_bush', Object.assign({}, plant, { drop: 0 }));
+  def(B.TORCH, 'Meşale', 'torch', Object.assign({}, plant, { emit: 14, sound: 'wood' }));
+  const WN = { WHITE: 'Beyaz', RED: 'Kırmızı', ORANGE: 'Turuncu', YELLOW: 'Sarı', LIME: 'Açık Yeşil', BLUE: 'Mavi', PURPLE: 'Mor', BLACK: 'Siyah' };
+  for (const k in WN) def(B['WOOL_' + k], WN[k] + ' Yün', 'wool_' + k.toLowerCase(), { hardness: 0.6, sound: 'cloth' });
+
+  BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
+
+  for (let id = 0; id < BLOCKS.length; id++) {
+    const b = BLOCKS[id];
+    if (!b) continue;
+    OPAQUE[id] = b.opaque ? 1 : 0;
+    SOLID[id] = b.solid ? 1 : 0;
+    FILTER[id] = b.filter;
+    EMIT[id] = b.emit;
+    RENDER[id] = b.render;
+    PASS[id] = b.pass;
+    CULLSAME[id] = b.cullSame ? 1 : 0;
+    if (b.tex) {
+      const t = b.tex;
+      const side = TEX[t.side];
+      // Yüz sırası: +x, -x, +y, -y, +z, -z
+      TEXF[id * 6 + 0] = side; TEXF[id * 6 + 1] = side;
+      TEXF[id * 6 + 2] = TEX[t.top]; TEXF[id * 6 + 3] = TEX[t.bottom];
+      TEXF[id * 6 + 4] = t.front ? TEX[t.front] : side; TEXF[id * 6 + 5] = side;
+      for (const k of ['side', 'top', 'bottom']) if (TEX[t[k]] === undefined) console.warn('Doku yok:', t[k]);
+    }
+  }
+}
+
+// Envanter/yaratıcı mod sırası
+const CREATIVE_ORDER = [
+  B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.MOSSY_COBBLE, B.STONE_BRICKS, B.BRICKS, B.SAND, B.SANDSTONE, B.GRAVEL,
+  B.PLANKS, B.BIRCH_PLANKS, B.SPRUCE_PLANKS, B.LOG, B.BIRCH_LOG, B.SPRUCE_LOG, B.LEAVES, B.BIRCH_LEAVES, B.SPRUCE_LEAVES,
+  B.GLASS, B.ICE, B.SNOW, B.SNOWY_GRASS, B.OBSIDIAN, B.BEDROCK, B.COAL, B.IRON, B.GOLD, B.REDSTONE, B.DIAMOND, B.EMERALD,
+  B.GLOWSTONE, B.TORCH, B.JACK, B.PUMPKIN, B.BOOKSHELF, B.CRAFTING, B.FURNACE, B.TNT, B.CACTUS,
+  B.POPPY, B.DANDELION, B.BLUE_FLOWER, B.TALL_GRASS, B.DEAD_BUSH, B.WATER, B.LAVA,
+  B.WOOL_WHITE, B.WOOL_RED, B.WOOL_ORANGE, B.WOOL_YELLOW, B.WOOL_LIME, B.WOOL_BLUE, B.WOOL_PURPLE, B.WOOL_BLACK,
+];
+
+// --- Arayüz için izometrik blok ikonları ---------------------------------
+const ICONS = [];
+function tileCanvas(layer) {
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(16, 16);
+  img.data.set(texLayers[layer]);
+  // Saydamlık için ortalama renk düzeltmesini geri al
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function buildIcons() {
+  const tiles = texLayers.map((_, i) => tileCanvas(i));
+  const S = 48;
+  for (let id = 1; id < BLOCKS.length; id++) {
+    const b = BLOCKS[id];
+    if (!b) continue;
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    if (b.render === R_CROSS) {
+      ctx.drawImage(tiles[TEXF[id * 6 + 2]], 4, 4, S - 8, S - 8);
+    } else {
+      const k = S / 32;
+      const top = tiles[TEXF[id * 6 + 2]], left = tiles[TEXF[id * 6 + 4]], right = tiles[TEXF[id * 6 + 0]];
+      const draw = (img, m, dark) => {
+        ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        ctx.drawImage(img, 0, 0);
+        if (dark) {
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = `rgba(0,0,0,${dark})`;
+          ctx.fillRect(0, 0, 16, 16);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      };
+      const h = b.liquid ? 0.12 : 0;
+      draw(left, [k, k * 0.5, 0, k * (1 - h), 0, S * 0.25 + S * h * 0.5], 0.28);
+      draw(right, [k, -k * 0.5, 0, k * (1 - h), S / 2, S * 0.5 + S * h * 0.5], 0.45);
+      draw(top, [k, k * 0.5, -k, k * 0.5, S / 2, S * h], 0);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ICONS[id] = c.toDataURL();
+  }
+}
+
+function initBlocks() {
+  buildTextures();
+  defineBlocks();
+  buildIcons();
+}

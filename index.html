@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1b1b">
+  <meta name="description" content="WebCraft - tarayıcıda çalışan, tamamen HTML5/WebGL2 ile yazılmış Minecraft tarzı blok oyunu.">
+  <title>WebCraft</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Oyun içi arayüz -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"></div>
+    <div id="debug" class="hidden"></div>
+    <div id="vignette"></div>
+    <div id="hurtFlash"></div>
+    <div id="liquidOverlay"></div>
+    <div id="toast"></div>
+    <div id="bottom">
+      <div id="itemName"></div>
+      <div id="bars">
+        <div id="hearts"></div>
+        <div id="bubbles"></div>
+      </div>
+      <div id="hotbar"></div>
+    </div>
+    <div id="modeTag"></div>
+  </div>
+
+  <div id="clickToPlay" class="overlay hidden">
+    <div class="panel small">
+      <div class="big">Oynamak için tıkla</div>
+      <div class="hint">WASD: yürü · Boşluk: zıpla · Fare: bak · Sol tık: kır · Sağ tık: koy · E: envanter · Esc: duraklat</div>
+    </div>
+  </div>
+
+  <!-- Ana menü -->
+  <div id="mainMenu" class="screen">
+    <div class="logoWrap">
+      <h1 class="logo">WEBCRAFT</h1>
+      <div class="splash" id="splash">HTML5 ile!</div>
+    </div>
+    <div class="menuButtons">
+      <button class="btn" data-action="worlds">Tek Oyuncu</button>
+      <button class="btn" data-action="settings">Ayarlar</button>
+      <button class="btn" data-action="help">Nasıl Oynanır?</button>
+    </div>
+    <div class="footer"><span>WebCraft v1.0</span><span>Tarayıcıda çalışan blok oyunu · Kurulum gerekmez</span></div>
+  </div>
+
+  <!-- Dünya seçimi -->
+  <div id="worldsMenu" class="screen hidden dim">
+    <h2>Dünya Seç</h2>
+    <div id="worldList" class="list"></div>
+    <div class="row">
+      <button class="btn" data-action="create">Yeni Dünya Oluştur</button>
+      <button class="btn" data-action="back">Geri</button>
+    </div>
+  </div>
+
+  <!-- Dünya oluştur -->
+  <div id="createMenu" class="screen hidden dim">
+    <h2>Yeni Dünya Oluştur</h2>
+    <div class="form">
+      <label>Dünya Adı<input id="worldName" type="text" maxlength="32" value="Yeni Dünya"></label>
+      <label>Dünya Tohumu (boş bırakırsan rastgele)<input id="worldSeed" type="text" maxlength="40" placeholder="ör. 12345 veya istanbul"></label>
+      <div class="lbl">Oyun Modu</div>
+      <div class="toggleRow" id="modeToggle">
+        <button class="btn sel" data-mode="survival">Hayatta Kalma</button>
+        <button class="btn" data-mode="creative">Yaratıcı</button>
+      </div>
+      <div class="hint" id="modeHint">Blok topla, canavarlardan korun, sağlığına dikkat et.</div>
+      <div class="lbl">Zorluk</div>
+      <div class="toggleRow" id="diffToggle">
+        <button class="btn" data-diff="0">Kolay</button>
+        <button class="btn sel" data-diff="1">Normal</button>
+        <button class="btn" data-diff="2">Zor</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" data-action="doCreate">Dünyayı Oluştur</button>
+      <button class="btn" data-action="worlds">İptal</button>
+    </div>
+  </div>
+
+  <!-- Ayarlar -->
+  <div id="settingsMenu" class="screen hidden dim">
+    <h2>Ayarlar</h2>
+    <div class="form settings">
+      <label>Görüş Mesafesi: <b id="rdVal"></b><input type="range" id="setRD" min="2" max="14" step="1"></label>
+      <label>Görüş Açısı (FOV): <b id="fovVal"></b><input type="range" id="setFOV" min="50" max="110" step="1"></label>
+      <label>Fare Hassasiyeti: <b id="sensVal"></b><input type="range" id="setSens" min="0.2" max="3" step="0.05"></label>
+      <label>Parlaklık: <b id="gammaVal"></b><input type="range" id="setGamma" min="0" max="0.7" step="0.05"></label>
+      <label>Ses: <b id="volVal"></b><input type="range" id="setVol" min="0" max="1" step="0.05"></label>
+      <label>Müzik: <b id="musVal"></b><input type="range" id="setMus" min="0" max="1" step="0.05"></label>
+      <label>Çözünürlük Ölçeği: <b id="resVal"></b><input type="range" id="setRes" min="0.4" max="1" step="0.05"></label>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" id="setClouds"> Bulutlar</label>
+        <label class="chk"><input type="checkbox" id="setBob"> Kamera sallanması</label>
+        <label class="chk"><input type="checkbox" id="setMobs"> Canlılar</label>
+        <label class="chk"><input type="checkbox" id="setInvert"> Fareyi ters çevir</label>
+      </div>
+    </div>
+    <div class="row"><button class="btn" data-action="settingsBack">Bitti</button></div>
+  </div>
+
+  <!-- Yardım -->
+  <div id="helpMenu" class="screen hidden dim">
+    <h2>Nasıl Oynanır?</h2>
+    <div class="helpGrid">
+      <div><kbd>W A S D</kbd> Hareket</div>
+      <div><kbd>Boşluk</kbd> Zıpla / Yüz</div>
+      <div><kbd>Shift</kbd> Eğil (kenardan düşmezsin)</div>
+      <div><kbd>R</kbd> / <kbd>Ctrl</kbd> / <kbd>W W</kbd> Koş</div>
+      <div><kbd>Sol Tık</kbd> Blok kır / Saldır</div>
+      <div><kbd>Sağ Tık</kbd> Blok koy / TNT ateşle</div>
+      <div><kbd>Orta Tık</kbd> Bloğu seç</div>
+      <div><kbd>1-9</kbd> / <kbd>Tekerlek</kbd> Eşya seç</div>
+      <div><kbd>E</kbd> Envanter ve tarifler</div>
+      <div><kbd>Boşluk Boşluk</kbd> Uç (Yaratıcı)</div>
+      <div><kbd>F3</kbd> Hata ayıklama ekranı</div>
+      <div><kbd>F1</kbd> Arayüzü gizle</div>
+      <div><kbd>F2</kbd> Ekran görüntüsü</div>
+      <div><kbd>Esc</kbd> Duraklat</div>
+    </div>
+    <p class="hint">Hayatta Kalma modunda kırdığın bloklar envanterine gelir. E ile envanteri açıp tariflerle yeni bloklar üretebilirsin.
+      Geceleri zombiler ve creeper'lar ortaya çıkar — meşale koyarak mağaraları aydınlat! TNT'ye sağ tıklayarak ateşleyebilirsin.
+      Dünyan tarayıcına otomatik kaydedilir.</p>
+    <div class="row"><button class="btn" data-action="back">Geri</button></div>
+  </div>
+
+  <!-- Duraklatma -->
+  <div id="pauseMenu" class="screen hidden dim">
+    <h2>Oyun Duraklatıldı</h2>
+    <div class="menuButtons">
+      <button class="btn" data-action="resume">Oyuna Dön</button>
+      <button class="btn" data-action="settings">Ayarlar</button>
+      <button class="btn" data-action="help">Nasıl Oynanır?</button>
+      <button class="btn" data-action="quit">Kaydet ve Ana Menüye Dön</button>
+    </div>
+  </div>
+
+  <!-- Ölüm -->
+  <div id="deathMenu" class="screen hidden death">
+    <h2 class="red">Öldün!</h2>
+    <div id="deathInfo" class="hint"></div>
+    <div class="menuButtons">
+      <button class="btn" data-action="respawn">Yeniden Doğ</button>
+      <button class="btn" data-action="quit">Ana Menü</button>
+    </div>
+  </div>
+
+  <!-- Yükleniyor -->
+  <div id="loading" class="screen hidden dirt">
+    <h2>Dünya oluşturuluyor…</h2>
+    <div class="progress"><div id="loadBar"></div></div>
+    <div id="loadText" class="hint"></div>
+  </div>
+
+  <!-- Envanter -->
+  <div id="inventory" class="overlay hidden">
+    <div class="invWrap">
+      <div class="panel inv" id="invPanel">
+        <div class="invTitle" id="invTitle">Envanter</div>
+        <div id="invTabs" class="hidden"><input id="invSearch" type="text" placeholder="Ara…"></div>
+        <div id="invGrid" class="grid"></div>
+        <div class="invTitle sub">Eşya Çubuğu</div>
+        <div id="invHotbar" class="grid"></div>
+      </div>
+      <div class="panel recipes" id="recipePanel">
+        <div class="invTitle">Tarifler</div>
+        <div id="recipeList"></div>
+      </div>
+    </div>
+    <div id="cursorItem"></div>
+    <div id="tooltip"></div>
+  </div>
+
+  <!-- Dokunmatik kontroller -->
+  <div id="touch" class="hidden">
+    <div id="joy"><div id="joyKnob"></div></div>
+    <div id="lookArea"></div>
+    <div class="tbtns">
+      <button class="tb" id="tbJump">⤒</button>
+      <button class="tb" id="tbSneak">⤓</button>
+      <button class="tb" id="tbBreak">⛏</button>
+      <button class="tb" id="tbPlace">▣</button>
+    </div>
+    <div class="ttop">
+      <button class="tb small" id="tbFly">✈</button>
+      <button class="tb small" id="tbInv">▦</button>
+      <button class="tb small" id="tbPause">❚❚</button>
+    </div>
+  </div>
+
+  <div id="fatal" class="screen hidden dim">
+    <h2>Bir sorun oluştu</h2>
+    <p id="fatalText" class="hint"></p>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/blocks.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/mesher.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
