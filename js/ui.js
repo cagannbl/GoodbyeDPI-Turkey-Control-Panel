@@ -202,7 +202,9 @@ class UI {
       d.addEventListener('click', (e) => {
         g.audio.init();
         if (e.target.closest('[data-del]')) {
-          if (confirm(`"${w.name}" dünyası kalıcı olarak silinsin mi?`)) { g.deleteWorld(w.id); this.renderWorldList(); }
+          const del = e.target.closest('[data-del]');
+          if (del.dataset.armed) { g.deleteWorld(w.id); this.renderWorldList(); }
+          else { del.dataset.armed = '1'; del.textContent = 'Emin misin?'; setTimeout(() => { if (del.isConnected) { delete del.dataset.armed; del.textContent = 'Sil'; } }, 3000); }
           return;
         }
         g.audio.play('click');

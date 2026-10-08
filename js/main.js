@@ -195,7 +195,7 @@ class Game {
     this.state = 'playing';
     this.ui.show(null);
     $('inventory').classList.add('hidden');
-    if (!this.isTouch && !this.locked) $('clickToPlay').classList.remove('hidden');
+    if (!this.isTouch && !this.locked && !this.noLock) $('clickToPlay').classList.remove('hidden');
   }
 
   quitToMenu() {
@@ -284,21 +284,33 @@ class Game {
         else this.pause();
       }
     });
-    $('clickToPlay').addEventListener('click', () => { this.audio.init(); this.requestLock(); });
+    // Fare kilidi reddedilirse: sürükleyerek bak, tıklayarak kır/koy
+    document.addEventListener('pointerlockerror', () => {
+      this.noLock = true;
+      $('clickToPlay').classList.add('hidden');
+      this.ui.toast('Bakmak için fareyi basılı tutup sürükle', 3);
+    });
+    $('clickToPlay').addEventListener('click', () => { this.audio.init(); this.requestLock(); if (this.noLock) $('clickToPlay').classList.add('hidden'); });
     cv.addEventListener('mousedown', (e) => {
       this.audio.init();
       if (this.state !== 'playing' || this.isTouch) return;
+      if (!this.locked && this.noLock) { this.drag = { b: e.button, moved: 0 }; if (e.button === 1) this.midPressed = true; return; }
       if (!this.locked) { this.requestLock(); return; }
       if (e.button === 0) { this.mouse.left = true; this.leftPressed = true; }
       if (e.button === 2) { this.mouse.right = true; this.rightPressed = true; }
       if (e.button === 1) { this.midPressed = true; e.preventDefault(); }
     });
     window.addEventListener('mouseup', (e) => {
+      if (this.drag) {
+        if (this.drag.moved < 6 && this.state === 'playing') { if (e.button === 0) this.leftPressed = true; if (e.button === 2) this.rightPressed = true; }
+        this.drag = null;
+      }
       if (e.button === 0) this.mouse.left = false;
       if (e.button === 2) this.mouse.right = false;
     });
     document.addEventListener('mousemove', (e) => {
       if (this.locked && this.state === 'playing') this.look(e.movementX, e.movementY);
+      else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('wheel', (e) => {
