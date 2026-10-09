@@ -610,7 +610,9 @@ class UI {
   dropCursor(one) {
     const c = this.cursor;
     if (!c) return;
-    if (one) { c.count--; if (!c.count) this.cursor = null; } else this.cursor = null;
+    const k = one ? 1 : c.count;
+    if (!this.g.player.creative || this.g.screen.kind !== 'creative') this.g.throwStack(Object.assign({}, c, { count: k }));
+    c.count -= k; if (c.count <= 0) this.cursor = null;
   }
 
   moveCursor(x, y) {

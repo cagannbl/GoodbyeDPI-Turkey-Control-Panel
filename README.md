@@ -30,6 +30,11 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
   cam panel, tırmanma merdiveni; alçak bloklara kendiliğinden çıkma
 - **Ender Ejderhası**: uçan, dalış yapan, çıkış geçidine konan boss; sütunlardaki End kristalleri onu iyileştirir,
   yenilince çıkış geçidi açılır ve ejderha yumurtası belirir
+- **Minecraft tarzı grafik**: sınırlı paletli kümelenmiş piksel dokular; dokulu moblar (yüzleri, desenleri), oyuncuya
+  bakan başlar, örümcek bacak ve tavuk kanat animasyonları, ot yiyen koyunlar
+- **Elde tutulan eşya**: Minecraft'ın el dönüşümleriyle 3D kabartma eşyalar, blok, çıplak kol; sallama, yeme, yay germe,
+  eşya değiştirme ve kamera ataleti animasyonları
+- **Yere düşen eşyalar**: dönen/zıplayan ganimetler, toplama, birleşme, Q ile atma; **F5** ile üçüncü şahıs kamera
 - Güneş ışığı + blok ışığı (meşale, ışıktaşı, lav, fener balkabağı) yayılımı, yumuşak aydınlatma ve ambient occlusion
 - Gece-gündüz döngüsü, kare güneş ve ay, yıldızlar, gün batımı, hareketli bulutlar, sis, animasyonlu su ve lav
 - **Hayatta Kalma** modu: sağlık, düşme hasarı, boğulma, lav, kırma süresi, envanter ve tarifler (üretim)
@@ -55,8 +60,9 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | Orta tık | Bloğu seç |
 | 1-9, tekerlek | Eşya seç |
 | E | Envanter ve tarifler |
-| Q | Seçili eşyayı at |
 | F1 / F2 / F3 | Arayüzü gizle / ekran görüntüsü / hata ayıklama |
+| F5 | Üçüncü şahıs kamera |
+| Q / Ctrl+Q | Eşya at / yığını at |
 | Esc | Duraklat |
 
 ## Kod yapısı

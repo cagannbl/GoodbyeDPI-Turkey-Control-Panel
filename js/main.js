@@ -443,7 +443,8 @@ class Game {
       } else if (k === 'KeyW') {
         if (now - this.lastW < 280) this.sprintTap = true;
         this.lastW = now;
-      } else if (k === 'KeyQ') this.dropSelected();
+      } else if (k === 'KeyQ') this.dropSelected(e.ctrlKey);
+      else if (k === 'F5') { this.thirdPerson = ((this.thirdPerson || 0) + 1) % 3; }
     });
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
@@ -459,7 +460,7 @@ class Game {
     if (this.player.creative) return true;
     return this.addStack({ id, count: n });
   }
-  // Yığını envantere ekle (eşya çubuğu önce). Sığmayan kısım kaybolur.
+  // Yığını envantere ekle (eşya çubuğu önce). Sığmayan kısım oyuncunun önüne düşer.
   addStack(st) {
     const inv = this.inv, mx = maxStack(st.id);
     let n = st.count;
@@ -471,8 +472,28 @@ class Game {
       if (!inv[i]) { const m = Math.min(mx, n); inv[i] = Object.assign({}, st, { count: m }); n -= m; }
     }
     this.ui.hotbarDirty = true;
-    if (n > 0) { this.ui.toast('Envanter dolu!', 1.5); return false; }
+    if (n > 0) { this.throwStack(Object.assign({}, st, { count: n })); return false; }
     return true;
+  }
+  // Yerdeki eşyayı al (sığmazsa yerde kalır)
+  pickup(st) {
+    if (!this.player.creative) {
+      if (!this.ui.hasRoom(st)) return false;
+      this.addStack(st);
+    }
+    this.audio.play('pop', null);
+    return true;
+  }
+  // Oyuncunun baktığı yöne eşya fırlat
+  throwStack(st) {
+    const p = this.player, d = p.lookDir(), e = p.eye();
+    this.entities.spawnDrop(st, e[0] + d[0] * 0.3, e[1] - 0.3, e[2] + d[2] * 0.3, d[0] * 5.5, d[1] * 5 + 2, d[2] * 5.5, 1.5);
+  }
+  // Blok/canlı ganimetini yere düşür
+  dropAt(id, n, x, y, z) {
+    if (this.player.creative || n <= 0) return;
+    const mx = maxStack(id);
+    while (n > 0) { const k = Math.min(mx, n); this.entities.spawnDrop({ id, count: k }, x, y, z); n -= k; }
   }
   // Elde tutulan aleti aşındır
   damageTool(amount = 1) {
@@ -559,14 +580,17 @@ class Game {
   mobDrops(m) {
     if (this.player.creative) return;
     const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-    for (const [id, n] of MOB_DROPS(r)[m.type] || []) if (n > 0) this.addItem(id, n);
+    for (const [id, n] of MOB_DROPS(r)[m.type] || []) if (n > 0) this.dropAt(id, n, m.pos[0], m.pos[1] + 0.4, m.pos[2]);
   }
 
-  dropSelected() {
-    if (this.player.creative) return;
+  // Q: bir tane at, Ctrl+Q: tüm yığını at
+  dropSelected(all) {
     const s = this.inv[this.selected];
     if (!s) return;
-    s.count--; if (!s.count) this.inv[this.selected] = null;
+    const k = all ? s.count : 1;
+    this.throwStack(Object.assign({}, s, { count: k }));
+    s.count -= k; if (s.count <= 0) this.inv[this.selected] = null;
+    this.swingT = 0.3;
     this.ui.hotbarDirty = true;
   }
 
@@ -587,13 +611,13 @@ class Game {
     if (byPlayer) this.player.exh += 0.005;
     if (byPlayer && !this.player.creative) {
       const tool = toolOf(this.inv[this.selected]);
-      for (const [d, n] of blockDrops(id, tool)) this.addItem(d, n);
+      for (const [d, n] of blockDrops(id, tool)) this.dropAt(d, n, x + 0.5, y + 0.25, z + 0.5);
       if (tool && tool.dur && BLOCKS[id].hardness > 0) this.damageTool(tool.kind === 'sword' ? 2 : 1);
     }
     // Sandık/fırın içeriği
     const tk = x + ',' + y + ',' + z, tiles = this.dims[this.dim].tiles;
     if (tiles[tk]) {
-      if (!this.player.creative) for (const st of tiles[tk].items) if (st) this.addStack(st);
+      if (!this.player.creative) for (const st of tiles[tk].items) if (st) this.entities.spawnDrop(st, x + 0.5, y + 0.5, z + 0.5);
       delete tiles[tk];
     }
     // Geçit çerçevesi bozulursa geçit söner
@@ -1549,9 +1573,21 @@ class Game {
     const under = p.eyeInWater, inLava = p.eyeInLava;
     const fogEnd = R * 16 * 0.95;
     this.audio.listener = eye; this.audio.listenerYaw = p.yaw;
+    // F5: üçüncü şahıs (arkadan / önden) kamera
+    let cam = eye, cyaw = p.yaw, cpitch = p.pitch;
+    const tp = this.thirdPerson && !p.dead && !this.sleeping;
+    if (tp) {
+      const ld = p.lookDir(), sgn = this.thirdPerson === 1 ? -1 : 1;
+      const dir = [ld[0] * sgn, ld[1] * sgn, ld[2] * sgn];
+      const hit = raycast(w, eye, dir, 4.2);
+      const dist = Math.max(0.5, Math.min(4, hit ? hit.dist - 0.3 : 4));
+      cam = [eye[0] + dir[0] * dist, eye[1] + dir[1] * dist, eye[2] + dir[2] * dist];
+      if (this.thirdPerson === 2) { cyaw = p.yaw + Math.PI; cpitch = -p.pitch; }
+    }
+    this.updatePlayerModel(dt);
 
     Object.assign(S, {
-      cam: eye, yaw: p.yaw, pitch: p.pitch, roll, fov: this.settings.fov * (1 + p.fovBoost * 0.12) * (under ? 0.92 : 1) * (1 - 0.15 * Math.min(1, this.bowT)),
+      cam, yaw: cyaw, pitch: cpitch, roll, fov: this.settings.fov * (1 + p.fovBoost * 0.12) * (under ? 0.92 : 1) * (1 - 0.15 * Math.min(1, this.bowT)),
       renderDist: R, time: performance.now() / 1000, gamma: this.settings.gamma, clouds: this.settings.clouds, underwater: under || inLava,
       fogStart: under ? 0 : inLava ? 0 : R * 16 * 0.55, fogEnd: under ? 22 : inLava ? 2.5 : fogEnd,
     });
@@ -1569,19 +1605,39 @@ class Game {
       const stage = Math.min(9, Math.floor(this.mineProgress / this.mineTimeCur * 10));
       S.crack = [tg.x, tg.y, tg.z, stage];
     }
-    S.entityCount = this.entities.buildMesh(eye);
+    S.entityCount = this.entities.buildMesh(cam);
     S.entityVerts = this.entities.verts;
-    S.particleCount = this.particles.fill(eye, this.sunLevel);
+    S.drops = this.entities.drops.map((d) => {
+      let light = 0.7;
+      if (this.dim === 'overworld') light = Math.max(0.2, w.skyLightAt(Math.floor(d.pos[0]), Math.floor(d.pos[1] + 0.3), Math.floor(d.pos[2])) ? this.sunLevel : 0.35);
+      return { id: d.stack.id, count: d.stack.count, pos: d.pos, spin: d.spin + d.age * 1.6, bob: Math.sin(d.age * 2.4 + d.spin) * 0.06, light };
+    });
+    S.heldTP = null;
+    if (tp && this.inv[this.selected]) {
+      const pm = this.playerModel, sw2 = Math.sin(pm.walk) * 0.75 * pm.walkAmt;
+      S.heldTP = { id: this.inv[this.selected].id, pos: p.pos, yaw: pm.yaw, arm: -sw2 * 0.9 - (pm.swing > 0 ? Math.sin(pm.swing * Math.PI) * 1.4 : 0) - 0.3, light: 0.8 };
+      S.heldTP.light = this.dim === 'overworld' ? Math.max(0.2, w.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1), Math.floor(p.pos[2])) ? this.sunLevel : 0.35) : 0.7;
+    }
+    S.particleCount = this.particles.fill(cam, this.sunLevel);
     S.particleData = this.particles.data;
     const held = this.inv[this.selected];
     const sky = this.dim === 'overworld' ? w.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1.6), Math.floor(p.pos[2])) : 0;
     const hb = this.settings.viewBob ? p.bob : 0;
-    S.hand = p.dead || document.body.classList.contains('nohud') ? null : {
-      id: held ? (held.id === I.BOW && this.bowT > 0.25 ? I.BOW_PULL : held.id) : 0, sky: sky ? 1 : 0.35, blk: this.dim === 'overworld' ? 0 : 0.75, light: (sky ? this.sunLevel : this.dim === 'overworld' ? 0.35 : 0.6),
+    // El ataleti: kol, bakış dönüşünü biraz geriden takip eder
+    let dy = p.yaw - (this.armYaw === undefined ? p.yaw : this.armYaw);
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    this.armYaw = p.yaw - dy * Math.exp(-dt * 14);
+    this.armPitch = p.pitch - (p.pitch - (this.armPitch === undefined ? p.pitch : this.armPitch)) * Math.exp(-dt * 14);
+    S.hand = p.dead || tp || this.sleeping || document.body.classList.contains('nohud') ? null : {
+      id: held ? (held.id === I.BOW && this.bowT > 0.25 ? I.BOW_PULL : held.id) : 0,
+      light: (sky ? Math.max(0.2, this.sunLevel) : this.dim === 'overworld' ? 0.4 : 0.65),
       swing: this.swingT > 0 ? 1 - this.swingT / 0.3 : 0,
-      bobX: Math.sin(p.walkDist * Math.PI * 0.62) * 0.035 * hb,
-      bobY: -Math.abs(Math.cos(p.walkDist * Math.PI * 0.62)) * 0.04 * hb,
-      lower: this.equipT / 0.2 * 0.4,
+      bobX: Math.sin(p.walkDist * Math.PI * 0.62) * 0.03 * hb,
+      bobY: -Math.abs(Math.cos(p.walkDist * Math.PI * 0.62)) * 0.035 * hb,
+      lower: this.equipT / 0.2,
+      swayYaw: clamp((p.yaw - this.armYaw) * 0.35, -0.3, 0.3), swayPitch: clamp((p.pitch - this.armPitch) * 0.35, -0.3, 0.3),
+      eat: this.eatT, bow: held && held.id === I.BOW ? this.bowT : 0, time: performance.now() / 1000,
     };
     this.renderer.render(S);
     if (this.screenshotNext) { this.screenshotNext = false; this.screenshot(); }
@@ -1606,6 +1662,28 @@ class Game {
         tg ? `Hedef: ${itemName(tg.id)} (${tg.x}, ${tg.y}, ${tg.z})` : 'Hedef: -',
       ]);
     } else this.ui.updateDebug(null);
+  }
+
+  // F5 görünümü için oyuncu modeli (Steve)
+  updatePlayerModel(dt) {
+    const p = this.player;
+    if (!this.playerModel) this.playerModel = new Mob('player', 0, 0, 0);
+    const m = this.playerModel;
+    m.pos = p.pos; m.hurtTime = p.hurtTime; m.anim += dt;
+    const hs = Math.hypot(p.vel[0], p.vel[2]);
+    if (p.onGround || p.flying) { m.walk += hs * dt * 2.2; m.walkAmt += (Math.min(1, hs / 4.3) - m.walkAmt) * Math.min(1, dt * 8); }
+    // Gövde yürürken bakış yönüne döner, dururken baş 50°'den fazla dönerse takip eder
+    let d = p.yaw - m.yaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    if (hs > 0.5) m.yaw += d * Math.min(1, dt * 8);
+    else if (Math.abs(d) > 0.9) m.yaw += (d - Math.sign(d) * 0.9);
+    d = p.yaw - m.yaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    m.headYaw = d; m.headPitch = p.pitch;
+    m.swing = this.swingT > 0 ? 1 - this.swingT / 0.3 : 0;
+    m.holding = !!this.inv[this.selected];
   }
 
   screenshot() {

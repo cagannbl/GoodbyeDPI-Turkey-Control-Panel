@@ -223,6 +223,7 @@ void main() {
 }`;
 const ENT_FS = `#version 300 es
 precision highp float;
+uniform sampler2D u_skin;
 uniform vec3 u_fogColor;
 uniform vec2 u_fog;
 in vec3 v_color;
@@ -230,10 +231,10 @@ in vec2 v_uv;
 in float v_light;
 in float v_dist;
 out vec4 o;
-float h2(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 void main() {
-  float n = h2(floor(v_uv));
-  vec3 c = v_color * (0.88 + n * 0.16) * v_light;
+  vec4 t = texture(u_skin, v_uv);
+  if (t.a < 0.5) discard;
+  vec3 c = t.rgb * v_color * v_light;
   float f = clamp((v_dist - u_fog.x) / (u_fog.y - u_fog.x), 0.0, 1.0);
   o = vec4(mix(c, u_fogColor, f), 1.0);
 }`;
@@ -256,6 +257,14 @@ class Renderer {
     this.planes = new Float32Array(24);
 
     this.initTextures();
+    buildSkinAtlas();
+    this.skinTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.skinTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, SKIN_W, SKIN_H, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(SKIN_DATA.buffer));
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     this.initQuadIndex(400000);
 
     // Tam ekran üçgen (gökyüzü)
@@ -493,6 +502,8 @@ class Renderer {
 
     // Varlıklar
     if (S.entityVerts && S.entityCount) this.drawEntities(S.entityVerts, S.entityCount, this.vp, S);
+    this.drawDrops(S);
+    this.drawHeldTP(S);
 
     // Seçim kutusu
     if (S.selection) {
@@ -583,7 +594,7 @@ class Renderer {
       gl.drawArrays(gl.POINTS, 0, S.particleCount);
     }
 
-    // El / elde tutulan blok
+    // El / elde tutulan eşya
     if (S.hand) this.drawHand(S, aspect);
     gl.bindVertexArray(null);
     gl.depthMask(true);
@@ -596,6 +607,10 @@ class Renderer {
     gl.uniformMatrix4fv(eu.u_vp, false, vp);
     gl.uniform3fv(eu.u_fogColor, S.fogColor);
     gl.uniform2f(eu.u_fog, S.fogStart, S.fogEnd);
+    gl.uniform1i(eu.u_skin, 1);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.skinTex);
+    gl.activeTexture(gl.TEXTURE0);
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
     gl.bindVertexArray(this.entVAO);
@@ -605,6 +620,90 @@ class Renderer {
     gl.enable(gl.CULL_FACE);
   }
 
+  // Önbellekli eşya modelini verilen matrisle çiz (chunk shader'ı)
+  drawItemModel(id, mvp, light) {
+    const gl = this.gl, M = itemModel(id);
+    if (!M.gpu) { M.gpu = this.makeMeshVAO(M.data); M.count = (M.n / 4) * 6; }
+    const u = this.progChunk.u;
+    gl.uniformMatrix4fv(u.u_vp, false, mvp);
+    gl.uniform1f(u.u_sun, light);
+    gl.bindVertexArray(M.gpu.vao);
+    gl.drawElements(gl.TRIANGLES, M.count, gl.UNSIGNED_INT, 0);
+  }
+
+  itemUniforms(S) {
+    const gl = this.gl, u = this.progChunk.u;
+    this.setChunkUniforms(S);
+    gl.uniform3f(u.u_sunTint, 1, 1, 1);
+    gl.uniform3f(u.u_ambient, 0, 0, 0);
+    gl.uniform3f(u.u_offset, 0, 0, 0);
+    gl.uniform2f(u.u_fog, 1000, 2000);
+    gl.uniform1f(u.u_alphaTest, 0.5);
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.BLEND);
+  }
+
+  // Modeli merkeze al: blok 0..1 küp, eşya 16x16x1 piksel
+  centerModel(m, id) {
+    const t = M4.create();
+    if (itemModel(id).flat) M4.translate(t, -0.5, -0.5, -1 / 32);
+    else M4.translate(t, -0.5, -0.5, -0.5);
+    M4.mul(m, m, t);
+  }
+
+  // Yerdeki eşyalar: dönerek ve hafifçe zıplayarak durur
+  drawDrops(S) {
+    if (!S.drops || !S.drops.length) return;
+    const gl = this.gl, cam = S.cam;
+    this.itemUniforms(S);
+    gl.enable(gl.DEPTH_TEST);
+    const m = M4.create(), t = M4.create(), mvp = M4.create();
+    for (const d of S.drops) {
+      const flat = itemModel(d.id).flat, copies = d.count > 16 ? 3 : d.count > 1 ? 2 : 1;
+      for (let k = 0; k < copies; k++) {
+        M4.translate(m, d.pos[0] - cam[0] + k * 0.06, d.pos[1] - cam[1] + 0.12 + d.bob + k * 0.04, d.pos[2] - cam[2] + k * 0.05);
+        M4.rotY(t, d.spin + k * 0.3); M4.mul(m, m, t);
+        const sc = flat ? 0.42 : 0.25;
+        M4.scale(t, sc, sc, sc); M4.mul(m, m, t);
+        this.centerModel(m, d.id);
+        M4.mul(mvp, this.vp, m);
+        this.drawItemModel(d.id, mvp, d.light);
+      }
+    }
+    gl.enable(gl.CULL_FACE);
+  }
+
+  // F5 görünümünde oyuncunun elindeki eşya
+  drawHeldTP(S) {
+    const T = S.heldTP;
+    if (!T) return;
+    const gl = this.gl, D = Math.PI / 180;
+    const m = M4.create(), t = M4.create(), mvp = M4.create();
+    const tr = (x, y, z) => { M4.translate(t, x, y, z); M4.mul(m, m, t); };
+    M4.translate(m, T.pos[0] - S.cam[0], T.pos[1] - S.cam[1], T.pos[2] - S.cam[2]);
+    M4.rotY(t, T.yaw); M4.mul(m, m, t);
+    tr(6 / 16, 22 / 16, 0);
+    M4.rotX(t, T.arm); M4.mul(m, m, t);
+    tr(0, -10 / 16, -1 / 16);
+    if (itemModel(T.id).flat) {
+      M4.rotY(t, 90 * D); M4.mul(m, m, t);
+      M4.scale(t, 0.62, 0.62, 0.62); M4.mul(m, m, t);
+      tr(-3 / 16, -3 / 16, -1 / 32);
+      tr(0.5, 0.5, 1 / 32);
+    } else {
+      M4.rotY(t, 45 * D); M4.mul(m, m, t);
+      M4.scale(t, 0.3, 0.3, 0.3); M4.mul(m, m, t);
+      tr(0, -0.4, 0);
+    }
+    this.centerModel(m, T.id);
+    M4.mul(mvp, this.vp, m);
+    this.itemUniforms(S);
+    gl.enable(gl.DEPTH_TEST);
+    this.drawItemModel(T.id, mvp, T.light);
+    gl.enable(gl.CULL_FACE);
+  }
+
+  // Birinci şahıs el ve eşya (Minecraft'ın ItemInHandRenderer dönüşümlerine göre)
   drawHand(S, aspect) {
     const gl = this.gl;
     const H = S.hand;
@@ -613,40 +712,72 @@ class Renderer {
     M4.perspective(this.tmp2, 70 * Math.PI / 180, aspect, 0.01, 10);
     const handProj = new Float32Array(this.tmp2);
     const m = M4.create(), t = M4.create();
-    const sw = H.swing, s1 = Math.sin(sw * Math.PI), s2 = Math.sin(Math.sqrt(sw) * Math.PI);
-    M4.translate(m, 0.6 - s2 * 0.3 + H.bobX, -0.6 + H.bobY + s1 * 0.12 - H.lower * 0.6, -0.95 - s1 * 0.25);
-    M4.rotY(t, -s2 * 0.6); M4.mul(m, m, t);
-    M4.rotX(t, -s1 * 1.1); M4.mul(m, m, t);
-    if (H.id) {
-      const cross = H.id >= 256 || RENDER[H.id] === R_CROSS;
-      M4.rotY(t, cross ? -0.4 : Math.PI / 4 + 0.25); M4.mul(m, m, t);
-      M4.scale(t, 0.36, 0.36, 0.36); M4.mul(m, m, t);
-      M4.translate(t, -0.5, -0.5, -0.5); M4.mul(m, m, t);
-      M4.mul(m, handProj, m);
-      const mesh = buildBlockMesh(H.id, H.sky, H.blk);
-      this.setChunkUniforms(S);
-      const u = this.progChunk.u;
-      gl.uniformMatrix4fv(u.u_vp, false, m);
-      gl.uniform3f(u.u_offset, 0, 0, 0);
-      gl.uniform2f(u.u_fog, 1000, 2000);
-      gl.uniform1f(u.u_alphaTest, 0.5);
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthMask(true);
-      gl.disable(gl.CULL_FACE);
-      gl.disable(gl.BLEND);
-      gl.bindVertexArray(this.itemVAO);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.itemVBO);
-      gl.bufferData(gl.ARRAY_BUFFER, mesh.u8.subarray(0, mesh.n * 12), gl.DYNAMIC_DRAW);
-      gl.drawElements(gl.TRIANGLES, mesh.n / 4 * 6, gl.UNSIGNED_INT, 0);
-    } else {
-      // Çıplak kol
-      M4.translate(t, 0.12, 0.05, 0.1); M4.mul(m, m, t);
-      M4.rotX(t, 0.9); M4.mul(m, m, t);
-      M4.rotZ(t, -0.15); M4.mul(m, m, t);
+    const D = Math.PI / 180;
+    const mul = (mat) => M4.mul(m, m, mat);
+    const tr = (x, y, z) => { M4.translate(t, x, y, z); mul(t); };
+    const rx = (a) => { M4.rotX(t, a); mul(t); };
+    const ry = (a) => { M4.rotY(t, a); mul(t); };
+    const rz = (a) => { M4.rotZ(t, a); mul(t); };
+    const sw = H.swing, sq = Math.sqrt(sw);
+    // Yürüme sallanması ve kamera ataleti
+    tr(H.bobX, H.bobY, 0);
+    rx(H.swayPitch || 0); ry(H.swayYaw || 0);
+    if (!H.id) {
+      // Çıplak kol (Minecraft renderPlayerArm dönüşümü)
+      const f2 = -0.3 * Math.sin(sq * Math.PI), f3 = 0.4 * Math.sin(sq * Math.PI * 2), f4 = -0.4 * Math.sin(sw * Math.PI);
+      tr(f2 + 0.64, f3 - 0.6 - H.lower * 0.6, f4 - 0.72);
+      ry(45 * D);
+      ry(Math.sin(sq * Math.PI) * 70 * D); rz(-Math.sin(sw * sw * Math.PI) * 20 * D);
+      tr(-1, 3.6, 3.5);
+      rz(120 * D); rx(200 * D); ry(-135 * D);
+      tr(5.6, 0, 0);
+      // Modelin kolu: pivot (-5, 2, 0), kutu (-3,-2,-2)-(1,10,2) — model uzayında y aşağı
+      tr(-5 / 16, 2 / 16, 0); rx(Math.PI);
       const verts = new Float32Array(24 * 9);
-      const n = addBox(verts, 0, m, -0.13, -0.13, -0.6, 0.13, 0.13, 0.25, [0.86, 0.66, 0.5], Math.max(0.15, H.light), 4);
+      const arm = MOB_TYPES.player.parts[2];
+      const n = addBox(verts, 0, m, -3 / 16, -10 / 16, -2 / 16, 1 / 16, 2 / 16, 2 / 16, [1, 1, 1], Math.max(0.2, H.light), 16, arm.rects);
       gl.enable(gl.DEPTH_TEST);
       this.drawEntities(verts, n, handProj, { fogColor: S.fogColor, fogStart: 1000, fogEnd: 2000 });
+      return;
     }
+    const flat = itemModel(H.id).flat;
+    if (H.eat > 0) {
+      // Yeme (applyEatTransform): eşya ağza gelir ve titrer
+      const f1 = Math.max(0, 1 - H.eat / 1.6), f3 = 1 - Math.pow(f1, 27);
+      if (f1 < 0.8) tr(0, Math.abs(Math.cos(H.eat * Math.PI * 5) * 0.1), 0);
+      tr(f3 * 0.6, f3 * -0.5, 0);
+      ry(f3 * 90 * D); rx(f3 * 10 * D); rz(f3 * 30 * D);
+    } else if (H.bow <= 0) {
+      // Sallama (saldırı / kazma)
+      tr(-0.4 * Math.sin(sq * Math.PI), 0.2 * Math.sin(sq * Math.PI * 2), -0.2 * Math.sin(sw * Math.PI));
+    }
+    tr(0.56, -0.52 - H.lower * 0.6, -0.72);
+    if (H.bow > 0) {
+      // Yay germe
+      const f = Math.min(1, (H.bow * H.bow + 2 * H.bow) / 3);
+      tr(-0.2785682, 0.18344387, 0.15731531);
+      rx(-13.935 * D); ry(35.3 * D); rz(-9.785 * D);
+      if (f > 0.1) tr(0, Math.sin((H.time - 0.1) * 26) * (f - 0.1) * 0.02, 0);
+      tr(0, 0, f * 0.04);
+      M4.scale(t, 1, 1, 1 + f * 0.2); mul(t);
+      ry(-45 * D);
+    } else if (H.eat <= 0) {
+      const fa = Math.sin(sw * sw * Math.PI), fb = Math.sin(sq * Math.PI);
+      ry((45 + fa * -20) * D); rz(fb * -20 * D); rx(fb * -80 * D); ry(-45 * D);
+    }
+    // Model görüntüleme dönüşümü (Minecraft: eşya [0,-90,25] 0.68, blok [0,45,0] 0.4)
+    if (flat) {
+      tr(1.13 / 16, 3.2 / 16, 1.13 / 16);
+      ry(-90 * D); rz(25 * D);
+      M4.scale(t, 0.68, 0.68, 0.68); mul(t);
+    } else {
+      ry(45 * D);
+      M4.scale(t, 0.4, 0.4, 0.4); mul(t);
+    }
+    this.centerModel(m, H.id);
+    M4.mul(m, handProj, m);
+    this.itemUniforms(S);
+    gl.enable(gl.DEPTH_TEST);
+    this.drawItemModel(H.id, m, Math.max(0.15, H.light));
   }
 }

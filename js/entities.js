@@ -5,19 +5,21 @@
 
 const BOX_UV = [[2, 1], [2, 1], [0, 2], [0, 2], [0, 1], [0, 1]]; // yüz başına (u ekseni, v ekseni)
 const _bm = new Float32Array(16);
+// Doku atlasında beyaz piksel: dokusuz kutular (oklar, ejderha, kristal) için
+const SKIN_W = 512, SKIN_H = 512;
+const WHITE_UV = [0.5 / SKIN_W, 0.5 / SKIN_H];
 
-// Dönüştürülmüş kutuyu vertex dizisine ekle (24 vertex, her biri 9 float)
-function addBox(out, n, m, x0, y0, z0, x1, y1, z1, col, light, px = 16) {
-  const lo = [x0, y0, z0], hi = [x1, y1, z1];
+// Dönüştürülmüş kutuyu vertex dizisine ekle (24 vertex, her biri 9 float).
+// rects: 6 yüzün atlas dikdörtgenleri [u0, v0, u1, v1] (yoksa düz renk), col: renk/ton çarpanı
+function addBox(out, n, m, x0, y0, z0, x1, y1, z1, col, light, px = 16, rects = null) {
   for (let f = 0; f < 6; f++) {
     const nn = FACE_N[f];
     const wnx = m[0] * nn[0] + m[4] * nn[1] + m[8] * nn[2];
     const wny = m[1] * nn[0] + m[5] * nn[1] + m[9] * nn[2];
     const wnz = m[2] * nn[0] + m[6] * nn[1] + m[10] * nn[2];
-    const shade = (wny >= 0 ? 0.78 + 0.22 * wny : 0.78 + 0.3 * wny) - 0.1 * Math.abs(wnx) + 0.02 * wnz;
-    const ua = BOX_UV[f][0], va = BOX_UV[f][1];
-    const us = (hi[ua] - lo[ua]) * px, vs = (hi[va] - lo[va]) * px;
+    const shade = (wny >= 0 ? 0.8 + 0.2 * wny : 0.8 + 0.3 * wny) - 0.12 * Math.abs(wnx) + 0.02 * wnz;
     const cr = col[0] * shade, cg = col[1] * shade, cb = col[2] * shade;
+    const R = rects && rects[f];
     for (let c = 0; c < 4; c++) {
       const C = FACE_CORNERS[f][c];
       const x = C[0] ? x1 : x0, y = C[1] ? y1 : y0, z = C[2] ? z1 : z0;
@@ -26,7 +28,20 @@ function addBox(out, n, m, x0, y0, z0, x1, y1, z1, col, light, px = 16) {
       out[o + 1] = m[1] * x + m[5] * y + m[9] * z + m[13];
       out[o + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
       out[o + 3] = cr; out[o + 4] = cg; out[o + 5] = cb;
-      out[o + 6] = C[ua] * us; out[o + 7] = C[va] * vs; out[o + 8] = light;
+      if (R) {
+        // Yüzü dışarıdan bakan için düz görünecek şekilde eşle (u sağa, v aşağı)
+        let s, t;
+        switch (f) {
+          case 0: s = 1 - C[2]; t = 1 - C[1]; break;
+          case 1: s = C[2]; t = 1 - C[1]; break;
+          case 2: s = C[0]; t = C[2]; break;
+          case 3: s = C[0]; t = 1 - C[2]; break;
+          case 4: s = C[0]; t = 1 - C[1]; break;
+          default: s = 1 - C[0]; t = 1 - C[1];
+        }
+        out[o + 6] = R[0] + (R[2] - R[0]) * s; out[o + 7] = R[1] + (R[3] - R[1]) * t;
+      } else { out[o + 6] = WHITE_UV[0]; out[o + 7] = WHITE_UV[1]; }
+      out[o + 8] = light;
       n++;
     }
   }
@@ -34,80 +49,69 @@ function addBox(out, n, m, x0, y0, z0, x1, y1, z1, col, light, px = 16) {
 }
 
 const P16 = 1 / 16;
-function part(box, color, anim, pivot) { return { box: box.map((v) => v * P16), color, anim: anim || null, pivot: pivot ? pivot.map((v) => v * P16) : null }; }
+// skin: renk dizisi ya da { c: renk, pat: desen, n: gürültü, faces: { front|top|...: çizici } }
+function part(box, skin, anim, pivot) {
+  return { raw: box, box: box.map((v) => v * P16), skin: Array.isArray(skin) ? { c: skin } : skin, anim: anim || null, pivot: pivot ? pivot.map((v) => v * P16) : null, rects: null };
+}
 
-const SKIN = [0.38, 0.6, 0.32], SHIRT = [0.0, 0.55, 0.6], PANTS = [0.27, 0.24, 0.62];
-const PINK = [0.95, 0.63, 0.62], PINK2 = [0.85, 0.48, 0.5];
-const COW = [0.33, 0.23, 0.15], WHITE = [0.92, 0.92, 0.9], BLACK = [0.08, 0.08, 0.08];
-const CREEP = [0.36, 0.72, 0.3], WOOLC = [0.93, 0.93, 0.9], SHEEPF = [0.78, 0.66, 0.56];
+// --- Yüz çizicileri (8x8 kafa ön yüzü vb. için; w, h piksel boyutu) ----------
+const FACE_NAMES = ['right', 'left', 'top', 'bottom', 'back', 'front'];
+const K = (r, g, b) => [r / 255, g / 255, b / 255];
+const drawRows = (rows, pal) => (set, w, h) => rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) { const c = pal[r[x]]; if (c) set(x, y, c); } });
+const FACE_ZOMBIE = drawRows(['', '', '', '.kk..kk.', '.ee..ee.', '...nn...', '..m..m..', '..mmmm..'], { k: K(30, 50, 25), e: K(10, 20, 10), n: K(70, 100, 55), m: K(55, 80, 45) });
+const FACE_STEVE = drawRows(['hhhhhhhh', 'hhhhhhhh', 'h......h', '........', '.wb..bw.', '...nn...', '..mmmm..', '..m..m..'], { h: K(55, 38, 20), w: K(255, 255, 255), b: K(80, 60, 170), n: K(140, 95, 70), m: K(105, 65, 45) });
+const FACE_CREEPER = drawRows(['', '', '.kk..kk.', '.kk..kk.', '...kk...', '..kkkk..', '..kkkk..', '..k..k..'], { k: K(12, 12, 12) });
+const FACE_SKELETON = drawRows(['', '', '', '.kk..kk.', '.kk..kk.', '...kk...', '.ttttt..', '.t.t.t..'], { k: K(30, 30, 30), t: K(90, 90, 88) });
+const FACE_PIG = drawRows(['', '', '', '.wk..kw.', '', '', '', ''], { w: K(255, 255, 255), k: K(20, 20, 20) });
+const FACE_SNOUT = drawRows(['', '.kk..', ''].map((r) => r), { k: K(150, 80, 80) });
+const FACE_COW = drawRows(['', '', 'w......w', 'k......k', '', '', '', ''], { w: K(240, 240, 240), k: K(15, 15, 15) });
+const FACE_SHEEP = drawRows(['', 'wk..kw', '', '', '', ''], { w: K(240, 240, 240), k: K(20, 20, 20) });
+const FACE_CHICKEN = drawRows(['', 'k..k', '', '', '', ''], { k: K(15, 15, 15) });
+const FACE_SPIDER = drawRows(['', '', '.rr..rr.', '.r....r.', '..r..r..', '', '', ''], { r: K(220, 30, 25) });
+const FACE_ENDER = drawRows(['', '', '', '', 'ppp..ppp', '', '', ''], { p: K(220, 120, 255) });
+const FACE_PIGLIN = drawRows(['', '', '', '.wk...kw.', '', '', '..k...k..', ''], { w: K(255, 255, 255), k: K(30, 20, 20) });
+const RIBS = (set, w, h) => { for (let y = 0; y < h; y++) if (y % 3 === 2) for (let x = 1; x < w - 1; x++) set(x, y, K(40, 40, 40)); for (let y = 0; y < h; y++) set(w >> 1, y, K(200, 200, 196)); };
+const SHOE = (set, w, h) => { for (let x = 0; x < w; x++) for (let y = h - 2; y < h; y++) set(x, y, K(70, 70, 70)); };
 
-const ENDER = [0.07, 0.05, 0.09], ENDEYE = [0.85, 0.45, 1.0];
-const PIGSKIN = [0.88, 0.6, 0.56], PIGSNOUT = [0.75, 0.45, 0.45], ROT = [0.45, 0.62, 0.38], PIGPANTS = [0.42, 0.3, 0.2], GOLDC = [0.98, 0.84, 0.25];
-
-const BONEC = [0.8, 0.8, 0.78], BONED = [0.6, 0.6, 0.58], BOWC = [0.45, 0.32, 0.18];
-const SPID = [0.22, 0.19, 0.17], SPID2 = [0.3, 0.26, 0.23], SPEYE = [0.9, 0.12, 0.1];
-const CHICK = [0.96, 0.96, 0.94], BEAK = [0.95, 0.7, 0.2], WATTLE = [0.85, 0.12, 0.12];
+const SKIN = { c: K(96, 150, 80), pat: 'rot' }, SHIRT = { c: K(0, 140, 150) }, PANTS = { c: K(70, 60, 160), faces: { front: SHOE, back: SHOE, left: SHOE, right: SHOE } };
+const PINK = { c: K(240, 160, 158) };
+const COWC = { c: K(84, 58, 38), pat: 'cow' };
+const CREEP = { c: K(92, 184, 76), pat: 'creeper' }, WOOL = { c: K(236, 236, 232), pat: 'wool' }, SHEEPF = { c: K(200, 170, 145) };
+const ENDER = { c: K(20, 14, 24), n: 0.12 };
+const PIGSKIN = { c: K(225, 155, 145) }, ROT = { c: K(115, 160, 100), pat: 'rot' }, PIGPANTS = { c: K(110, 80, 52) };
+const BONEC = { c: K(205, 205, 200), pat: 'bone' };
+const SPID = { c: K(55, 47, 42), pat: 'spider' };
+const CHICK = { c: K(245, 245, 240), pat: 'wool' }, BEAK = { c: K(240, 175, 50) }, WATTLE = { c: K(215, 30, 30) };
+const BLACK = [0.08, 0.08, 0.08];
+const HEAD = (c, front, extra) => Object.assign({}, c, { faces: Object.assign({ front }, extra || {}) });
 
 // Örümcek bacakları: her iki yanda 4 bacak
 function spiderLegs() {
   const legs = [];
   for (let k = 0; k < 4; k++) {
-    const z = -3 + k * 2.2, anim = k % 2 ? 'legA' : 'legB';
-    legs.push(part([4, 5, z - 0.5, 15, 6.5, z + 0.5], SPID, anim, [4, 6, z]));
-    legs.push(part([-15, 5, z - 0.5, -4, 6.5, z + 0.5], SPID, anim === 'legA' ? 'legB' : 'legA', [-4, 6, z]));
+    const z = -3 + k * 2.2, anim = k % 2 ? 'spA' : 'spB';
+    legs.push(part([4, 5, z - 1, 16, 7, z + 1], SPID, anim, [4, 6, z]));
+    legs.push(part([-16, 5, z - 1, -4, 7, z + 1], SPID, anim === 'spA' ? 'spB' : 'spA', [-4, 6, z]));
   }
   return legs;
 }
 
 const MOB_TYPES = {
-  skeleton: {
-    name: 'İskelet', hw: 0.3, h: 1.99, health: 20, speed: 2.3, hostile: true, ranged: true, burns: true, dmg: 3, sound: 'skeleton',
+  player: {
+    name: 'Oyuncu', hw: 0.3, h: 1.8, health: 20, speed: 0, hostile: false,
     parts: [
-      part([-4, 24, -4, 4, 32, 4], BONEC, 'head', [0, 24, 0]),
-      part([-3, 27, -4.2, -1, 29, -4], BLACK, 'head', [0, 24, 0]),
-      part([1, 27, -4.2, 3, 29, -4], BLACK, 'head', [0, 24, 0]),
-      part([-1, 25.5, -4.2, 1, 26.5, -4], BONED, 'head', [0, 24, 0]),
-      part([-4, 12, -1.5, 4, 24, 1.5], BONED),
-      part([-3.5, 20, -1.7, 3.5, 21, 1.7], BONEC), part([-3.5, 17, -1.7, 3.5, 18, 1.7], BONEC),
-      part([5, 12, -1, 7, 24, 1], BONEC, 'armR', [6, 22, 0]),
-      part([-7, 12, -1, -5, 24, 1], BONEC, 'armL', [-6, 22, 0]),
-      part([-7.5, 8, -6, -6.5, 10, 6], BOWC, 'armL', [-6, 22, 0]),
-      part([-3, 0, -1, -1, 12, 1], BONEC, 'legA', [-2, 12, 0]),
-      part([1, 0, -1, 3, 12, 1], BONEC, 'legB', [2, 12, 0]),
-    ],
-  },
-  spider: {
-    name: 'Örümcek', hw: 0.65, h: 0.9, health: 16, speed: 3.0, hostile: true, climb: true, dmg: 2, sound: 'spider',
-    parts: [
-      part([-5, 3, 0, 5, 11, 12], SPID2),
-      part([-3, 4, -3, 3, 10, 0], SPID),
-      part([-4, 4, -11, 4, 12, -3], SPID, 'head', [0, 8, -3]),
-      part([-3, 9, -11.2, -1, 10, -11], SPEYE, 'head', [0, 8, -3]),
-      part([1, 9, -11.2, 3, 10, -11], SPEYE, 'head', [0, 8, -3]),
-      part([-2, 7, -11.2, -1, 8, -11], SPEYE, 'head', [0, 8, -3]),
-      part([1, 7, -11.2, 2, 8, -11], SPEYE, 'head', [0, 8, -3]),
-    ].concat(spiderLegs()),
-  },
-  chicken: {
-    name: 'Tavuk', hw: 0.2, h: 0.7, health: 4, speed: 1.0, hostile: false, flutter: true, sound: 'chicken',
-    parts: [
-      part([-3, 4, -4, 3, 10, 4], CHICK),
-      part([-3.2, 5, -3, -3, 9, 3], CHICK), part([3, 5, -3, 3.2, 9, 3], CHICK),
-      part([-2, 9, -6, 2, 15, -3], CHICK, 'head', [0, 9, -4]),
-      part([-2, 12, -8, 2, 14, -6], BEAK, 'head', [0, 9, -4]),
-      part([-1, 10, -7, 1, 12, -6], WATTLE, 'head', [0, 9, -4]),
-      part([-2, 13, -6.2, -1, 14, -6], BLACK, 'head', [0, 9, -4]),
-      part([1, 13, -6.2, 2, 14, -6], BLACK, 'head', [0, 9, -4]),
-      part([-2, 0, -1, -1, 4, 0], BEAK, 'legA', [-1.5, 4, -0.5]),
-      part([1, 0, -1, 2, 4, 0], BEAK, 'legB', [1.5, 4, -0.5]),
+      part([-4, 24, -4, 4, 32, 4], HEAD({ c: K(198, 150, 115) }, FACE_STEVE, { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, back: (set, w, h) => { for (let y = 0; y < h - 2; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, left: (set, w, h) => { for (let y = 0; y < 3; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, right: (set, w, h) => { for (let y = 0; y < 3; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); } }), 'head', [0, 24, 0]),
+      part([-4, 12, -2, 4, 24, 2], SHIRT),
+      part([4, 12, -2, 8, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'pArmR', [6, 22, 0]),
+      part([-8, 12, -2, -4, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'pArmL', [-6, 22, 0]),
+      part([-4, 0, -2, 0, 12, 2], PANTS, 'legA', [-2, 12, 0]),
+      part([0, 0, -2, 4, 12, 2], PANTS, 'legB', [2, 12, 0]),
     ],
   },
   enderman: {
     name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'zombie',
     parts: [
-      part([-4, 40, -4, 4, 48, 4], ENDER, 'head', [0, 40, 0]),
-      part([-3, 43, -4.2, -1, 44, -4], ENDEYE, 'head', [0, 40, 0]),
-      part([1, 43, -4.2, 3, 44, -4], ENDEYE, 'head', [0, 40, 0]),
+      part([-4, 40, -4, 4, 48, 4], HEAD(ENDER, FACE_ENDER), 'head', [0, 40, 0]),
       part([-4, 28, -2, 4, 40, 2], ENDER),
       part([4, 12, -1, 6, 40, 1], ENDER, 'legB', [5, 39, 0]),
       part([-6, 12, -1, -4, 40, 1], ENDER, 'legA', [-5, 39, 0]),
@@ -118,16 +122,14 @@ const MOB_TYPES = {
   zpiglin: {
     name: 'Zombi Piglin', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'pig',
     parts: [
-      part([-4.5, 24, -4, 4.5, 32, 4], PIGSKIN, 'head', [0, 24, 0]),
-      part([-2, 25, -5, 2, 28, -4], PIGSNOUT, 'head', [0, 24, 0]),
-      part([-3, 28, -4.2, -1.5, 29, -4], BLACK, 'head', [0, 24, 0]),
-      part([1.5, 28, -4.2, 3, 29, -4], BLACK, 'head', [0, 24, 0]),
-      part([-4.6, 30, -1, -4.4, 32, 1], ROT, 'head', [0, 24, 0]),
-      part([-4, 12, -2, 4, 24, 2], PIGSKIN),
-      part([0, 14, -2.1, 4, 20, 2.1], ROT),
+      part([-5, 24, -4, 5, 32, 4], HEAD(PIGSKIN, FACE_PIGLIN), 'head', [0, 24, 0]),
+      part([-2, 25, -5, 2, 28, -4], HEAD({ c: K(200, 120, 115) }, FACE_SNOUT), 'head', [0, 24, 0]),
+      part([-6, 28, -1, -5, 31, 2], ROT, 'head', [0, 24, 0]),
+      part([5, 28, -1, 6, 31, 2], PIGSKIN, 'head', [0, 24, 0]),
+      part([-4, 12, -2, 4, 24, 2], { c: K(225, 155, 145), pat: 'piglin' }),
       part([4, 12, -2, 8, 24, 2], PIGSKIN, 'legB', [6, 22, 0]),
       part([-8, 12, -2, -4, 24, 2], ROT, 'legA', [-6, 22, 0]),
-      part([5, 10, -6, 7, 12.5, 6], GOLDC, 'legB', [6, 22, 0]),
+      part([5, 10, -6, 7, 12.5, 6], { c: K(250, 214, 64) }, 'legB', [6, 22, 0]),
       part([-4, 0, -2, 0, 12, 2], PIGPANTS, 'legA', [-2, 12, 0]),
       part([0, 0, -2, 4, 12, 2], PIGPANTS, 'legB', [2, 12, 0]),
     ],
@@ -136,10 +138,8 @@ const MOB_TYPES = {
     name: 'Domuz', hw: 0.45, h: 0.9, health: 10, speed: 1.3, hostile: false, sound: 'pig',
     parts: [
       part([-5, 6, -8, 5, 14, 8], PINK),
-      part([-4, 8, -15, 4, 16, -7], PINK, 'head', [0, 12, -8]),
-      part([-2, 9, -16, 2, 12, -15], PINK2, 'head', [0, 12, -8]),
-      part([-3, 13, -15.2, -1, 14, -15], BLACK, 'head', [0, 12, -8]),
-      part([1, 13, -15.2, 3, 14, -15], BLACK, 'head', [0, 12, -8]),
+      part([-4, 8, -15, 4, 16, -7], HEAD(PINK, FACE_PIG), 'head', [0, 12, -8]),
+      part([-2, 9, -16, 2, 12, -15], HEAD({ c: K(225, 140, 140) }, FACE_SNOUT), 'head', [0, 12, -8]),
       part([-5, 0, -7, -1, 6, -3], PINK, 'legA', [0, 6, -5]),
       part([1, 0, -7, 5, 6, -3], PINK, 'legB', [0, 6, -5]),
       part([-5, 0, 3, -1, 6, 7], PINK, 'legB', [0, 6, 5]),
@@ -149,45 +149,41 @@ const MOB_TYPES = {
   cow: {
     name: 'İnek', hw: 0.45, h: 1.4, health: 10, speed: 1.1, hostile: false, sound: 'cow',
     parts: [
-      part([-6, 12, -9, 6, 22, 9], COW),
-      part([-6.1, 14, -2, 6.1, 20, 4], WHITE),
-      part([-4, 16, -15, 4, 24, -9], COW, 'head', [0, 20, -9]),
-      part([-3, 16, -16, 3, 20, -15], [0.7, 0.62, 0.6], 'head', [0, 20, -9]),
-      part([-6, 22, -13, -4, 25, -12], [0.85, 0.85, 0.8], 'head', [0, 20, -9]),
-      part([4, 22, -13, 6, 25, -12], [0.85, 0.85, 0.8], 'head', [0, 20, -9]),
-      part([-3, 21, -15.2, -1, 22, -15], BLACK, 'head', [0, 20, -9]),
-      part([1, 21, -15.2, 3, 22, -15], BLACK, 'head', [0, 20, -9]),
-      part([-6, 0, -8, -2, 12, -4], COW, 'legA', [0, 12, -6]),
-      part([2, 0, -8, 6, 12, -4], COW, 'legB', [0, 12, -6]),
-      part([-6, 0, 4, -2, 12, 8], COW, 'legB', [0, 12, 6]),
-      part([2, 0, 4, 6, 12, 8], COW, 'legA', [0, 12, 6]),
+      part([-6, 12, -9, 6, 22, 9], COWC),
+      part([-2, 10, 3, 2, 12, 7], { c: K(240, 170, 170) }),
+      part([-4, 16, -15, 4, 24, -9], HEAD(COWC, FACE_COW), 'head', [0, 20, -9]),
+      part([-3, 16, -16, 3, 19, -15], { c: K(200, 170, 160) }, 'head', [0, 20, -9]),
+      part([-5, 22, -13, -4, 25, -12], { c: K(220, 215, 200) }, 'head', [0, 20, -9]),
+      part([4, 22, -13, 5, 25, -12], { c: K(220, 215, 200) }, 'head', [0, 20, -9]),
+      part([-6, 0, -8, -2, 12, -4], COWC, 'legA', [0, 12, -6]),
+      part([2, 0, -8, 6, 12, -4], COWC, 'legB', [0, 12, -6]),
+      part([-6, 0, 4, -2, 12, 8], COWC, 'legB', [0, 12, 6]),
+      part([2, 0, 4, 6, 12, 8], COWC, 'legA', [0, 12, 6]),
     ],
   },
   sheep: {
     name: 'Koyun', hw: 0.45, h: 1.3, health: 8, speed: 1.1, hostile: false, sound: 'sheep',
     parts: [
-      part([-6, 10, -9, 6, 20, 9], WOOLC),
-      part([-3, 14, -15, 3, 20, -7], SHEEPF, 'head', [0, 17, -8]),
-      part([-3.5, 18, -14, 3.5, 21, -8], WOOLC, 'head', [0, 17, -8]),
-      part([-2.5, 17, -15.2, -1, 18, -15], BLACK, 'head', [0, 17, -8]),
-      part([1, 17, -15.2, 2.5, 18, -15], BLACK, 'head', [0, 17, -8]),
+      part([-6, 10, -9, 6, 20, 9], WOOL),
+      part([-3, 14, -15, 3, 20, -7], HEAD(SHEEPF, FACE_SHEEP), 'head', [0, 17, -8]),
+      part([-3.5, 18, -13, 3.5, 21, -8], WOOL, 'head', [0, 17, -8]),
       part([-5, 0, -7, -1, 10, -3], SHEEPF, 'legA', [0, 10, -5]),
       part([1, 0, -7, 5, 10, -3], SHEEPF, 'legB', [0, 10, -5]),
       part([-5, 0, 3, -1, 10, 7], SHEEPF, 'legB', [0, 10, 5]),
       part([1, 0, 3, 5, 10, 7], SHEEPF, 'legA', [0, 10, 5]),
+      part([-5.5, 5, -7.5, -0.5, 10, -2.5], WOOL, 'legA', [0, 10, -5]),
+      part([0.5, 5, -7.5, 5.5, 10, -2.5], WOOL, 'legB', [0, 10, -5]),
+      part([-5.5, 5, 2.5, -0.5, 10, 7.5], WOOL, 'legB', [0, 10, 5]),
+      part([0.5, 5, 2.5, 5.5, 10, 7.5], WOOL, 'legA', [0, 10, 5]),
     ],
   },
   zombie: {
     name: 'Zombi', hw: 0.3, h: 1.95, health: 20, speed: 2.4, hostile: true, sound: 'zombie',
     parts: [
-      part([-4, 24, -4, 4, 32, 4], SKIN, 'head', [0, 24, 0]),
-      part([-3, 27, -4.2, -1, 28, -4], BLACK, 'head', [0, 24, 0]),
-      part([1, 27, -4.2, 3, 28, -4], BLACK, 'head', [0, 24, 0]),
+      part([-4, 24, -4, 4, 32, 4], HEAD(SKIN, FACE_ZOMBIE), 'head', [0, 24, 0]),
       part([-4, 12, -2, 4, 24, 2], SHIRT),
-      part([4, 12, -2, 8, 24, 2], SKIN, 'armR', [6, 22, 0]),
-      part([-8, 12, -2, -4, 24, 2], SKIN, 'armL', [-6, 22, 0]),
-      part([4, 20, -2.1, 8, 24, 2.1], SHIRT, 'armR', [6, 22, 0]),
-      part([-8, 20, -2.1, -4, 24, 2.1], SHIRT, 'armL', [-6, 22, 0]),
+      part([4, 12, -2, 8, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'armR', [6, 22, 0]),
+      part([-8, 12, -2, -4, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'armL', [-6, 22, 0]),
       part([-4, 0, -2, 0, 12, 2], PANTS, 'legA', [-2, 12, 0]),
       part([0, 0, -2, 4, 12, 2], PANTS, 'legB', [2, 12, 0]),
     ],
@@ -195,12 +191,7 @@ const MOB_TYPES = {
   creeper: {
     name: 'Creeper', hw: 0.3, h: 1.7, health: 20, speed: 2.1, hostile: true, sound: 'creeper',
     parts: [
-      part([-4, 18, -4, 4, 26, 4], CREEP, 'head', [0, 18, 0]),
-      part([-3, 22, -4.2, -1, 24, -4], BLACK, 'head', [0, 18, 0]),
-      part([1, 22, -4.2, 3, 24, -4], BLACK, 'head', [0, 18, 0]),
-      part([-1, 19, -4.2, 1, 22, -4], BLACK, 'head', [0, 18, 0]),
-      part([-2, 18.5, -4.2, -1, 21, -4], BLACK, 'head', [0, 18, 0]),
-      part([1, 18.5, -4.2, 2, 21, -4], BLACK, 'head', [0, 18, 0]),
+      part([-4, 18, -4, 4, 26, 4], HEAD(CREEP, FACE_CREEPER), 'head', [0, 18, 0]),
       part([-4, 6, -2, 4, 18, 2], CREEP),
       part([-4, 0, -6, 0, 6, -2], CREEP, 'legA', [0, 6, -2]),
       part([0, 0, -6, 4, 6, -2], CREEP, 'legB', [0, 6, -2]),
@@ -208,7 +199,93 @@ const MOB_TYPES = {
       part([0, 0, 2, 4, 6, 6], CREEP, 'legA', [0, 6, 2]),
     ],
   },
+  skeleton: {
+    name: 'İskelet', hw: 0.3, h: 1.99, health: 20, speed: 2.3, hostile: true, ranged: true, burns: true, dmg: 3, sound: 'skeleton',
+    parts: [
+      part([-4, 24, -4, 4, 32, 4], HEAD(BONEC, FACE_SKELETON), 'head', [0, 24, 0]),
+      part([-4, 12, -2, 4, 24, 2], Object.assign({}, BONEC, { faces: { front: RIBS, back: RIBS } })),
+      part([5, 12, -1, 7, 24, 1], BONEC, 'armR', [6, 22, 0]),
+      part([-7, 12, -1, -5, 24, 1], BONEC, 'armL', [-6, 22, 0]),
+      part([-7.5, 7, -7, -6.5, 10, 7], { c: K(120, 85, 45) }, 'armL', [-6, 22, 0]),
+      part([-3, 0, -1, -1, 12, 1], BONEC, 'legA', [-2, 12, 0]),
+      part([1, 0, -1, 3, 12, 1], BONEC, 'legB', [2, 12, 0]),
+    ],
+  },
+  spider: {
+    name: 'Örümcek', hw: 0.65, h: 0.9, health: 16, speed: 3.0, hostile: true, climb: true, dmg: 2, sound: 'spider',
+    parts: [
+      part([-5, 3, 0, 5, 11, 12], SPID),
+      part([-3, 4, -3, 3, 10, 0], SPID),
+      part([-4, 4, -11, 4, 12, -3], HEAD(SPID, FACE_SPIDER), 'head', [0, 8, -3]),
+    ].concat(spiderLegs()),
+  },
+  chicken: {
+    name: 'Tavuk', hw: 0.2, h: 0.7, health: 4, speed: 1.0, hostile: false, flutter: true, sound: 'chicken',
+    parts: [
+      part([-3, 4, -4, 3, 10, 4], CHICK),
+      part([-4, 5, -3, -3, 9, 3], CHICK, 'wingL', [-3, 9, 0]), part([3, 5, -3, 4, 9, 3], CHICK, 'wingR', [3, 9, 0]),
+      part([-2, 9, -6, 2, 15, -3], HEAD(CHICK, FACE_CHICKEN), 'head', [0, 9, -4]),
+      part([-2, 12, -8, 2, 14, -6], BEAK, 'head', [0, 9, -4]),
+      part([-1, 10, -7, 1, 12, -6], WATTLE, 'head', [0, 9, -4]),
+      part([-2, 0, -1, -1, 4, 0], BEAK, 'legA', [-1.5, 4, -0.5]),
+      part([1, 0, -1, 2, 4, 0], BEAK, 'legB', [1.5, 4, -0.5]),
+    ],
+  },
 };
+
+// --- Doku atlası: her parça yüzüne desen + ayrıntı çiz ------------------------
+const SKIN_DATA = new Uint8ClampedArray(SKIN_W * SKIN_H * 4);
+function buildSkinAtlas() {
+  const D = SKIN_DATA;
+  for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { const i = (y * SKIN_W + x) * 4; D[i] = D[i + 1] = D[i + 2] = D[i + 3] = 255; }
+  let cx = 3, cy = 0, rowH = 0;
+  const alloc = (w, h) => {
+    if (cx + w > SKIN_W) { cx = 0; cy += rowH + 1; rowH = 0; }
+    const r = [cx, cy]; cx += w + 1; rowH = Math.max(rowH, h);
+    return r;
+  };
+  for (const type in MOB_TYPES) {
+    const T = MOB_TYPES[type];
+    T.parts.forEach((P, pi) => {
+      const b = P.raw, rng = mulberry32(hashStr(type + ':' + pi));
+      const w = Math.max(1, Math.round(b[3] - b[0])), h = Math.max(1, Math.round(b[4] - b[1])), d = Math.max(1, Math.round(b[5] - b[2]));
+      const sizes = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+      P.rects = sizes.map(([fw, fh], f) => {
+        const [ax, ay] = alloc(fw, fh);
+        if (ay + fh > SKIN_H) return null;
+        const set = (x, y, c) => {
+          if (x < 0 || y < 0 || x >= fw || y >= fh) return;
+          const i = ((ay + y) * SKIN_W + ax + x) * 4;
+          D[i] = c[0] * 255; D[i + 1] = c[1] * 255; D[i + 2] = c[2] * 255; D[i + 3] = 255;
+        };
+        paintSkinFace(P.skin, f, fw, fh, rng, set);
+        return [ax / SKIN_W, ay / SKIN_H, (ax + fw) / SKIN_W, (ay + fh) / SKIN_H];
+      });
+    });
+  }
+}
+
+function paintSkinFace(S, f, w, h, rng, set) {
+  const c = S.c, n = S.n === undefined ? 0.07 : S.n;
+  const cell = []; for (let i = 0; i < 64; i++) cell.push(rng());
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const cl = cell[((y >> 1) * 8 + (x >> 1)) & 63];
+    let k = 1 + (rng() - 0.5) * 2 * n + (cl - 0.5) * n;
+    let col = c;
+    switch (S.pat) {
+      case 'creeper': { const r = rng(); k = r < 0.18 ? 0.7 : r < 0.45 ? 0.86 : r < 0.85 ? 1 : 1.18; if (rng() < 0.06) col = K(200, 210, 190); break; }
+      case 'wool': k = 0.9 + cl * 0.12 + (rng() - 0.5) * 0.06; break;
+      case 'cow': if (Math.sin(x * 0.7 + f * 2.1) + Math.cos(y * 0.6 + f) + cl > 1.4) col = K(235, 232, 225); break;
+      case 'bone': if (rng() < 0.06) k = 0.75; break;
+      case 'spider': if (rng() < 0.1) col = K(90, 75, 65); break;
+      case 'rot': if (cl > 0.8) k *= 0.85; break;
+      case 'piglin': if (cl > 0.7) col = K(115, 160, 100); break;
+    }
+    set(x, y, [Math.min(1, col[0] * k), Math.min(1, col[1] * k), Math.min(1, col[2] * k)]);
+  }
+  const fn = S.faces && S.faces[FACE_NAMES[f]];
+  if (fn) fn(set, w, h, rng);
+}
 
 class Mob {
   constructor(type, x, y, z) {
@@ -225,7 +302,8 @@ class Mob {
     this.aiTimer = Math.random() * 3; this.moving = false; this.panic = 0;
     this.hurtTime = 0; this.deathTime = 0; this.dead = false; this.remove = false;
     this.attackCd = 0; this.fuse = 0; this.burnTimer = 0;
-    this.headPitch = 0; this.soundTimer = 4 + Math.random() * 8;
+    this.headPitch = 0; this.headYaw = 0; this.soundTimer = 4 + Math.random() * 8;
+    this.anim = Math.random() * 10; this.lookT = 0; this.eatGrass = 0;
   }
 
   hit(dmg, fx, fz) {
@@ -369,6 +447,27 @@ class Mob {
         if (this.burnTimer > 1) { this.burnTimer = 0; this.health -= 2; this.hurtTime = 0.3; if (this.health <= 0) { this.dead = true; } }
       }
     }
+    // Baş: yakındaki oyuncuya bakar (Minecraft'taki gibi), koyun ot yer
+    this.anim += dt;
+    let ty = 0, tp = 0;
+    const dd = Math.hypot(dx, dy + pl.h * 0.8 - this.h * 0.8, dz);
+    this.lookT -= dt;
+    if (this.lookT <= 0) { this.lookT = 2 + Math.random() * 4; this.looking = (hostile || this.angry) || Math.random() < 0.6; }
+    if (!pl.dead && dd < (hostile || this.angry ? 20 : 8) && this.looking) {
+      let a = Math.atan2(-dx, -dz) - this.yaw;
+      while (a > Math.PI) a -= Math.PI * 2;
+      while (a < -Math.PI) a += Math.PI * 2;
+      ty = clamp(a, -1.2, 1.2);
+      tp = clamp(Math.atan2(dy + 1.5 - this.h * 0.85, Math.hypot(dx, dz)), -0.8, 0.8);
+    }
+    if (this.type === 'sheep') {
+      if (this.eatGrass > 0) {
+        this.eatGrass -= dt; tp = -0.9; ty = 0;
+        if (this.eatGrass <= 0) { const bx = Math.floor(p[0] - Math.sin(this.yaw) * 0.6), bz = Math.floor(p[2] - Math.cos(this.yaw) * 0.6), by = Math.floor(p[1]) - 1; if (world.getBlock(bx, by, bz) === B.GRASS) world.setBlock(bx, by, bz, B.DIRT); }
+      } else if (speed === 0 && this.onGround && Math.random() < dt * 0.05) this.eatGrass = 2;
+    }
+    this.headYaw += (ty - this.headYaw) * Math.min(1, dt * 8);
+    this.headPitch += (tp - this.headPitch) * Math.min(1, dt * 8);
     // Ses
     this.soundTimer -= dt;
     if (this.soundTimer <= 0) {
@@ -383,25 +482,51 @@ class Mob {
     M4.translate(base, this.pos[0] - cam[0], this.pos[1] - cam[1], this.pos[2] - cam[2]);
     M4.rotY(t, this.yaw); M4.mul(base, base, t);
     if (this.dead) { M4.rotZ(t, Math.min(1, this.deathTime / 0.5) * Math.PI / 2); M4.mul(base, base, t); }
-    let swell = 1;
-    if (this.fuse > 0) { swell = 1 + Math.min(this.fuse / 1.5, 1) * 0.15 + Math.sin(this.fuse * 20) * 0.02; M4.scale(t, swell, swell, swell); M4.mul(base, base, t); }
-    const sw = Math.sin(this.walk) * 0.7 * this.walkAmt;
+    if (this.fuse > 0) { const sw = 1 + Math.min(this.fuse / 1.5, 1) * 0.15 + Math.sin(this.fuse * 20) * 0.02; M4.scale(t, sw, sw, sw); M4.mul(base, base, t); }
+    const sw = Math.sin(this.walk) * 0.75 * this.walkAmt;
     const flashW = this.fuse > 0 && Math.floor(this.fuse * 8) % 2 === 0;
+    // Hasar alınca kırmızı, creeper patlamadan önce beyaz yanıp söner
+    const tint = this.hurtTime > 0 || this.dead ? [1, 0.45, 0.45] : flashW ? [1.7, 1.7, 1.7] : [1, 1, 1];
+    const idle = Math.sin(this.anim * 1.1);
     for (const P of T.parts) {
-      let col = P.color;
-      if (this.hurtTime > 0 || this.dead) col = [Math.min(1, col[0] * 0.6 + 0.5), col[1] * 0.45, col[2] * 0.45];
-      else if (flashW) col = [Math.min(1, col[0] + 0.5), Math.min(1, col[1] + 0.5), Math.min(1, col[2] + 0.5)];
       if (P.anim && P.pivot) {
-        let ang = 0;
-        if (P.anim === 'legA') ang = sw;
-        else if (P.anim === 'legB') ang = -sw;
-        else if (P.anim === 'armR' || P.anim === 'armL') ang = Math.PI / 2 + (P.anim === 'armR' ? sw : -sw) * 0.15;
         M4.translate(t, P.pivot[0], P.pivot[1], P.pivot[2]); M4.mul(m, base, t);
-        M4.rotX(t, ang); M4.mul(m, m, t);
+        switch (P.anim) {
+          case 'head': M4.rotY(t, this.headYaw); M4.mul(m, m, t); M4.rotX(t, this.headPitch); M4.mul(m, m, t); break;
+          case 'legA': M4.rotX(t, sw); M4.mul(m, m, t); break;
+          case 'legB': M4.rotX(t, -sw); M4.mul(m, m, t); break;
+          case 'armR': case 'armL': {
+            // Zombi/iskelet: kollar ileri uzanmış, hafifçe sallanır
+            const s2 = P.anim === 'armR' ? 1 : -1;
+            M4.rotX(t, Math.PI / 2 + s2 * sw * 0.15 + idle * 0.05); M4.mul(m, m, t);
+            M4.rotZ(t, s2 * (0.05 + Math.cos(this.anim * 0.9) * 0.04)); M4.mul(m, m, t);
+            break;
+          }
+          case 'pArmR': case 'pArmL': {
+            const s2 = P.anim === 'pArmR' ? 1 : -1;
+            let ax = -s2 * sw * 0.9;
+            if (P.anim === 'pArmR' && this.swing > 0) ax -= Math.sin(this.swing * Math.PI) * 1.4;
+            if (P.anim === 'pArmR' && this.holding) ax -= 0.3;
+            M4.rotX(t, ax); M4.mul(m, m, t);
+            M4.rotZ(t, s2 * (0.05 + idle * 0.03)); M4.mul(m, m, t);
+            break;
+          }
+          case 'spA': case 'spB': {
+            const s2 = P.anim === 'spA' ? 1 : -1, side = P.pivot[0] > 0 ? 1 : -1;
+            M4.rotY(t, Math.sin(this.walk * 1.4) * 0.45 * this.walkAmt * s2); M4.mul(m, m, t);
+            M4.rotZ(t, side * (0.35 + Math.abs(Math.cos(this.walk * 1.4)) * 0.3 * this.walkAmt * (s2 > 0 ? 1 : 0.5))); M4.mul(m, m, t);
+            break;
+          }
+          case 'wingL': case 'wingR': {
+            const fl = this.onGround ? 0 : Math.abs(Math.sin(this.anim * 18)) * 1.1;
+            M4.rotZ(t, (P.anim === 'wingL' ? -1 : 1) * fl); M4.mul(m, m, t);
+            break;
+          }
+        }
         M4.translate(t, -P.pivot[0], -P.pivot[1], -P.pivot[2]); M4.mul(m, m, t);
       } else m.set(base);
       const b = P.box;
-      n = addBox(out, n, m, b[0], b[1], b[2], b[3], b[4], b[5], col, light);
+      n = addBox(out, n, m, b[0], b[1], b[2], b[3], b[4], b[5], tint, light, 16, P.rects);
     }
     return n;
   }
@@ -437,10 +562,54 @@ class EntityManager {
     this.game = game;
     this.mobs = [];
     this.arrows = [];
+    this.drops = [];
     this.spawnTimer = 2;
     this.verts = new Float32Array(9 * 24 * 12 * 40);
   }
-  clear() { this.mobs.length = 0; this.arrows.length = 0; }
+  clear() { this.mobs.length = 0; this.arrows.length = 0; this.drops.length = 0; }
+
+  // Yere düşen eşya (Minecraft'taki gibi döner, toplanır, birleşir, 5 dakikada kaybolur)
+  spawnDrop(stack, x, y, z, vx, vy, vz, delay = 0.5) {
+    if (!stack || stack.count <= 0) return;
+    if (vx === undefined) { vx = (Math.random() - 0.5) * 2.4; vy = 3 + Math.random() * 1.5; vz = (Math.random() - 0.5) * 2.4; }
+    this.drops.push({ stack: Object.assign({}, stack), pos: [x, y, z], vel: [vx, vy, vz], hw: 0.125, h: 0.25, age: 0, delay, spin: Math.random() * 6, onGround: false });
+    if (this.drops.length > 300) this.drops.shift();
+  }
+
+  updateDrops(dt) {
+    const g = this.game, w = g.world, pl = g.player;
+    for (const d of this.drops) {
+      d.age += dt;
+      if (!w.isLoadedAt(d.pos[0], d.pos[2])) continue;
+      const v = d.vel;
+      const inWater = isWater(w.getBlock(Math.floor(d.pos[0]), Math.floor(d.pos[1] + 0.1), Math.floor(d.pos[2])));
+      if (inWater) { v[1] += (1.2 - v[1]) * Math.min(1, dt * 3); v[0] *= 0.95; v[2] *= 0.95; }
+      else v[1] -= 18 * dt;
+      const k = Math.pow(d.onGround ? 0.02 : 0.6, dt);
+      v[0] *= k; v[2] *= k;
+      if (boxHitsSolid(w, d.pos[0] - d.hw, d.pos[1] + 0.01, d.pos[2] - d.hw, d.pos[0] + d.hw, d.pos[1] + d.h, d.pos[2] + d.hw)) d.pos[1] += dt * 4; // bloğun içinde kaldıysa yukarı it
+      const r = moveEntity(w, d, dt, false);
+      d.onGround = r.ground;
+      if (isLava(w.getBlock(Math.floor(d.pos[0]), Math.floor(d.pos[1]), Math.floor(d.pos[2])))) { d.age = 1e9; g.particles.puff(d.pos[0], d.pos[1] + 0.3, d.pos[2], 4); }
+      // Toplama
+      if (d.age > d.delay && !pl.dead && Math.abs(pl.pos[0] - d.pos[0]) < 1.3 && Math.abs(pl.pos[2] - d.pos[2]) < 1.3 && d.pos[1] > pl.pos[1] - 0.8 && d.pos[1] < pl.pos[1] + 2.2) {
+        if (g.pickup(d.stack)) d.age = 1e9;
+      }
+    }
+    // Yakın aynı eşyaları birleştir
+    for (let i = 0; i < this.drops.length; i++) {
+      const a = this.drops[i];
+      if (a.age > 300 || toolOf(a.stack)) continue;
+      for (let j = i + 1; j < this.drops.length; j++) {
+        const b = this.drops[j];
+        if (b.age > 300 || b.stack.id !== a.stack.id || toolOf(b.stack)) continue;
+        if (Math.abs(a.pos[0] - b.pos[0]) < 0.6 && Math.abs(a.pos[1] - b.pos[1]) < 0.6 && Math.abs(a.pos[2] - b.pos[2]) < 0.6 && a.stack.count + b.stack.count <= maxStack(a.stack.id)) {
+          a.stack.count += b.stack.count; b.age = 1e9; a.delay = Math.max(a.delay, b.delay);
+        }
+      }
+    }
+    this.drops = this.drops.filter((d) => d.age < 300);
+  }
   get dragon() { return this.mobs.find((m) => m.type === 'dragon') || null; }
 
   // Ok fırlat (Minecraft: yerçekimi 20 b/s², tik başına %1 sürtünme)
@@ -465,7 +634,7 @@ class EntityManager {
       if (a.stuck) {
         a.life -= dt;
         if (a.owner === 'player' && !pl.creative && a.age > 0.4 && Math.hypot(pl.pos[0] - a.pos[0], pl.pos[1] + 0.9 - a.pos[1], pl.pos[2] - a.pos[2]) < 1.6) {
-          if (g.addItem(I.ARROW, 1)) { g.audio.play('pop'); a.life = 0; }
+          if (g.pickup({ id: I.ARROW, count: 1 })) a.life = 0;
         }
         // Takıldığı blok kırıldıysa düş
         if (!pointInSolid(w, a.pos[0] + a.dir[0] * 0.08, a.pos[1] + a.dir[1] * 0.08, a.pos[2] + a.dir[2] * 0.08)) { a.stuck = false; a.vel = [0, 0, 0]; }
@@ -529,6 +698,7 @@ class EntityManager {
     }
     this.mobs = this.mobs.filter((m) => !m.remove);
     this.updateArrows(dt);
+    this.updateDrops(dt);
     // Mob'lar birbirini itsin
     for (let i = 0; i < this.mobs.length; i++) for (let j = i + 1; j < this.mobs.length; j++) {
       const a = this.mobs[i], b = this.mobs[j];
@@ -625,7 +795,7 @@ class EntityManager {
   buildMesh(cam) {
     const g = this.game;
     let n = 0;
-    let boxes = this.arrows.length * 3 + 2;
+    let boxes = this.arrows.length * 3 + 2 + 12;
     for (const m of this.mobs) boxes += m.T.boxes || 16;
     const need = boxes * 24 * 9;
     if (this.verts.length < need) this.verts = new Float32Array(need * 2);
@@ -640,6 +810,11 @@ class EntityManager {
         light = Math.max(0.12, sky ? g.sunLevel : 0.25);
       }
       n = m.buildMesh(this.verts, n, cam, light);
+    }
+    if (g.thirdPerson && g.playerModel && !g.player.dead) {
+      const p = g.player;
+      const sky = g.world.dim === 'overworld' ? g.world.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1), Math.floor(p.pos[2])) : 0;
+      n = g.playerModel.buildMesh(this.verts, n, cam, g.world.dim === 'overworld' ? Math.max(0.15, sky ? g.sunLevel : 0.3) : 0.7);
     }
     const dr = this.dragon;
     if (dr && dr.healFrom && !dr.dead) n = beamMesh(this.verts, n, [dr.healFrom.pos[0], dr.healFrom.pos[1] + 0.9, dr.healFrom.pos[2]], [dr.pos[0], dr.pos[1] + 1.2, dr.pos[2]], cam);

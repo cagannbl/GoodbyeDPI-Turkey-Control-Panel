@@ -336,3 +336,38 @@ function buildBlockMesh(id, sky, blk, layerOverride) {
   }
   return itemBuf;
 }
+
+// Elde / yerde gösterilen eşya modeli (önbellekli). Bloklar küp, diğerleri
+// Minecraft'taki gibi 1 piksel kalınlığında kabartılmış (extrude) resim.
+// Işık sabit (gök=1); parlaklık çizimde u_sun ile verilir.
+const ITEM_MESHES = new Map();
+function itemModel(id) {
+  if (ITEM_MESHES.has(id)) return ITEM_MESHES.get(id);
+  const flat = id >= 256 || RENDER[id] === R_CROSS || FLAT[id];
+  let data, n;
+  if (!flat) {
+    const m = buildBlockMesh(id, 1, 0);
+    data = m.take(); n = m.n;
+  } else {
+    const layer = heldLayer(id), tex = texLayers[layer];
+    const A = (x, y) => x >= 0 && y >= 0 && x < 16 && y < 16 && tex[(y * 16 + x) * 4 + 3] > 127;
+    const b = new VBuf(512);
+    const q = (pts, f, uvs) => { b.ensure(4); for (let k = 0; k < 4; k++) b.push(pts[k][0], pts[k][1], pts[k][2], layer | (3 << 8) | (f << 10), uvs[k][0], uvs[k][1], 255, 0); };
+    // Ön ve arka yüz
+    q([[0, 0, 1], [16, 0, 1], [16, 16, 1], [0, 16, 1]], 7, [[0, 16], [16, 16], [16, 0], [0, 0]]);
+    q([[0, 0, 0], [0, 16, 0], [16, 16, 0], [16, 0, 0]], 6, [[0, 16], [0, 0], [16, 0], [16, 16]]);
+    // Kenarlar: saydam komşusu olan her pikselin yan yüzü
+    for (let py = 0; py < 16; py++) for (let px = 0; px < 16; px++) {
+      if (!A(px, py)) continue;
+      const y0 = 15 - py, y1 = 16 - py, uv = [[px, py], [px + 1, py], [px + 1, py + 1], [px, py + 1]];
+      if (!A(px - 1, py)) q([[px, y0, 0], [px, y0, 1], [px, y1, 1], [px, y1, 0]], 1, uv);
+      if (!A(px + 1, py)) q([[px + 1, y0, 0], [px + 1, y1, 0], [px + 1, y1, 1], [px + 1, y0, 1]], 0, uv);
+      if (!A(px, py - 1)) q([[px, y1, 0], [px, y1, 1], [px + 1, y1, 1], [px + 1, y1, 0]], 2, uv);
+      if (!A(px, py + 1)) q([[px, y0, 0], [px + 1, y0, 0], [px + 1, y0, 1], [px, y0, 1]], 3, uv);
+    }
+    data = b.take(); n = b.n;
+  }
+  const r = { data, n, flat, gpu: null };
+  ITEM_MESHES.set(id, r);
+  return r;
+}
