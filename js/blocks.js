@@ -26,6 +26,16 @@ const B = {
   SLAB: 132, SLAB_TOP: 137, STAIRS: 142, DOOR: 158, TRAPDOOR: 174, TRAPDOOR_OPEN: 175,
   FENCE: 179, GATE: 180, GLASS_PANE: 184, LADDER: 185, DIRT_PATH: 189, HAY: 190,
   SUGAR_CANE: 191, ENCH_TABLE: 192, ANVIL: 193, // örs: 193 + hasar*2 + eksen (6 blok)
+  // Kızıltaş
+  WIRE: 199,         // +0 sönük, +1 zayıf, +2 güçlü (gerçek güç redstone.js'te tutulur)
+  RTORCH: 202, RTORCH_ON: 203,
+  LEVER: 204,        // + konum*2 + açık; konum 0-3 duvar (DIR4 yönündeki bloğa tutunur), 4 zemin
+  BUTTON: 214,       // + yön*2 + basılı (duvarda)
+  LAMP: 222, LAMP_ON: 223,
+  REPEATER: 224,     // + yön (çıkış) + açık*4
+  PLATE: 232, PLATE_ON: 233,
+  PISTON: 234,       // + yön (0 -z, 1 +x, 2 +z, 3 -x, 4 +y, 5 -y)
+  PISTON_EXT: 240, PISTON_HEAD: 246,
 };
 // Sıvılar: kaynak (seviye 0), akan 1-7, düşen (8)
 const isWater = (id) => id === B.WATER || (id >= B.WATER_1 && id <= B.WATER_FALL);
@@ -40,6 +50,17 @@ const SLAB_MATS = ['PLANKS', 'COBBLE', 'STONE', 'STONE_BRICKS', 'BRICKS'];
 const STAIR_MATS = ['PLANKS', 'COBBLE', 'STONE_BRICKS', 'BRICKS'];
 const isDoor = (id) => id >= B.DOOR && id < B.DOOR + 16;
 const isAnvil = (id) => id >= B.ANVIL && id < B.ANVIL + 6;
+const isWire = (id) => id >= B.WIRE && id < B.WIRE + 3;
+const isRTorch = (id) => id === B.RTORCH || id === B.RTORCH_ON;
+const isLever = (id) => id >= B.LEVER && id < B.LEVER + 10;
+const isButton = (id) => id >= B.BUTTON && id < B.BUTTON + 8;
+const isRepeater = (id) => id >= B.REPEATER && id < B.REPEATER + 8;
+const isPlate = (id) => id === B.PLATE || id === B.PLATE_ON;
+const isPiston = (id) => id >= B.PISTON && id < B.PISTON + 12;      // geri çekik ya da uzamış gövde
+const isPistonHead = (id) => id >= B.PISTON_HEAD && id < B.PISTON_HEAD + 6;
+// 6 yön (piston): vektör ve o yöne bakan yüz indeksi (+x,-x,+y,-y,+z,-z)
+const DIR6 = [[0, 0, -1], [1, 0, 0], [0, 0, 1], [-1, 0, 0], [0, 1, 0], [0, -1, 0]];
+const FACE_OF_DIR = [5, 0, 4, 1, 2, 3];
 const isLadder = (id) => id >= B.LADDER && id < B.LADDER + 4;
 // WHEAT_0..WHEAT_7 ardışık 8 büyüme evresidir
 const isWheat = (id) => id >= B.WHEAT_0 && id <= B.WHEAT_7;
@@ -895,6 +916,57 @@ function buildTexturesFarm() {
     }
     for (const x of [0, 14]) { px(d, x, 0, 90, 230, 220); px(d, x + 1, 0, 150, 250, 245); px(d, x, 1, 60, 190, 190); px(d, x + 1, 1, 90, 230, 220); }
   });
+  // --- Kızıltaş dokuları ---
+  [[70, 4, 4], [150, 12, 6], [252, 36, 18]].forEach((c, k) => makeTex('wire' + k, (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = 0.75 + r() * 0.4;
+      px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+    }
+    for (let i = 0; i < 18; i++) mulPx(d, Math.floor(r() * 16), Math.floor(r() * 16), 0.6);
+  }));
+  for (const on of [0, 1]) makeTex(on ? 'rtorch_on' : 'rtorch_off', (d) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 7; y < 16; y++) { px(d, 7, y, 120, 85, 45); px(d, 8, y, 95, 65, 32); }
+    const h = on ? [[255, 60, 40], [230, 20, 10], [255, 150, 120]] : [[110, 20, 18], [80, 12, 10], [130, 40, 34]];
+    px(d, 7, 6, ...h[0]); px(d, 8, 6, ...h[1]); px(d, 7, 5, ...h[2]); px(d, 8, 5, ...h[0]); px(d, 7, 4, ...h[1]);
+    if (on) { px(d, 6, 5, 255, 90, 60, 160); px(d, 9, 5, 255, 90, 60, 160); }
+  });
+  for (const on of [0, 1]) makeTex(on ? 'lamp_on' : 'lamp_off', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const frame = x === 0 || y === 0 || x === 15 || y === 15 || x === 7 || x === 8 || y === 7 || y === 8;
+      const f = 0.85 + r() * 0.25;
+      if (frame) px(d, x, y, (on ? 120 : 70) * f, (on ? 80 : 44) * f, (on ? 40 : 24) * f);
+      else if (on) px(d, x, y, 255 * f, 205 * f, 120 * f);
+      else px(d, x, y, 118 * f, 74 * f, 44 * f);
+    }
+    if (on) for (const [x, y] of [[3, 3], [11, 4], [4, 12], [12, 11]]) px(d, x, y, 255, 250, 210);
+  });
+  for (const on of [0, 1]) makeTex(on ? 'repeater_on' : 'repeater_off', (d, r) => {
+    copyTex(d, 'stone');
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) mulPx(d, x, y, 1.08);
+    const c = on ? [240, 30, 15] : [110, 14, 10];
+    for (let y = 2; y < 14; y++) { px(d, 7, y, ...c); px(d, 8, y, ...c); }
+    // Çıkış yönünü gösteren ok (doku üstü = -z yönü)
+    for (let k = 0; k < 3; k++) { px(d, 6 - k, 3 + k, ...c); px(d, 9 + k, 3 + k, ...c); }
+    for (const [x, y] of [[7, 4], [8, 4], [7, 11], [8, 11]]) px(d, x, y, on ? 255 : 150, on ? 120 : 30, on ? 90 : 20);
+  });
+  makeTex('piston_top', (d, r) => {
+    planksTex(d, r, [168, 136, 84]);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (x < 1 || y < 1 || x > 14 || y > 14) mulPx(d, x, y, 0.6);
+    for (let y = 5; y < 11; y++) for (let x = 5; x < 11; x++) { const f = 0.85 + r() * 0.2; px(d, x, y, 150 * f, 150 * f, 156 * f); }
+  });
+  makeTex('piston_side', (d, r) => {
+    copyTex(d, 'cobble');
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { const f = (0.85 + r() * 0.2) * (y === 3 ? 0.7 : 1); px(d, x, y, 168 * f, 136 * f, 84 * f); }
+  });
+  makeTex('piston_bottom', (d, r) => {
+    copyTex(d, 'cobble');
+    for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) mulPx(d, x, y, 0.55);
+  });
+  makeTex('piston_inner', (d, r) => {
+    copyTex(d, 'cobble');
+    for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) mulPx(d, x, y, x === 4 || y === 4 || x === 11 || y === 11 ? 0.55 : 0.35);
+  });
   // Örs: koyu dövme demir
   makeTex('anvil', (d, r) => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
@@ -1074,6 +1146,27 @@ function defineBlocks() {
     for (let a = 0; a < 2; a++) def(B.ANVIL + k * 2 + a, nm, 'anvil', shapeO(P(1, { hardness: 5, sound: 'metal' }), { shape: 10, sf: a, drop: B.ANVIL + k * 2, creative: a === 0 }));
   });
 
+  // --- Kızıltaş ---
+  const thin = (o) => Object.assign({ solid: false, opaque: false, render: R_SHAPE, hardness: 0, sound: 'stone', flat: true }, o);
+  ['wire0', 'wire1', 'wire2'].forEach((t, k) => def(B.WIRE + k, 'Kızıltaş Tozu', t, thin({ shape: 11, creative: false })));
+  def(B.RTORCH, 'Kızıltaş Meşalesi', 'rtorch_off', Object.assign({}, plant, { sound: 'wood', drop: B.RTORCH_ON, creative: false }));
+  def(B.RTORCH_ON, 'Kızıltaş Meşalesi', 'rtorch_on', Object.assign({}, plant, { sound: 'wood', emit: 7 }));
+  for (let k = 0; k < 10; k++) def(B.LEVER + k, 'Şalter', 'cobble', thin({ hardness: 0.5, shape: 13, sf: k, drop: B.LEVER + 8, creative: k === 8 }));
+  for (let k = 0; k < 8; k++) def(B.BUTTON + k, 'Taş Düğme', 'stone', thin({ hardness: 0.5, shape: 14, sf: k, drop: B.BUTTON, creative: k === 0 }));
+  def(B.LAMP, 'Kızıltaş Lambası', 'lamp_off', { hardness: 0.3, sound: 'glass' });
+  def(B.LAMP_ON, 'Kızıltaş Lambası', 'lamp_on', { hardness: 0.3, sound: 'glass', emit: 15, drop: B.LAMP, creative: false });
+  for (let k = 0; k < 8; k++) def(B.REPEATER + k, 'Kızıltaş Yineleyicisi', { top: k & 4 ? 'repeater_on' : 'repeater_off', bottom: 'stone', side: 'stone' },
+    thin({ shape: 12, sf: k, drop: B.REPEATER, creative: k === 0, solid: true }));
+  def(B.PLATE, 'Taş Basınç Plakası', 'stone', thin({ hardness: 0.5, shape: 15, sf: 0 }));
+  def(B.PLATE_ON, 'Taş Basınç Plakası', 'stone', thin({ hardness: 0.5, shape: 15, sf: 1, drop: B.PLATE, creative: false }));
+  const f6 = (front, back, other) => (fc) => { const a = new Array(6).fill(other), f = FACE_OF_DIR[fc]; a[f] = front; a[f ^ 1] = back; return a; };
+  const pRet = f6('piston_top', 'piston_bottom', 'piston_side'), pExt = f6('piston_inner', 'piston_bottom', 'piston_side'), pHead = f6('piston_top', 'planks', 'planks');
+  for (let fc = 0; fc < 6; fc++) {
+    def(B.PISTON + fc, 'Piston', { f6: pRet(fc), top: 'piston_side', bottom: 'piston_side', side: 'piston_side' }, { hardness: 0.5, drop: B.PISTON + 2, creative: fc === 2 });
+    def(B.PISTON_EXT + fc, 'Piston', { f6: pExt(fc), top: 'piston_side', bottom: 'piston_side', side: 'piston_side' }, { hardness: 0.5, opaque: false, render: R_SHAPE, shape: 16, sf: fc, drop: B.PISTON + 2, creative: false });
+    def(B.PISTON_HEAD + fc, 'Piston Başı', { f6: pHead(fc), top: 'planks', bottom: 'planks', side: 'planks' }, { hardness: 0.5, opaque: false, render: R_SHAPE, shape: 17, sf: fc, drop: 0, creative: false });
+  }
+
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 
   for (let id = 0; id < BLOCKS.length; id++) {
@@ -1098,6 +1191,7 @@ function defineBlocks() {
       TEXF[id * 6 + 0] = side; TEXF[id * 6 + 1] = side;
       TEXF[id * 6 + 2] = TEX[t.top]; TEXF[id * 6 + 3] = TEX[t.bottom];
       TEXF[id * 6 + 4] = t.front ? TEX[t.front] : side; TEXF[id * 6 + 5] = side;
+      if (t.f6) for (let f = 0; f < 6; f++) TEXF[id * 6 + f] = TEX[t.f6[f]];
       for (const k of ['side', 'top', 'bottom']) if (TEX[t[k]] === undefined) console.warn('Doku yok:', t[k]);
     }
   }
@@ -1127,6 +1221,21 @@ function buildIcons() {
     const T = (i) => tiles[TEXF[i * 6 + 2]];
     if (b.render === R_CROSS) {
       ctx.drawImage(tiles[TEXF[id * 6 + 2]], 4, 4, S - 8, S - 8);
+    } else if (b.shape >= 12 && b.shape <= 15) {
+      // Kızıltaş öğeleri: yandan/üstten basit çizimler
+      const tex = (n) => tiles[TEX[n]];
+      const shade = (x, y, w, h, a) => { ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(x, y, w, h); };
+      if (b.shape === 13) { // şalter
+        ctx.save(); ctx.translate(26, 30); ctx.rotate(-0.55); ctx.drawImage(tex('planks'), 0, 0, 4, 16, -3, -26, 6, 26); shade(-3, -26, 2, 26, 0.25); ctx.restore();
+        ctx.drawImage(tex('cobble'), 2, 2, 12, 6, 10, 30, 28, 12); shade(10, 38, 28, 4, 0.3);
+      } else if (b.shape === 14) { // düğme
+        ctx.drawImage(tex('stone'), 4, 4, 8, 6, 12, 16, 24, 16); shade(12, 28, 24, 4, 0.3); shade(32, 16, 4, 16, 0.2);
+      } else if (b.shape === 15) { // plaka
+        ctx.drawImage(tex('stone'), 0, 0, 16, 16, 4, 20, 40, 14); shade(4, 30, 40, 4, 0.35);
+      } else { // yineleyici
+        ctx.drawImage(tex('repeater_off'), 0, 0, 16, 16, 4, 14, 40, 26); shade(4, 36, 40, 4, 0.35);
+        for (const x of [14, 30]) { ctx.drawImage(tex('rtorch_on'), 6, 4, 4, 12, x, 6, 5, 16); }
+      }
     } else if (b.shape === 10) {
       // Örs: yandan görünüş
       const t = tiles[TEXF[id * 6 + 0]];
@@ -1173,7 +1282,8 @@ function initBlocks() {
   buildTextures();
   defineBlocks();
   defineItems();
-  if (texLayers.length > 255) throw new Error('Doku katmanı sınırı aşıldı: ' + texLayers.length);
+  for (let k = 0; k < 3; k++) BLOCKS[B.WIRE + k].drop = I.REDSTONE_DUST; // eşyalar bloklardan sonra tanımlanır
+  if (texLayers.length > 511) throw new Error('Doku katmanı sınırı aşıldı: ' + texLayers.length); // köşe verisinde 9 bit
   buildIcons();
   buildItemIcons();
   defineRecipes();

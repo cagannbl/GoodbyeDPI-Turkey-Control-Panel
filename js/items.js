@@ -497,6 +497,14 @@ function defineRecipes() {
   shapeless([I.PAPER, I.PAPER, I.PAPER, I.LEATHER], I.BOOK);
   shaped([' K ', 'DOD', 'OOO'], { K: I.BOOK, D: I.DIAMOND, O: B.OBSIDIAN }, B.ENCH_TABLE);
   shaped(['BBB', ' i ', 'iii'], { B: B.IRON_BLOCK, i: I.IRON_INGOT }, B.ANVIL);
+  // Kızıltaş
+  shaped(['R', 'S'], { R: I.REDSTONE_DUST, S: I.STICK }, B.RTORCH_ON);
+  shaped(['S', 'C'], { S: I.STICK, C: B.COBBLE }, B.LEVER + 8);
+  shapeless([B.STONE], B.BUTTON);
+  shaped(['SS'], { S: B.STONE }, B.PLATE);
+  shaped([' R ', 'RGR', ' R '], { R: I.REDSTONE_DUST, G: B.GLOWSTONE }, B.LAMP);
+  shaped(['TRT', 'SSS'], { T: B.RTORCH_ON, R: I.REDSTONE_DUST, S: B.STONE }, B.REPEATER);
+  shaped(['PPP', 'CIC', 'CRC'], { P: '#planks', C: '#stone', I: I.IRON_INGOT, R: I.REDSTONE_DUST }, B.PISTON + 2);
   shaped(['P', 'T'], { P: B.PUMPKIN, T: B.TORCH }, B.JACK);
   shaped(['I I', ' I '], { I: I.IRON_INGOT }, I.BUCKET);
   shapeless([I.IRON_INGOT, I.FLINT], I.FLINT_STEEL);
@@ -605,6 +613,8 @@ function defineCreativeTabs() {
     { name: 'İşlevsel Bloklar', icon: B.CRAFTING, items: func },
     { name: 'Aletler, Silahlar ve Zırh', icon: I.DIAMOND_PICKAXE, items: tools },
     { name: 'Yiyecek ve Malzemeler', icon: I.APPLE, items: mats },
+    { name: 'Kızıltaş', icon: I.REDSTONE_DUST, items: [I.REDSTONE_DUST, B.REDSTONE_BLOCK, B.RTORCH_ON, B.LEVER + 8, B.BUTTON, B.PLATE,
+      B.REPEATER, B.LAMP, B.PISTON + 2, B.TNT, B.DOOR, B.TRAPDOOR, B.GATE, B.GLOWSTONE] },
     // 'e:<büyü>' girdileri en yüksek seviyeli büyülü kitaptır
     { name: 'Büyülü Kitaplar', icon: I.ENCHANTED_BOOK, items: Object.keys(ENCH).map((k) => 'e:' + k) },
     { name: 'Ara', icon: I.ENDER_EYE, items: null },

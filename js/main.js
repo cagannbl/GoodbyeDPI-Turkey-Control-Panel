@@ -34,6 +34,7 @@ class Game {
     this.audio.setMusic(this.settings.music > 0, this.settings.music);
     this.particles = new Particles();
     this.fluids = new Fluids(this);
+    this.redstone = new Redstone(this);
     this.entities = new EntityManager(this);
     this.player = new Player();
     this.inv = new Array(36).fill(null);
@@ -152,7 +153,8 @@ class Game {
   makeWorld(dim) {
     const w = new World(this.meta.seed, this.dims[dim].edits, dim, { dragonKilled: !!this.dims.end.dragonKilled });
     this.fluids.clear();
-    w.onBlockChange = (x, y, z) => this.fluids.onChange(x, y, z);
+    this.redstone.clear();
+    w.onBlockChange = (x, y, z, old, id) => { this.fluids.onChange(x, y, z); this.redstone.onChange(x, y, z, old, id); };
     return w;
   }
 
@@ -833,10 +835,14 @@ class Game {
   }
 
   // ------------------------------------------------------------ Dünya etkileşimi
-  breakBlock(x, y, z, byPlayer = true) {
+  // drop: oyuncu kırmasa da ganimet düşsün (desteği kalkan kızıltaş öğeleri gibi)
+  breakBlock(x, y, z, byPlayer = true, drop = false) {
     const w = this.world, id = w.getBlock(x, y, z);
     if (!id) return;
     w.setBlock(x, y, z, 0);
+    if (drop && !byPlayer && !this.player.creative) for (const [d, n] of blockDrops(id, null)) this.dropAt(d, n, x + 0.5, y + 0.25, z + 0.5);
+    // Piston başı kırılınca gövde de kırılır
+    if (isPistonHead(id)) { const v = DIR6[id - B.PISTON_HEAD]; if (w.getBlock(x - v[0], y - v[1], z - v[2]) === B.PISTON_EXT + (id - B.PISTON_HEAD)) this.breakBlock(x - v[0], y - v[1], z - v[2], byPlayer, true); }
     this.particles.blockBreak(x, y, z, id);
     this.audio.play('dig', [x + 0.5, y + 0.5, z + 0.5], BLOCKS[id].sound);
     // Yatağın diğer yarısı
@@ -910,6 +916,7 @@ class Game {
       if (isWheat(id)) return below === B.FARMLAND || below === B.FARMLAND_WET;
       if (isSapling(id)) return below === B.GRASS || below === B.DIRT || below === B.SNOWY_GRASS || below === B.FARMLAND || below === B.FARMLAND_WET;
       if (id === B.SUGAR_CANE) return this.caneSupported(x, y, z);
+      if (isRTorch(id)) return !!OPAQUE[below];
       return below === B.GRASS || below === B.DIRT || below === B.SNOWY_GRASS;
     }
     if (id === B.CACTUS) {
@@ -944,6 +951,22 @@ class Game {
       }
       if (isBed(hit.id)) { this.useBed(hit); return true; }
       if (this.toggleShape(hit)) return true;
+    }
+    // Kızıltaş: şalter, düğme, yineleyici gecikmesi
+    if (hit && !p.sneaking) {
+      const at = [hit.x + 0.5, hit.y + 0.5, hit.z + 0.5];
+      if (isLever(hit.id)) { w.setBlock(hit.x, hit.y, hit.z, hit.id ^ 1); this.audio.play('click', at); return true; }
+      if (isButton(hit.id)) { this.redstone.pressButton(hit.x, hit.y, hit.z); this.audio.play('click', at); return true; }
+      if (isRepeater(hit.id)) { const d = this.redstone.cycleDelay(hit.x, hit.y, hit.z); this.ui.toast('Gecikme: ' + d + ' tik', 1); this.audio.play('click', at); return true; }
+    }
+    if (id === I.REDSTONE_DUST && hit) {
+      let x = hit.x + hit.nx, y = hit.y + hit.ny, z = hit.z + hit.nz;
+      if (REPLACEABLE.has(hit.id)) { x = hit.x; y = hit.y; z = hit.z; }
+      if (!OPAQUE[w.getBlock(x, y - 1, z)] || !this.canPlaceAt(B.WIRE, x, y, z)) return false;
+      w.setBlock(x, y, z, B.WIRE);
+      this.audio.play('place', [x + 0.5, y, z + 0.5], 'stone');
+      this.consumeHeld();
+      return true;
     }
     if (armorOf(s)) return this.equipArmor();
     if (hit && this.useFarmItem(hit, s)) return true;
@@ -989,7 +1012,11 @@ class Game {
     if (REPLACEABLE.has(hit.id)) { x = hit.x; y = hit.y; z = hit.z; }
     if (!this.canPlaceAt(id, x, y, z)) return false;
     if (id === B.WATER || id === B.LAVA) this.placeLiquid(x, y, z, id);
-    else w.setBlock(x, y, z, id);
+    else if (isPiston(id)) {
+      // Piston yüzü oyuncuya bakar
+      const pt = p.pitch;
+      w.setBlock(x, y, z, B.PISTON + (pt < -0.8 ? 4 : pt > 0.8 ? 5 : (this.facing() + 2) & 3));
+    } else w.setBlock(x, y, z, id);
     this.audio.play('place', [x + 0.5, y + 0.5, z + 0.5], BLOCKS[id].sound);
     this.consumeHeld();
     this.applyGravity(x, y, z);
@@ -1257,6 +1284,20 @@ class Game {
       return done(bid);
     }
     let bid = id;
+    if (k >= 12 && k <= 15) {
+      // Kızıltaş öğeleri: yineleyici/plaka zemine, düğme duvara, şalter ikisine
+      if (k === 12 || k === 15 || (k === 13 && hit.ny === 1)) {
+        if (!OPAQUE[w.getBlock(x, y - 1, z)]) return false;
+        bid = k === 12 ? B.REPEATER + f : k === 15 ? B.PLATE : B.LEVER + 8;
+      } else {
+        if (hit.ny !== 0 || !OPAQUE[hit.id]) return false;
+        const d = DIR4.findIndex(([dx, dz]) => dx === -hit.nx && dz === -hit.nz);
+        bid = (k === 13 ? B.LEVER : B.BUTTON) + d * 2;
+      }
+      if (!this.canPlaceAt(bid, x, y, z)) return false;
+      w.setBlock(x, y, z, bid);
+      return done(bid);
+    }
     if (k === 3) bid = id + f;
     else if (k === 10) bid = id - (id - B.ANVIL) % 2 + ((f & 1) ^ 1); // örsün uzun kenarı bakışa dik
     else if (k === 7) bid = B.GATE + (f === 1 || f === 3 ? 2 : 0);
@@ -1582,7 +1623,7 @@ class Game {
     // Yemek: sağ tıkı basılı tut (açken ya da altın elma / koro meyvesi)
     const held = this.inv[this.selected], food = held && itemDef(held.id) && itemDef(held.id).food;
     const wantsUse = this.rightPressed || this.tapPlace || (placeDown && this.placeCd <= 0);
-    const onContainer = this.target && !p.sneaking && (this.target.id === B.CRAFTING || this.target.id === B.FURNACE || this.target.id === B.CHEST || isBed(this.target.id) || this.target.id === B.ENCH_TABLE || isAnvil(this.target.id));
+    const onContainer = this.target && !p.sneaking && (this.target.id === B.CRAFTING || this.target.id === B.FURNACE || this.target.id === B.CHEST || isBed(this.target.id) || this.target.id === B.ENCH_TABLE || isAnvil(this.target.id) || isLever(this.target.id) || isButton(this.target.id) || isRepeater(this.target.id));
     const isBow = held && held.id === I.BOW;
     if (!isBow) this.bowT = 0;
     if (isBow && !onContainer) {
@@ -1807,7 +1848,9 @@ class Game {
     this.updateChunks(45, p.pos[0], p.pos[2], R);
     const pcx = Math.floor(p.pos[0] / 16), pcz = Math.floor(p.pos[2] / 16);
     let need = 0, have = 0;
-    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) { need++; const c = w.getChunk(pcx + dx, pcz + dz); if (c && c.gpu) have++; }
+    // Görüş mesafesi 2 iken en dış halka hiç örülmez: beklenen alan R-1'i geçmesin
+    const rr = Math.max(1, Math.min(2, R - 1));
+    for (let dz = -rr; dz <= rr; dz++) for (let dx = -rr; dx <= rr; dx++) { need++; const c = w.getChunk(pcx + dx, pcz + dz); if (c && c.gpu) have++; }
     this.ui.setLoading(have / need, have < need ? `Parçalar hazırlanıyor… ${have}/${need}` : 'Neredeyse hazır…');
     if (have >= need) this.finishLoading();
   }
@@ -1839,6 +1882,7 @@ class Game {
       this.tickPlants(dt);
       this.tickEnchTables(dt);
       this.fluids.tick(dt);
+      this.redstone.tick(dt);
       // Ateşlenmiş TNT
       for (const pr of this.primed) {
         pr.t -= dt;

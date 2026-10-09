@@ -190,7 +190,7 @@ function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop, hgt = 16, ch = null)
     else if (liquidTop && C.y === 1) { y16 -= 2; }
     if (hgt < 16 && C.y === 1) { y16 -= 16 - hgt; if (f !== 2 && f !== 3) v = 16 - hgt; }
     if (liquidTop && !ch && f !== 2 && f !== 3 && C.y === 1) v = 2;
-    buf.push((lx + C.x) * 16, y16, (lz + C.z) * 16, layer | (ao4[c] << 8) | (f << 10), C.u, v, sk4[c], bl4[c]);
+    buf.push((lx + C.x) * 16, y16, (lz + C.z) * 16, layer | (ao4[c] << 9) | (f << 11), C.u, v, sk4[c], bl4[c]);
   }
 }
 
@@ -222,12 +222,12 @@ function emitBox(buf, lx, ly, lz, b, id, ri) {
     if (edge && OPAQUE[rIds[fr]]) continue;
     const L = edge ? fr : ri;
     const s = rSky[L] * 17, l = rBlk[L] * 17;
-    const layer = TEXF[id * 6 + f];
+    const layer = b.length > 6 ? b[6] : TEXF[id * 6 + f];
     for (let c = 0; c < 4; c++) {
       const C = FACES[f][c];
       const x = C.x ? BOX_HI[0] : BOX_LO[0], y = C.y ? BOX_HI[1] : BOX_LO[1], z = C.z ? BOX_HI[2] : BOX_LO[2];
       const uv = faceUV(f, [x / 16, y / 16, z / 16]);
-      buf.push(lx * 16 + x, ly * 16 + y, lz * 16 + z, layer | (3 << 8) | (f << 10), Math.round(uv[0] * 16), Math.round(uv[1] * 16), s, l);
+      buf.push(lx * 16 + x, ly * 16 + y, lz * 16 + z, layer | (3 << 9) | (f << 11), Math.round(uv[0] * 16), Math.round(uv[1] * 16), s, l);
     }
   }
 }
@@ -239,7 +239,7 @@ const CROSS_Q = [
 function emitCross(buf, lx, ly, lz, layer, ri) {
   const s = rSky[ri] * 17, l = rBlk[ri] * 17;
   buf.ensure(16);
-  const w = layer | (3 << 8) | (6 << 10);
+  const w = layer | (3 << 9) | (6 << 11);
   for (const q of CROSS_Q) {
     const us = [0, 0, 16, 16], vs = [16, 0, 0, 16];
     for (let k = 0; k < 4; k++) buf.push(lx * 16 + q[k][0], ly * 16 + q[k][1], lz * 16 + q[k][2], w, us[k], vs[k], s, l);
@@ -290,7 +290,7 @@ function buildChunkMesh(world, chunk) {
         const rt = RENDER[id];
         if (rt === R_CROSS) { emitCross(bufOpaque, x, y, z, TEXF[id * 6 + 2], ri); continue; }
         if (rt === R_SHAPE) {
-          const sh = shapeOf(id, (d) => rIds[ri + DIR4[d][0] * DX + DIR4[d][1] * DZ]);
+          const sh = shapeOf(id, (d, dy = 0) => rIds[ri + (d >= 0 ? DIR4[d][0] * DX + DIR4[d][1] * DZ : 0) + dy * DY]);
           for (const b of sh.draw) emitBox(bufOpaque, x, y, z, b, id, ri);
           continue;
         }
@@ -320,7 +320,7 @@ function buildBlockMesh(id, sky, blk, layerOverride) {
   const s = Math.round(sky * 255), l = Math.round(blk * 255);
   if ((id >= 256 || RENDER[id] === R_CROSS || FLAT[id]) && layerOverride === undefined) {
     const layer = heldLayer(id);
-    const w = layer | (3 << 8) | (6 << 10);
+    const w = layer | (3 << 9) | (6 << 11);
     const q = [[8, 0, 0], [8, 16, 0], [8, 16, 16], [8, 0, 16]];
     const us = [0, 0, 16, 16], vs = [16, 0, 0, 16];
     for (let k = 0; k < 4; k++) itemBuf.push(q[k][0], q[k][1], q[k][2], w, us[k], vs[k], s, l);
@@ -331,7 +331,7 @@ function buildBlockMesh(id, sky, blk, layerOverride) {
     const layer = layerOverride !== undefined ? layerOverride : TEXF[id * 6 + f];
     for (let c = 0; c < 4; c++) {
       const C = FACES[f][c];
-      itemBuf.push(C.x * 16, C.y * 16, C.z * 16, layer | (3 << 8) | (f << 10), C.u, C.v, s, l);
+      itemBuf.push(C.x * 16, C.y * 16, C.z * 16, layer | (3 << 9) | (f << 11), C.u, C.v, s, l);
     }
   }
   return itemBuf;
@@ -352,7 +352,7 @@ function itemModel(id) {
     const layer = heldLayer(id), tex = texLayers[layer];
     const A = (x, y) => x >= 0 && y >= 0 && x < 16 && y < 16 && tex[(y * 16 + x) * 4 + 3] > 127;
     const b = new VBuf(512);
-    const q = (pts, f, uvs) => { b.ensure(4); for (let k = 0; k < 4; k++) b.push(pts[k][0], pts[k][1], pts[k][2], layer | (3 << 8) | (f << 10), uvs[k][0], uvs[k][1], 255, 0); };
+    const q = (pts, f, uvs) => { b.ensure(4); for (let k = 0; k < 4; k++) b.push(pts[k][0], pts[k][1], pts[k][2], layer | (3 << 9) | (f << 11), uvs[k][0], uvs[k][1], 255, 0); };
     // Ön ve arka yüz
     q([[0, 0, 1], [16, 0, 1], [16, 16, 1], [0, 16, 1]], 7, [[0, 16], [16, 16], [16, 0], [0, 0]]);
     q([[0, 0, 0], [0, 16, 0], [16, 16, 0], [16, 0, 0]], 6, [[0, 16], [0, 0], [16, 0], [16, 16]]);

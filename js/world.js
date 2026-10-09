@@ -145,6 +145,8 @@ class World {
       if (growable(id)) c.plants.add(i);
       // Kayıtta yarım kalmış akışlar yeniden başlasın
       if (isLiquid(id) && !isSource(id)) (this.pendingFluids || (this.pendingFluids = [])).push([c.cx * 16 + (i & 15), i >> 8, c.cz * 16 + ((i >> 4) & 15)]);
+      // Kızıltaş devreleri yüklenince yeniden değerlendirilir (saatler, basılı düğmeler devam eder)
+      if (isRedstoneRelated(id)) (this.pendingRS || (this.pendingRS = [])).push([c.cx * 16 + (i & 15), i >> 8, c.cz * 16 + ((i >> 4) & 15)]);
     }
     this.chunks.set(c.key, c);
     this._lk = -1;

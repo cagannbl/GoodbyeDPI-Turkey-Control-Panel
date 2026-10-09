@@ -24,7 +24,7 @@ const SFX = {
   flint: ['flint', 0.7, 1], toolbreak: ['toolbreak', 0.8, 1], chest: ['chest_open', 0.6, 1], chest_close: ['chest_close', 0.6, 1],
   door_open: ['door_open', 0.6, 1], door_close: ['door_close', 0.6, 1], bow: ['bow', 0.7, 1], arrowhit: ['arrowhit', 0.6, 1],
   eat: ['eat', 0.6, 1], enchant: ['enchant', 0.6, 1], anvil: ['break_metal', 0.6, 1.25], roar: ['roar', 1.2, 1], teleport: ['teleport', 0.7, 1],
-  creeperfuse: ['hurt_creeper', 0.8, 1], pig: ['pig', 0.6, 1], cow: ['cow', 0.6, 1], sheep: ['sheep', 0.6, 1], chicken: ['chicken', 0.6, 1],
+  creeperfuse: ['hurt_creeper', 0.8, 1], piston: ['place_hard', 0.9, 0.7], pig: ['pig', 0.6, 1], cow: ['cow', 0.6, 1], sheep: ['sheep', 0.6, 1], chicken: ['chicken', 0.6, 1],
   zombie: ['zombie', 0.6, 1], skeleton: ['skeleton', 0.6, 1], spider: ['spider', 0.6, 1], enderman: ['enderman', 0.6, 1], zpiglin: ['zpiglin', 0.6, 1],
 };
 
@@ -207,6 +207,7 @@ class GameAudio {
       case 'fizz': case 'creeperfuse': case 'flint': this.play('fuse', pos); break;
       case 'toolbreak': this.material('glass', d, 1, 1.3); break;
       case 'teleport': this.play('pop', pos); break;
+      case 'piston': this.noiseBurst(d, 'bandpass', 500, 1.5, 0.18, 0.6); this.tone(d, 'square', 160, 90, 0.12, 0.15); break;
       case 'enderman': this.play('zombie', pos); break;
       case 'zpiglin': this.play('pig', pos); break;
       case 'dig': this.material(arg, d, 1, 1.3); break;

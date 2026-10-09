@@ -59,6 +59,9 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
   Koruma, Tüy Gibi Düşüş, Keskinlik, Kutsal Darbe, Geri Tepme, Alev, Ganimet, Verimlilik, İpeksi Dokunuş, Servet,
   Güç, Alev Oku, Sonsuzluk, Kırılmazlık ve Onarım; büyülü eşyalarda mor parıltı; kütüphaneciden büyülü kitap
 - Şeker kamışı, kağıt ve kitap; kitaplıklar kırılınca kitap düşürür
+- **Kızıltaş**: toz (güç 15'ten blok blok azalır, basamak çıkıp iner), kızıltaş meşalesi (ters çevirici), şalter,
+  taş düğme, basınç plakası, kızıltaş lambası, yineleyici (1-4 tik gecikme), piston (12 bloğa kadar iter, 6 yön);
+  kapılar, tuzak kapılar, çit kapıları ve TNT güçle çalışır. Güçlü/zayıf güç kuralları Minecraft'a göre sadeleştirildi
 - **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
   yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
   yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
@@ -91,6 +94,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/items.js` | Eşyalar, aletler, tarifler, fırın tarifleri, kazma kuralları |
 | `js/shapes.js` | Yarım blok, basamak, kapı, çit vb. kutu modelleri (çizim + çarpışma) |
 | `js/fluids.js` | Su ve lav akış simülasyonu |
+| `js/redstone.js` | Kızıltaş devreleri: güç hesabı, toz ağları, meşale, yineleyici, lamba, kapı, piston |
 | `js/dragon.js` | Ender Ejderhası ve End kristalleri |
 | `js/villages.js` | Köy üretimi, köylüler, ticaret, sandık ganimeti |
 | `js/enchant.js` | Tecrübe formülleri, büyüler, büyü masası ve örs hesapları |

@@ -18,9 +18,9 @@ void main() {
   vec3 p = vec3(a_pos.xyz) * (1.0 / 16.0) + u_offset;
   gl_Position = u_vp * vec4(p, 1.0);
   uint w = a_pos.w;
-  v_uv = vec3(vec2(a_data.xy) * (1.0 / 16.0), float(w & 255u));
+  v_uv = vec3(vec2(a_data.xy) * (1.0 / 16.0), float(w & 511u));
   v_light = vec2(a_data.zw) * (1.0 / 255.0);
-  v_shade = AO[(w >> 8u) & 3u] * SHADE[(w >> 10u) & 7u];
+  v_shade = AO[(w >> 9u) & 3u] * SHADE[(w >> 11u) & 7u];
   v_dist = length(p.xz) * 0.85 + abs(p.y) * 0.15;
 }`;
 
@@ -383,6 +383,9 @@ class Renderer {
   initTextures() {
     const gl = this.gl;
     const n = texLayers.length;
+    // Doku dizisi katman sınırı (WebGL2 en az 256 garanti eder; neredeyse tüm cihazlar 2048 destekler)
+    const maxL = gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS);
+    if (n > maxL) throw new Error(`Ekran kartın yeterli doku katmanını desteklemiyor (${n} gerekli, ${maxL} var).`);
     const data = new Uint8Array(16 * 16 * 4 * n);
     for (let i = 0; i < n; i++) data.set(texLayers[i], i * 1024);
     this.tex = gl.createTexture();
