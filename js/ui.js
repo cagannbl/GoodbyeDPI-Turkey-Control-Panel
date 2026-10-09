@@ -92,6 +92,7 @@ class UI {
       armorEmpty: pixelIcon(ARMOR_ROWS9, { '#': '#202020', a: '#4a4a4a' }),
     };
     this.bindMenus();
+    this.bindBack();
     this.bindInventory();
     document.documentElement.style.setProperty('--dirt', `url(${this.tileURL(TEX.dirt)})`);
     $('splash').textContent = SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
@@ -217,6 +218,14 @@ class UI {
       });
       list.appendChild(d);
     }
+  }
+
+  // Telefonun geri tuşu / geri hareketi: tarayıcı geçmişine bir "tuzak" kaydı ekle,
+  // geri basılınca oyun içinde bir adım geri git (envanter → kapat, oyun → duraklat, alt menü → üst menü)
+  bindBack() {
+    const push = () => { try { history.pushState({ webcraft: 1 }, ''); } catch (e) { /* yok say */ } };
+    push();
+    window.addEventListener('popstate', () => { if (this.g.handleBack()) push(); });
   }
 
   setLoading(p, text) {

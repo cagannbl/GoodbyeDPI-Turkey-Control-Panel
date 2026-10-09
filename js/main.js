@@ -324,6 +324,22 @@ class Game {
     this.requestLock();
   }
 
+  // Geri tuşu: işlendiyse true (ana menüde false: sayfadan çıkılabilir)
+  handleBack() {
+    const ui = this.ui, click = (sel) => { const b = document.querySelector(sel); if (b) b.click(); };
+    if (this.state === 'inventory') { this.closeInventory(); return true; }
+    if (this.state === 'playing') { this.pause(); return true; }
+    switch (ui.screen) {
+      case 'settingsMenu': click('#settingsMenu [data-action=settingsBack]'); return true;
+      case 'helpMenu': click('#helpMenu [data-action=back]'); return true;
+      case 'worldsMenu': ui.show('mainMenu'); return true;
+      case 'createMenu': ui.show('worldsMenu'); return true;
+      case 'pauseMenu': this.resume(); return true;
+      case 'deathMenu': case 'loading': return true;
+    }
+    return false;
+  }
+
   toggleInventory() {
     if (this.state === 'inventory') this.closeInventory();
     else if (this.state === 'playing') { this.wake(); this.openInventory(); }
