@@ -44,7 +44,64 @@ const CREEP = [0.36, 0.72, 0.3], WOOLC = [0.93, 0.93, 0.9], SHEEPF = [0.78, 0.66
 const ENDER = [0.07, 0.05, 0.09], ENDEYE = [0.85, 0.45, 1.0];
 const PIGSKIN = [0.88, 0.6, 0.56], PIGSNOUT = [0.75, 0.45, 0.45], ROT = [0.45, 0.62, 0.38], PIGPANTS = [0.42, 0.3, 0.2], GOLDC = [0.98, 0.84, 0.25];
 
+const BONEC = [0.8, 0.8, 0.78], BONED = [0.6, 0.6, 0.58], BOWC = [0.45, 0.32, 0.18];
+const SPID = [0.22, 0.19, 0.17], SPID2 = [0.3, 0.26, 0.23], SPEYE = [0.9, 0.12, 0.1];
+const CHICK = [0.96, 0.96, 0.94], BEAK = [0.95, 0.7, 0.2], WATTLE = [0.85, 0.12, 0.12];
+
+// Örümcek bacakları: her iki yanda 4 bacak
+function spiderLegs() {
+  const legs = [];
+  for (let k = 0; k < 4; k++) {
+    const z = -3 + k * 2.2, anim = k % 2 ? 'legA' : 'legB';
+    legs.push(part([4, 5, z - 0.5, 15, 6.5, z + 0.5], SPID, anim, [4, 6, z]));
+    legs.push(part([-15, 5, z - 0.5, -4, 6.5, z + 0.5], SPID, anim === 'legA' ? 'legB' : 'legA', [-4, 6, z]));
+  }
+  return legs;
+}
+
 const MOB_TYPES = {
+  skeleton: {
+    name: 'İskelet', hw: 0.3, h: 1.99, health: 20, speed: 2.3, hostile: true, ranged: true, burns: true, dmg: 3, sound: 'skeleton',
+    parts: [
+      part([-4, 24, -4, 4, 32, 4], BONEC, 'head', [0, 24, 0]),
+      part([-3, 27, -4.2, -1, 29, -4], BLACK, 'head', [0, 24, 0]),
+      part([1, 27, -4.2, 3, 29, -4], BLACK, 'head', [0, 24, 0]),
+      part([-1, 25.5, -4.2, 1, 26.5, -4], BONED, 'head', [0, 24, 0]),
+      part([-4, 12, -1.5, 4, 24, 1.5], BONED),
+      part([-3.5, 20, -1.7, 3.5, 21, 1.7], BONEC), part([-3.5, 17, -1.7, 3.5, 18, 1.7], BONEC),
+      part([5, 12, -1, 7, 24, 1], BONEC, 'armR', [6, 22, 0]),
+      part([-7, 12, -1, -5, 24, 1], BONEC, 'armL', [-6, 22, 0]),
+      part([-7.5, 8, -6, -6.5, 10, 6], BOWC, 'armL', [-6, 22, 0]),
+      part([-3, 0, -1, -1, 12, 1], BONEC, 'legA', [-2, 12, 0]),
+      part([1, 0, -1, 3, 12, 1], BONEC, 'legB', [2, 12, 0]),
+    ],
+  },
+  spider: {
+    name: 'Örümcek', hw: 0.65, h: 0.9, health: 16, speed: 3.0, hostile: true, climb: true, dmg: 2, sound: 'spider',
+    parts: [
+      part([-5, 3, 0, 5, 11, 12], SPID2),
+      part([-3, 4, -3, 3, 10, 0], SPID),
+      part([-4, 4, -11, 4, 12, -3], SPID, 'head', [0, 8, -3]),
+      part([-3, 9, -11.2, -1, 10, -11], SPEYE, 'head', [0, 8, -3]),
+      part([1, 9, -11.2, 3, 10, -11], SPEYE, 'head', [0, 8, -3]),
+      part([-2, 7, -11.2, -1, 8, -11], SPEYE, 'head', [0, 8, -3]),
+      part([1, 7, -11.2, 2, 8, -11], SPEYE, 'head', [0, 8, -3]),
+    ].concat(spiderLegs()),
+  },
+  chicken: {
+    name: 'Tavuk', hw: 0.2, h: 0.7, health: 4, speed: 1.0, hostile: false, flutter: true, sound: 'chicken',
+    parts: [
+      part([-3, 4, -4, 3, 10, 4], CHICK),
+      part([-3.2, 5, -3, -3, 9, 3], CHICK), part([3, 5, -3, 3.2, 9, 3], CHICK),
+      part([-2, 9, -6, 2, 15, -3], CHICK, 'head', [0, 9, -4]),
+      part([-2, 12, -8, 2, 14, -6], BEAK, 'head', [0, 9, -4]),
+      part([-1, 10, -7, 1, 12, -6], WATTLE, 'head', [0, 9, -4]),
+      part([-2, 13, -6.2, -1, 14, -6], BLACK, 'head', [0, 9, -4]),
+      part([1, 13, -6.2, 2, 14, -6], BLACK, 'head', [0, 9, -4]),
+      part([-2, 0, -1, -1, 4, 0], BEAK, 'legA', [-1.5, 4, -0.5]),
+      part([1, 0, -1, 2, 4, 0], BEAK, 'legB', [1.5, 4, -0.5]),
+    ],
+  },
   enderman: {
     name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'zombie',
     parts: [
@@ -177,7 +234,7 @@ class Mob {
     this.hurtTime = 0.4;
     const l = Math.hypot(fx, fz) || 1;
     this.vel[0] += (fx / l) * 7; this.vel[2] += (fz / l) * 7; this.vel[1] = 5.5;
-    if (this.T.neutral) this.angry = true;
+    if (this.T.neutral || this.type === 'spider') this.angry = true;
     else if (!this.T.hostile) { this.panic = 4; this.aiTimer = 0; }
     if (this.health <= 0) { this.dead = true; this.deathTime = 0; }
     else if (this.type === 'enderman' && this.game && Math.random() < 0.6) this.teleportAway(this.game.world);
@@ -213,16 +270,36 @@ class Mob {
     const dist = Math.hypot(dx, dz);
     let speed = 0;
 
-    if ((this.T.hostile || this.angry) && !pl.dead && !pl.creative && dist < (this.angry ? 40 : 22) && Math.abs(dy) < 12) {
+    // Örümcekler gün ışığında barışçıl
+    let hostile = this.T.hostile;
+    if (this.type === 'spider' && game.sunLevel > 0.6 && world.skyLightAt(Math.floor(p[0]), Math.floor(p[1] + 1), Math.floor(p[2]))) hostile = false;
+    this.drawT = Math.max(0, (this.drawT || 0) - dt);
+    if ((hostile || this.angry) && !pl.dead && !pl.creative && dist < (this.angry ? 40 : 22) && Math.abs(dy) < 12) {
       this.targetYaw = Math.atan2(-dx, -dz);
       speed = this.T.speed * (this.angry ? 1.3 : 1);
-      if (this.type !== 'creeper') {
-        this.attackCd -= dt;
-        if (dist < 1.1 && Math.abs(dy) < 2 && this.attackCd <= 0) {
-          this.attackCd = 1;
-          pl.hurt(game.difficultyDmg(this.T.dmg || 3), (dx / (dist || 1)) * 6, (dz / (dist || 1)) * 6);
+      if (this.T.ranged) {
+        // İskelet: menzilde kal, görüş varsa ok at
+        const eye = [p[0], p[1] + 1.6, p[2]], tgt = [pl.pos[0], pl.pos[1] + 1.1, pl.pos[2]];
+        const sees = dist < 16 && hasLOS(world, eye, tgt);
+        if (sees) {
+          speed = dist < 5 ? -this.T.speed * 0.8 : dist > 11 ? this.T.speed : 0;
+          this.attackCd -= dt;
+          if (this.attackCd < 0.8) this.drawT = 0.2;
+          if (this.attackCd <= 0) {
+            this.attackCd = (game.diffMult > 1 ? 1.5 : 2.2) + Math.random() * 0.6;
+            game.entities.shootAt(eye, tgt, game.difficultyDmg(this.T.dmg + Math.floor(Math.random() * 2)));
+          }
+        } else this.attackCd = Math.max(this.attackCd, 0.6);
+      } else if (this.type !== 'creeper') {
+        if (this.T.climb && this.onGround && dist > 2 && dist < 4 && this.attackCd <= 0.2 && Math.random() < dt * 2) {
+          v[1] = 6.5; v[0] += (dx / dist) * 4; v[2] += (dz / dist) * 4; // atılma
         }
-        if (dist < 0.8) speed = 0;
+        this.attackCd -= dt;
+        if (dist < 0.8 + this.hw && Math.abs(dy) < 2 && this.attackCd <= 0) {
+          this.attackCd = 1;
+          pl.hurt(game.difficultyDmg(this.T.dmg || 3), (dx / (dist || 1)) * 6, (dz / (dist || 1)) * 6, 'mob');
+        }
+        if (dist < 0.4 + this.hw) speed = 0;
       } else if (this.type === 'creeper') {
         if (dist < 3 && Math.abs(dy) < 3) {
           if (this.fuse === 0) game.audio.play('fuse', p);
@@ -259,7 +336,7 @@ class Mob {
     while (dyaw < -Math.PI) dyaw += Math.PI * 2;
     this.yaw += dyaw * Math.min(1, dt * 6);
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-    if (speed > 0 && !this.T.hostile && !this.angry && this.onGround) {
+    if (speed > 0 && !hostile && !this.angry && this.onGround) {
       const ax = Math.floor(p[0] + fx * 0.9), az = Math.floor(p[2] + fz * 0.9), ay = Math.floor(p[1]);
       const below = world.getBlock(ax, ay - 1, az), below2 = world.getBlock(ax, ay - 2, az);
       if ((!SOLID[below] && !SOLID[below2]) || below === B.WATER || below === B.LAVA) { this.targetYaw += Math.PI; speed = 0; this.aiTimer = 1; }
@@ -273,15 +350,19 @@ class Mob {
     if (v[1] < -50) v[1] = -50;
     const res = moveEntity(world, this, dt, false);
     this.onGround = res.ground;
-    if (res.wall && (this.onGround || inWater) && speed > 0) v[1] = 8.6;
+    if (res.wall && speed > 0) {
+      if (this.T.climb) v[1] = 3.6;               // örümcek duvara tırmanır
+      else if (this.onGround || inWater) v[1] = 8.6;
+    }
+    if (this.T.flutter && !this.onGround && v[1] < -3) v[1] = -3; // tavuk süzülür
     if (p[1] < -20) this.remove = true;
 
     const hs = Math.hypot(v[0], v[2]);
     this.walk += hs * dt * 4.5;
     this.walkAmt += (Math.min(1, hs / 1.5) - this.walkAmt) * Math.min(1, dt * 8);
 
-    // Gün ışığında zombi yanar
-    if (this.type === 'zombie' && game.sunLevel > 0.6 && !inWater) {
+    // Gün ışığında zombi ve iskelet yanar
+    if ((this.type === 'zombie' || this.T.burns) && game.sunLevel > 0.6 && !inWater && world.dim === 'overworld') {
       if (world.skyLightAt(Math.floor(p[0]), Math.floor(p[1] + 1.8), Math.floor(p[2]))) {
         this.burnTimer += dt;
         if (Math.random() < dt * 12) game.particles.flame(p[0] + (Math.random() - 0.5) * 0.6, p[1] + Math.random() * 1.9, p[2] + (Math.random() - 0.5) * 0.6);
@@ -326,6 +407,17 @@ class Mob {
   }
 }
 
+// İki nokta arasında katı blok var mı?
+function hasLOS(world, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  const d = Math.hypot(dx, dy, dz), n = Math.ceil(d / 0.3);
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    if (OPAQUE[world.getBlock(Math.floor(a[0] + dx * t), Math.floor(a[1] + dy * t), Math.floor(a[2] + dz * t))]) return false;
+  }
+  return true;
+}
+
 // Işın - AABB kesişimi (slab yöntemi)
 function rayAABB(o, d, x0, y0, z0, x1, y1, z1) {
   let tmin = 0, tmax = 1e9;
@@ -344,10 +436,87 @@ class EntityManager {
   constructor(game) {
     this.game = game;
     this.mobs = [];
+    this.arrows = [];
     this.spawnTimer = 2;
     this.verts = new Float32Array(9 * 24 * 12 * 40);
   }
-  clear() { this.mobs.length = 0; }
+  clear() { this.mobs.length = 0; this.arrows.length = 0; }
+
+  // Ok fırlat (Minecraft: yerçekimi 20 b/s², tik başına %1 sürtünme)
+  shoot(pos, vel, owner, dmg) {
+    this.arrows.push({ pos: pos.slice(), vel: vel.slice(), dir: vel.slice(), owner, dmg, stuck: false, life: 60, age: 0 });
+  }
+  // İskelet: hedefe balistik nişan al
+  shootAt(from, to, dmg) {
+    const V = 30, G = 20;
+    const dx = to[0] - from[0], dz = to[2] - from[2], dh = Math.hypot(dx, dz), t = dh / V;
+    const dy = to[1] - from[1] + 0.5 * G * t * t;
+    const l = Math.hypot(dx, dy, dz) || 1, err = 0.06 / (this.game.diffMult || 1);
+    const v = [dx / l + (Math.random() - 0.5) * err, dy / l + (Math.random() - 0.5) * err, dz / l + (Math.random() - 0.5) * err].map((k) => k * V);
+    this.shoot([from[0] + (dx / l) * 0.5, from[1], from[2] + (dz / l) * 0.5], v, 'mob', dmg);
+    this.game.audio.play('bow', from);
+  }
+
+  updateArrows(dt) {
+    const g = this.game, w = g.world, pl = g.player;
+    for (const a of this.arrows) {
+      a.age += dt;
+      if (a.stuck) {
+        a.life -= dt;
+        if (a.owner === 'player' && !pl.creative && a.age > 0.4 && Math.hypot(pl.pos[0] - a.pos[0], pl.pos[1] + 0.9 - a.pos[1], pl.pos[2] - a.pos[2]) < 1.6) {
+          if (g.addItem(I.ARROW, 1)) { g.audio.play('pop'); a.life = 0; }
+        }
+        // Takıldığı blok kırıldıysa düş
+        if (!SOLID[w.getBlock(Math.floor(a.pos[0] + a.dir[0] * 0.05), Math.floor(a.pos[1] + a.dir[1] * 0.05), Math.floor(a.pos[2] + a.dir[2] * 0.05))]) { a.stuck = false; a.vel = [0, 0, 0]; }
+        continue;
+      }
+      a.life -= dt;
+      a.vel[1] -= 20 * dt;
+      const drag = Math.pow(0.99, dt * 20);
+      a.vel[0] *= drag; a.vel[1] *= drag; a.vel[2] *= drag;
+      const sp = Math.hypot(a.vel[0], a.vel[1], a.vel[2]);
+      if (sp > 0.5) a.dir = a.vel.slice();
+      const n = Math.max(1, Math.ceil(sp * dt / 0.2)), sdt = dt / n;
+      for (let k = 0; k < n && !a.stuck && a.life > 0; k++) {
+        const x = a.pos[0] + a.vel[0] * sdt, y = a.pos[1] + a.vel[1] * sdt, z = a.pos[2] + a.vel[2] * sdt;
+        if (a.owner === 'player') {
+          for (const m of this.mobs) {
+            if (m.dead) continue;
+            if (Math.abs(x - m.pos[0]) < m.hw + 0.15 && Math.abs(z - m.pos[2]) < m.hw + 0.15 && y > m.pos[1] - 0.1 && y < m.pos[1] + m.h + 0.1) {
+              m.hit(a.dmg, a.vel[0], a.vel[2]);
+              g.audio.play('mobhurt', m.pos);
+              if (m.dead) g.mobDrops(m);
+              a.life = 0; break;
+            }
+          }
+        } else if (!pl.dead && Math.abs(x - pl.pos[0]) < pl.hw + 0.1 && Math.abs(z - pl.pos[2]) < pl.hw + 0.1 && y > pl.pos[1] && y < pl.pos[1] + pl.h) {
+          const l = Math.hypot(a.vel[0], a.vel[2]) || 1;
+          pl.hurt(a.dmg, (a.vel[0] / l) * 4, (a.vel[2] / l) * 4, 'arrow');
+          a.life = 0;
+        }
+        if (a.life <= 0) break;
+        const id = w.getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
+        if (SOLID[id] && y < Math.floor(y) + HGT[id] / 16) {
+          a.stuck = true; a.life = a.owner === 'player' ? 60 : 10; a.vel = [0, 0, 0];
+          g.audio.play('arrowhit', a.pos);
+        } else { a.pos[0] = x; a.pos[1] = y; a.pos[2] = z; }
+      }
+      if (a.pos[1] < -20) a.life = 0;
+    }
+    this.arrows = this.arrows.filter((a) => a.life > 0 && Math.hypot(a.pos[0] - pl.pos[0], a.pos[2] - pl.pos[2]) < 120);
+  }
+
+  arrowMesh(out, n, a, cam, light) {
+    const m = M4.create(), t = M4.create();
+    const d = a.dir, hl = Math.hypot(d[0], d[2]);
+    M4.translate(m, a.pos[0] - cam[0], a.pos[1] - cam[1], a.pos[2] - cam[2]);
+    M4.rotY(t, Math.atan2(-d[0], -d[2])); M4.mul(m, m, t);
+    M4.rotX(t, Math.atan2(d[1], hl)); M4.mul(m, m, t);
+    n = addBox(out, n, m, -0.025, -0.025, -0.05, 0.025, 0.025, 0.42, [0.5, 0.36, 0.22], light);
+    n = addBox(out, n, m, -0.045, -0.045, -0.12, 0.045, 0.045, -0.04, [0.72, 0.72, 0.74], light);
+    n = addBox(out, n, m, -0.07, -0.005, 0.3, 0.07, 0.005, 0.44, [0.95, 0.95, 0.95], light);
+    return n;
+  }
 
   update(dt) {
     const g = this.game;
@@ -358,6 +527,7 @@ class EntityManager {
       if ((m.T.hostile || m.T.neutral) && g.player.creative && d > 40) m.remove = true;
     }
     this.mobs = this.mobs.filter((m) => !m.remove);
+    this.updateArrows(dt);
     // Mob'lar birbirini itsin
     for (let i = 0; i < this.mobs.length; i++) for (let j = i + 1; j < this.mobs.length; j++) {
       const a = this.mobs[i], b = this.mobs[j];
@@ -399,8 +569,8 @@ class EntityManager {
       if (!w.isLoadedAt(x, z)) return;
       const y = w.surfaceY(x, z);
       if (y < 0 || w.getBlock(x, y, z) !== B.GRASS) return;
-      const types = ['pig', 'cow', 'sheep'];
-      const type = types[Math.floor(Math.random() * 3)];
+      const types = ['pig', 'cow', 'sheep', 'chicken'];
+      const type = types[Math.floor(Math.random() * 4)];
       const cnt = 1 + Math.floor(Math.random() * 3);
       for (let i = 0; i < cnt; i++) {
         const sx = x + (i ? Math.floor(Math.random() * 3) - 1 : 0), sz = z + (i ? Math.floor(Math.random() * 3) - 1 : 0);
@@ -421,7 +591,9 @@ class EntityManager {
       const top = w.getBlock(x, y, z);
       if (y < 0 || !SOLID[top] || top === B.LEAVES || SOLID[w.getBlock(x, y + 1, z)] || SOLID[w.getBlock(x, y + 2, z)]) return;
       const rr = Math.random();
-      this.mobs.push(new Mob(rr < 0.08 ? 'enderman' : rr < 0.62 ? 'zombie' : 'creeper', x + 0.5, y + 1, z + 0.5));
+      const type = rr < 0.08 ? 'enderman' : rr < 0.43 ? 'zombie' : rr < 0.66 ? 'skeleton' : rr < 0.84 ? 'spider' : 'creeper';
+      if (type === 'spider' && (SOLID[w.getBlock(x + 1, y + 1, z)] || SOLID[w.getBlock(x, y + 1, z + 1)])) return;
+      this.mobs.push(new Mob(type, x + 0.5, y + 1, z + 0.5));
       return;
     }
     // Mağaralarda karanlık yerler
@@ -434,7 +606,8 @@ class EntityManager {
     for (let dz = -6; dz <= 6; dz++) for (let dyy = -4; dyy <= 4; dyy++) for (let dx = -6; dx <= 6; dx++) {
       if (EMIT[w.getBlock(x + dx, y + dyy, z + dz)]) return;
     }
-    this.mobs.push(new Mob(Math.random() < 0.65 ? 'zombie' : 'creeper', x + 0.5, y, z + 0.5));
+    const rr = Math.random();
+    this.mobs.push(new Mob(rr < 0.38 ? 'zombie' : rr < 0.7 ? 'skeleton' : rr < 0.82 ? 'spider' : 'creeper', x + 0.5, y, z + 0.5));
   }
 
   raycast(o, d, maxDist) {
@@ -450,7 +623,7 @@ class EntityManager {
   buildMesh(cam) {
     const g = this.game;
     let n = 0;
-    const need = this.mobs.length * 12 * 24 * 9;
+    const need = (this.mobs.length * 16 + this.arrows.length * 3) * 24 * 9;
     if (this.verts.length < need) this.verts = new Float32Array(need * 2);
     for (const m of this.mobs) {
       const d = Math.hypot(m.pos[0] - cam[0], m.pos[2] - cam[2]);
@@ -463,6 +636,11 @@ class EntityManager {
         light = Math.max(0.12, sky ? g.sunLevel : 0.25);
       }
       n = m.buildMesh(this.verts, n, cam, light);
+    }
+    for (const a of this.arrows) {
+      let light = 0.7;
+      if (g.world.dim === 'overworld') light = Math.max(0.15, g.world.skyLightAt(Math.floor(a.pos[0]), Math.floor(a.pos[1]), Math.floor(a.pos[2])) ? g.sunLevel : 0.3);
+      n = this.arrowMesh(this.verts, n, a, cam, light);
     }
     return n;
   }
@@ -485,6 +663,23 @@ class Particles {
     }
   }
   hitBits(x, y, z, id) { this.blockBreak(x, y, z, id, 3); }
+  itemBits(x, y, z, layer, n) {
+    for (let i = 0; i < n; i++) {
+      this.list.push({
+        x, y, z, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 1.5, vz: (Math.random() - 0.5) * 1.5,
+        life: 0.4 + Math.random() * 0.3, layer, u: (4 + Math.floor(Math.random() * 8)) / 16, v: (4 + Math.floor(Math.random() * 8)) / 16,
+        size: 0.06, light: 1, g: 14,
+      });
+    }
+  }
+  sparkle(x, y, z, n) {
+    for (let i = 0; i < n; i++) {
+      this.list.push({
+        x: x + (Math.random() - 0.5) * 1.2, y: y + Math.random() * 0.8, z: z + (Math.random() - 0.5) * 1.2,
+        vx: 0, vy: 0.5, vz: 0, life: 0.7 + Math.random() * 0.6, layer: TEX.leaves, u: 0.4, v: 0.4, size: 0.07, light: 1.3, g: -0.3,
+      });
+    }
+  }
   puff(x, y, z, n, light = 1) {
     for (let i = 0; i < n; i++) {
       this.list.push({

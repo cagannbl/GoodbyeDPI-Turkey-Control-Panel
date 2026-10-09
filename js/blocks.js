@@ -20,7 +20,13 @@ const B = {
   END_FRAME: 84, END_FRAME_EYE: 85, END_PORTAL: 86, DRAGON_EGG: 87, CHORUS_PLANT: 88, CHORUS_FLOWER: 89,
   CRYING_OBSIDIAN: 90, IRON_BLOCK: 91, GOLD_BLOCK: 92, DIAMOND_BLOCK: 93, EMERALD_BLOCK: 94, COAL_BLOCK: 95,
   REDSTONE_BLOCK: 96, LAPIS_ORE: 97, LAPIS_BLOCK: 98, CHEST: 99, END_ROD: 100,
+  FARMLAND: 101, FARMLAND_WET: 102, WHEAT_0: 103, WHEAT_7: 110, OAK_SAPLING: 111, BIRCH_SAPLING: 112,
+  SPRUCE_SAPLING: 113, BED_FOOT: 114, BED_HEAD: 115,
 };
+// WHEAT_0..WHEAT_7 ardışık 8 büyüme evresidir
+const isWheat = (id) => id >= B.WHEAT_0 && id <= B.WHEAT_7;
+const isSapling = (id) => id >= B.OAK_SAPLING && id <= B.SPRUCE_SAPLING;
+const isBed = (id) => id === B.BED_FOOT || id === B.BED_HEAD;
 
 // Render tipleri
 const R_NONE = 0, R_CUBE = 1, R_CROSS = 2, R_LIQUID = 3;
@@ -34,6 +40,7 @@ const RENDER = new Uint8Array(256);
 const PASS = new Uint8Array(256);     // 0: opak/kesik, 1: yarı saydam
 const CULLSAME = new Uint8Array(256); // aynı bloğa komşu yüzleri çizme
 const TEXF = new Uint8Array(256 * 6); // yüz başına doku katmanı
+const HGT = new Uint8Array(256).fill(16); // blok yüksekliği (1/16 birim): yatak, tarla
 
 // --- Doku üretimi --------------------------------------------------------
 const TEX = {};
@@ -451,6 +458,7 @@ function buildTextures() {
     px(d, 7, 4, 255, 180, 60);
   });
   buildTexturesNetherEnd();
+  buildTexturesFarm();
   // Kırılma çatlakları (10 aşama)
   const crackRng = mulberry32(1337);
   const path = [];
@@ -672,6 +680,81 @@ function buildTexturesNetherEnd() {
   });
 }
 
+// Tarım ve yatak dokuları
+function buildTexturesFarm() {
+  const farm = (d, r, wet) => {
+    copyTex(d, 'dirt');
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = wet ? 0.55 : 0.8;
+      if (y % 4 === 0) f *= 0.72; else if (y % 4 === 1) f *= 1.12;
+      mulPx(d, x, y, f);
+    }
+  };
+  makeTex('farmland', (d, r) => farm(d, r, false));
+  makeTex('farmland_wet', (d, r) => farm(d, r, true));
+  // Buğday: 5 görsel evre (yeşil filizden altın başaklara)
+  for (let s = 0; s < 5; s++) {
+    makeTex('wheat_' + s, (d, r) => {
+      for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+      const h = 3 + s * 3 - (s === 4 ? 1 : 0);
+      for (const x of [1, 4, 6, 9, 11, 14]) {
+        const hh = h - Math.floor(r() * 3);
+        for (let y = 15; y > 15 - hh && y >= 0; y--) {
+          const top = 15 - y > hh - 4;
+          let c = s < 3 ? [70, 150 - s * 10, 40] : s === 3 ? [130, 150, 50] : [200, 170, 70];
+          if (s >= 3 && top) c = s === 4 ? [220, 190, 90] : [150, 160, 60];
+          const f = 0.8 + r() * 0.3;
+          px(d, x + (y % 3 === 0 && top ? 1 : 0), y, c[0] * f, c[1] * f, c[2] * f);
+          if (s === 4 && top) px(d, x - 1, y, c[0] * 0.85, c[1] * 0.85, c[2] * 0.8);
+        }
+      }
+    });
+  }
+  const sapling = (d, r, leaf, stem, cone) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 9; y < 16; y++) px(d, 7, y, stem[0], stem[1], stem[2]);
+    for (let y = 1; y < 12; y++) for (let x = 2; x < 14; x++) {
+      const dx = x + 0.5 - 8, dy = y + 0.5 - (cone ? 7 : 6);
+      const inside = cone ? Math.abs(dx) < (y - 0.5) * 0.55 && y < 12 : dx * dx * 0.9 + dy * dy < 22;
+      if (!inside || r() < 0.18) continue;
+      const f = 0.7 + r() * 0.45; px(d, x, y, leaf[0] * f, leaf[1] * f, leaf[2] * f);
+    }
+  };
+  makeTex('oak_sapling', (d, r) => sapling(d, r, [60, 140, 40], [100, 72, 40], false));
+  makeTex('birch_sapling', (d, r) => sapling(d, r, [110, 165, 70], [210, 210, 200], false));
+  makeTex('spruce_sapling', (d, r) => sapling(d, r, [40, 90, 50], [80, 55, 30], true));
+  // Yatak: yüzlerin sadece alt 9 pikseli görünür
+  const RED = [176, 36, 36], WOOD = [160, 120, 70];
+  const bedSide = (d, r, head) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 7; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let c = null;
+      if (y < 10) c = head && x > 1 && x < 14 && y === 7 ? [235, 235, 235] : RED;
+      else if (y < 13) c = WOOD;
+      else if (x < 3 || x > 12) c = sh(WOOD, 0.8);
+      if (!c) continue;
+      const f = 0.9 + r() * 0.15; px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+    }
+  };
+  makeTex('bed_side_head', (d, r) => bedSide(d, r, true));
+  makeTex('bed_side_foot', (d, r) => bedSide(d, r, false));
+  makeTex('bed_top_head', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const edge = x === 0 || x === 15 || y === 0 || y === 15;
+      const pillow = x > 2 && x < 13 && y > 2 && y < 11;
+      const c = edge ? RED : pillow ? [236, 236, 236] : RED;
+      const f = 0.9 + r() * 0.12 - (pillow && (x === 3 || y === 10) ? 0.15 : 0);
+      px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+    }
+  });
+  makeTex('bed_top_foot', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = (0.9 + r() * 0.12) * (y === 13 || x === 0 || x === 15 ? 0.8 : 1);
+      px(d, x, y, RED[0] * f, RED[1] * f, RED[2] * f);
+    }
+  });
+}
+
 // --- Blok tanımları -------------------------------------------------------
 function def(id, name, tex, o = {}) {
   const t = typeof tex === 'string' ? { top: tex, bottom: tex, side: tex } : tex;
@@ -788,6 +871,18 @@ function defineBlocks() {
   def(B.CHORUS_PLANT, 'Koro Bitkisi', 'chorus_plant', AX({ hardness: 0.4, opaque: false, drop: 0 }));
   def(B.CHORUS_FLOWER, 'Koro Çiçeği', 'chorus_flower', AX({ hardness: 0.4, opaque: false }));
 
+  // Tarım
+  def(B.FARMLAND, 'Tarla', { top: 'farmland', bottom: 'dirt', side: 'dirt' }, SH({ hardness: 0.6, drop: B.DIRT, sound: 'gravel', opaque: false, height: 15 }));
+  def(B.FARMLAND_WET, 'Islak Tarla', { top: 'farmland_wet', bottom: 'dirt', side: 'dirt' }, SH({ hardness: 0.6, drop: B.DIRT, sound: 'gravel', opaque: false, height: 15, creative: false }));
+  const wheatTex = [0, 0, 1, 1, 2, 2, 3, 4];
+  for (let k = 0; k < 8; k++) def(B.WHEAT_0 + k, 'Buğday', 'wheat_' + wheatTex[k], Object.assign({}, plant, { creative: false }));
+  def(B.OAK_SAPLING, 'Meşe Fidanı', 'oak_sapling', plant);
+  def(B.BIRCH_SAPLING, 'Huş Fidanı', 'birch_sapling', plant);
+  def(B.SPRUCE_SAPLING, 'Ladin Fidanı', 'spruce_sapling', plant);
+  const bed = { hardness: 0.2, opaque: false, height: 9, sound: 'cloth', creative: false };
+  def(B.BED_FOOT, 'Yatak', { top: 'bed_top_foot', bottom: 'planks', side: 'bed_side_foot' }, bed);
+  def(B.BED_HEAD, 'Yatak', { top: 'bed_top_head', bottom: 'planks', side: 'bed_side_head' }, bed);
+
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 
   for (let id = 0; id < BLOCKS.length; id++) {
@@ -800,6 +895,7 @@ function defineBlocks() {
     RENDER[id] = b.render;
     PASS[id] = b.pass;
     CULLSAME[id] = b.cullSame ? 1 : 0;
+    HGT[id] = b.height || 16;
     if (b.tex) {
       const t = b.tex;
       const side = TEX[t.side];
@@ -848,7 +944,7 @@ function buildIcons() {
           ctx.globalCompositeOperation = 'source-over';
         }
       };
-      const h = b.liquid ? 0.12 : 0;
+      const h = b.liquid ? 0.12 : (16 - (b.height || 16)) / 16;
       draw(left, [k, k * 0.5, 0, k * (1 - h), 0, S * 0.25 + S * h * 0.5], 0.28);
       draw(right, [k, -k * 0.5, 0, k * (1 - h), S / 2, S * 0.5 + S * h * 0.5], 0.45);
       draw(top, [k, k * 0.5, -k, k * 0.5, S / 2, S * h], 0);

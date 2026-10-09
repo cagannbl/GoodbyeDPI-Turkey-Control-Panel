@@ -10,6 +10,8 @@ const BIOME_NAMES = ['Ova', 'Orman', 'Çöl', 'Karlı Tundra', 'Dağlar', 'Sahil
 const bidx = (x, y, z) => (y * CS + z) * CS + x;
 const ckey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 
+const growable = (id) => isWheat(id) || isSapling(id) || id === B.FARMLAND || id === B.FARMLAND_WET;
+
 class Chunk {
   constructor(cx, cz) {
     this.cx = cx; this.cz = cz;
@@ -84,6 +86,7 @@ class World {
     if (!e) e = this.edits[c.key] = {};
     e[i] = id;
     c.dirty = true; c.urgent = true;
+    if (growable(id)) c.plants.add(i); else if (growable(old)) c.plants.delete(i);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;
       const n = this.getChunk(cx + dx, cz + dz);
@@ -134,6 +137,9 @@ class World {
       }
     }
     c.maxY = Math.min(CH - 1, maxY + 1);
+    // Büyüyen bloklar (ekin, fidan, tarla) sadece oyuncu düzenlemelerinden gelir
+    c.plants = new Set();
+    if (e) for (const k in e) if (growable(e[k])) c.plants.add(k | 0);
     this.chunks.set(c.key, c);
     this._lk = -1;
     return c;

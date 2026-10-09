@@ -117,9 +117,13 @@ kbd { display: inline-block; font-family: var(--font); font-size: 20px; backgrou
 .cnt { position: absolute; right: 2px; bottom: -2px; font-size: 22px; text-shadow: 2px 2px 0 #3a3a3a; pointer-events: none; }
 #itemName { font-size: 26px; text-shadow: 2px 2px 0 #3a3a3a; min-height: 28px; transition: opacity 0.4s; margin-bottom: 2px; }
 #bars { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3px; min-height: 20px; }
-#hearts, #bubbles { display: flex; gap: 1px; }
-#bubbles { flex-direction: row-reverse; }
-#hearts img, #bubbles img { width: 20px; height: 20px; image-rendering: pixelated; }
+#bars .bcol { display: flex; flex-direction: column; gap: 2px; }
+#bars .bcol.r { align-items: flex-end; }
+#hearts, #bubbles, #armorBar, #foodBar { display: flex; gap: 1px; min-height: 20px; }
+#bubbles, #foodBar { flex-direction: row-reverse; }
+#hearts img, #bubbles img, #armorBar img, #foodBar img { width: 20px; height: 20px; image-rendering: pixelated; }
+#foodBar.starve img { animation: shake 0.5s infinite; }
+#sleepOverlay { position: absolute; inset: 0; background: #05060c; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 #hearts.shake { animation: shake 0.3s; }
 @keyframes shake { 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
 #hurtFlash { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(255,0,0,0) 30%, rgba(255,0,0,0.55) 100%); opacity: 0; transition: opacity 0.4s; }
@@ -167,6 +171,9 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 .dur { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; background: #000; pointer-events: none; }
 .dur i { display: block; height: 2px; }
 .ptop { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 6px; position: relative; }
+.acol { display: flex; flex-direction: column; }
+.slot img.ghost { opacity: 0.22; filter: grayscale(1) brightness(0.4); }
+.ptop .steve { align-self: stretch; height: auto; }
 .steve { width: 84px; height: 116px; background: #000; border: 2px solid; border-color: #373737 #fff #fff #373737; display: flex; align-items: center; justify-content: center; }
 .steve img { height: 104px; image-rendering: pixelated; }
 .craftArea { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
@@ -217,6 +224,8 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 @media (max-width: 720px) {
   .hslot { width: 38px; height: 38px; }
   .hslot img { width: 28px; height: 28px; }
+  #hearts img, #bubbles img, #armorBar img, #foodBar img { width: 15px; height: 15px; }
+  #hearts, #bubbles, #armorBar, #foodBar { min-height: 15px; }
   :root { --sl: 34px; }
   .panel.book { display: none; }
   .steve { width: 64px; height: 90px; } .steve img { height: 80px; }

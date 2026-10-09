@@ -22,12 +22,13 @@
     <div id="hurtFlash"></div>
     <div id="liquidOverlay"></div>
     <div id="portalOverlay"></div>
+    <div id="sleepOverlay"></div>
     <div id="toast"></div>
     <div id="bottom">
       <div id="itemName"></div>
       <div id="bars">
-        <div id="hearts"></div>
-        <div id="bubbles"></div>
+        <div class="bcol"><div id="armorBar"></div><div id="hearts"></div></div>
+        <div class="bcol r"><div id="bubbles"></div><div id="foodBar"></div></div>
       </div>
       <div id="hotbar"></div>
     </div>
@@ -121,6 +122,7 @@
       <div><kbd>R</kbd> / <kbd>Ctrl</kbd> / <kbd>W W</kbd> Koş</div>
       <div><kbd>Sol Tık</kbd> Blok kır / Saldır</div>
       <div><kbd>Sağ Tık</kbd> Koy / ye / kullan / masa, fırın, sandık aç</div>
+      <div><kbd>Sağ Tık basılı</kbd> Yemek ye / yayı ger (bırakınca atar)</div>
       <div><kbd>Orta Tık</kbd> Bloğu seç</div>
       <div><kbd>1-9</kbd> / <kbd>Tekerlek</kbd> Eşya seç</div>
       <div><kbd>E</kbd> Envanter (2x2 üretim)</div>
@@ -133,7 +135,11 @@
     <p class="hint">Ağaç kır → kalas → çalışma masası → tahta kazma ile başla. Taş, demir ve elmas aletlerle daha sert cevherleri kazabilirsin.
       Cevherleri fırında eritip külçe yap. Envanterdeki kitap düğmesi tarif kitabını açar.
       Nether: obsidyenden en az 4x5 çerçeve kur, çakmakla yak. Netherit için Nether'da kadim kalıntı ara.
-      End: 12 End çerçevesini 3x3 boşluk etrafında halka yap ve hepsine Sonveren Gözü koy.</p>
+      End: 12 End çerçevesini 3x3 boşluk etrafında halka yap ve hepsine Sonveren Gözü koy.<br>
+      Açlık barı koştukça ve zıpladıkça azalır; tokken canın yenilenir. Çapayla toprağı sür, tohum ek (uzun çimenden düşer),
+      suya yakın tarlada buğday daha hızlı büyür; 3 buğday = ekmek. Kemik tozu ekini ve fidanı hızla büyütür.
+      Zırhı envanterdeki zırh yuvalarına koy ya da elindeyken sağ tıkla. Yatakta gece uyursan sabah olur ve doğma noktan ayarlanır
+      (Nether ve End'de yatak patlar!). Yay için ip (örümcek), ok için tüy (tavuk) gerekir.</p>
     <div class="row"><button class="btn" data-action="back">Geri</button></div>
   </div>
 

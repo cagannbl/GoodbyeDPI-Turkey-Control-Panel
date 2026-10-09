@@ -41,6 +41,30 @@ const BUBBLE_ROWS = [
   '.........',
 ];
 
+const FOOD_ROWS = [
+  '....####.',
+  '...#mmmm#',
+  '..#mmmmh#',
+  '..#mmmmm#',
+  '..#mmmm#.',
+  '.#w###...',
+  '#ww#.....',
+  '.##......',
+  '.........',
+];
+const ARMOR_ROWS9 = [
+  '.##...##.',
+  '#aa###aa#',
+  '#aaaaaaa#',
+  '.#aaaaa#.',
+  '.#aaaaa#.',
+  '.#aaaaa#.',
+  '.#aaaaa#.',
+  '.#######.',
+  '.........',
+];
+const half = (rows, from, to, re, ch) => rows.map((r) => r.slice(0, from) + r.slice(from, to).replace(re, ch) + r.slice(to));
+
 class UI {
   constructor(game) {
     this.g = game;
@@ -60,6 +84,12 @@ class UI {
       heartEmpty: H({ '#': '#1a0000', r: '#3a1010', w: '#3a1010' }),
       heartHalf: pixelIcon(HEART_ROWS.map((r) => r.slice(0, 5) + r.slice(5).replace(/[rw]/g, 'e')), { '#': '#1a0000', r: '#e01010', w: '#ffb0b0', e: '#3a1010' }),
       bubble: pixelIcon(BUBBLE_ROWS, { '#': '#103080', b: '#3a7bff', w: '#ffffff' }),
+      food: pixelIcon(FOOD_ROWS, { '#': '#3a1a00', m: '#c8742c', h: '#ffd08a', w: '#f0f0e8' }),
+      foodHalf: pixelIcon(half(FOOD_ROWS, 0, 5, /[mhw]/g, 'e'), { '#': '#3a1a00', m: '#c8742c', h: '#ffd08a', w: '#f0f0e8', e: '#3a2a1a' }),
+      foodEmpty: pixelIcon(FOOD_ROWS, { '#': '#3a1a00', m: '#3a2a1a', h: '#3a2a1a', w: '#3a2a1a' }),
+      armor: pixelIcon(ARMOR_ROWS9, { '#': '#202020', a: '#dadada' }),
+      armorHalf: pixelIcon(half(ARMOR_ROWS9, 5, 9, /a/g, 'e'), { '#': '#202020', a: '#dadada', e: '#4a4a4a' }),
+      armorEmpty: pixelIcon(ARMOR_ROWS9, { '#': '#202020', a: '#4a4a4a' }),
     };
     this.bindMenus();
     this.bindInventory();
@@ -228,16 +258,37 @@ class UI {
     if (this.toastTimer > 0) { this.toastTimer -= dt; if (this.toastTimer <= 0) $('toast').classList.remove('show'); }
     const surv = !p.creative;
     $('bars').style.visibility = surv ? 'visible' : 'hidden';
-    if (surv && p.health !== this.lastHealth) {
+    const hp = Math.ceil(p.health);
+    if (surv && hp !== this.lastHealth) {
       const hs = $('hearts');
-      if (p.health < this.lastHealth) { hs.classList.remove('shake'); void hs.offsetWidth; hs.classList.add('shake'); }
-      this.lastHealth = p.health;
+      if (hp < this.lastHealth) { hs.classList.remove('shake'); void hs.offsetWidth; hs.classList.add('shake'); }
+      this.lastHealth = hp;
       let html = '';
       for (let i = 0; i < 10; i++) {
-        const v = p.health - i * 2;
+        const v = hp - i * 2;
         html += `<img src="${v >= 2 ? this.icons.heart : v === 1 ? this.icons.heartHalf : this.icons.heartEmpty}">`;
       }
       hs.innerHTML = html;
+    }
+    if (surv && p.food !== this.lastFood) {
+      this.lastFood = p.food;
+      let html = '';
+      for (let i = 0; i < 10; i++) {
+        const v = p.food - i * 2;
+        html += `<img src="${v >= 2 ? this.icons.food : v === 1 ? this.icons.foodHalf : this.icons.foodEmpty}">`;
+      }
+      $('foodBar').innerHTML = html;
+      $('foodBar').classList.toggle('starve', p.food <= 3);
+    }
+    const ap = surv ? g.armorPoints() : 0;
+    if (ap !== this.lastArmor) {
+      this.lastArmor = ap;
+      let html = '';
+      if (ap > 0) for (let i = 0; i < 10; i++) {
+        const v = ap - i * 2;
+        html += `<img src="${v >= 2 ? this.icons.armor : v === 1 ? this.icons.armorHalf : this.icons.armorEmpty}">`;
+      }
+      $('armorBar').innerHTML = html;
     }
     const air = p.eyeInWater && surv ? Math.ceil(Math.max(0, p.air)) : -1;
     if (air !== this.lastAir) {
@@ -271,7 +322,11 @@ class UI {
     }
     return h;
   }
-  slot(c, i, s, extra = '') { return `<div class="slot ${extra}" data-c="${c}" data-i="${i}">${this.slotInner(s)}</div>`; }
+  slot(c, i, s, extra = '') {
+    let inner = this.slotInner(s);
+    if (c === 'armor' && !s) inner = `<img class="ghost" src="${ICONS[I['IRON_' + ARMOR_SLOTS[i].key]]}" draggable="false">`;
+    return `<div class="slot ${extra}" data-c="${c}" data-i="${i}">${inner}</div>`;
+  }
 
   getSlot(c, i) {
     const g = this.g;
@@ -279,6 +334,7 @@ class UI {
     if (c === 'craft') return g.craft[i];
     if (c === 'tile') return g.screen.tile.items[i];
     if (c === 'result') return this.result;
+    if (c === 'armor') return g.armor[i];
     return null;
   }
   setSlot(c, i, v) {
@@ -287,9 +343,11 @@ class UI {
     if (c === 'inv') g.inv[i] = v;
     else if (c === 'craft') g.craft[i] = v;
     else if (c === 'tile') g.screen.tile.items[i] = v;
+    else if (c === 'armor') { g.armor[i] = v; this.lastArmor = -1; }
   }
   canPut(c, i, s) {
     if (c === 'result' || c === 'pal') return false;
+    if (c === 'armor') { const a = armorOf(s); return !!a && a.slot === i; }
     if (c === 'tile' && this.g.screen.kind === 'furnace') {
       if (i === 2) return false;
       if (i === 1) return fuelTime(s.id) > 0;
@@ -352,6 +410,8 @@ class UI {
     const s = this.getSlot(c, i);
     if (!s) return;
     let targets;
+    const a = armorOf(s);
+    if (c === 'inv' && a && k === 'player' && !g.armor[a.slot]) { g.armor[a.slot] = s; this.setSlot(c, i, null); this.lastArmor = -1; g.audio.play('equip'); return; }
     if (c === 'inv') {
       if (k === 'chest') targets = [['tile', 0, 27]];
       else if (k === 'furnace') targets = SMELT[s.id] !== undefined ? [['tile', 0, 1]] : fuelTime(s.id) ? [['tile', 1, 2]] : null;
@@ -525,7 +585,8 @@ class UI {
       const t = toolOf(st), def = itemDef(st.id);
       if (t && t.dmg) html += `<br><span class="tt2">Saldırı hasarı: ${t.dmg}</span>`;
       if (t && t.dur) html += `<br><span class="tt2">Dayanıklılık: ${t.dur - (st.dmg || 0)} / ${t.dur}</span>`;
-      if (def && def.food) html += `<br><span class="tt2">Can: +${def.food / 2} ❤</span>`;
+      if (def && def.food) html += `<br><span class="tt2">Açlık: +${def.food.h / 2} 🍗</span>`;
+      if (def && def.armor) html += `<br><span class="tt2">Zırh: +${def.armor.def}${def.armor.tough ? ` · Sertlik: +${def.armor.tough}` : ''}</span>`;
       if (s.classList.contains('rbook')) {
         const r = this.bookList[+s.dataset.r];
         const ings = r.type === 'shaped' ? r.cells.flat().filter(Boolean) : r.ings;
@@ -616,7 +677,9 @@ class UI {
   }
 
   steveURL() {
-    if (this._steve) return this._steve;
+    const key = this.g.armor.map((s) => (s ? s.id : 0)).join(',');
+    if (this._steve && this._steveKey === key) return this._steve;
+    this._steveKey = key;
     const c = document.createElement('canvas'); c.width = 16; c.height = 32;
     const x = c.getContext('2d');
     const R = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
@@ -626,6 +689,22 @@ class UI {
     R('#00a8a8', 4, 8, 8, 12); R('#008a8a', 4, 8, 8, 1);
     R('#00a8a8', 0, 8, 4, 4); R('#00a8a8', 12, 8, 4, 4); R('#c69c78', 0, 12, 4, 8); R('#c69c78', 12, 12, 4, 8);
     R('#3c3caa', 4, 20, 8, 10); R('#2a2a80', 7, 21, 2, 9); R('#6a6a6a', 4, 30, 8, 2);
+    // Giyilen zırh
+    const rects = [
+      [[4, 0, 8, 2], [4, 2, 1, 4], [11, 2, 1, 4]],
+      [[4, 8, 8, 12], [0, 8, 4, 4], [12, 8, 4, 4]],
+      [[4, 20, 8, 7], [4, 27, 3, 2], [9, 27, 3, 2]],
+      [[4, 28, 3, 4], [9, 28, 3, 4]],
+    ];
+    this.g.armor.forEach((s, k) => {
+      const a = armorOf(s);
+      if (!a) return;
+      const col = ARMOR_MATS[a.mat].col;
+      for (const [rx, ry, rw, rh] of rects[k]) {
+        R(`rgb(${col[0] * 0.55},${col[1] * 0.55},${col[2] * 0.55})`, rx, ry, rw, rh);
+        if (rw > 2 && rh > 2) R(`rgb(${col.join(',')})`, rx + 1, ry, rw - 2, rh - 1);
+      }
+    });
     return (this._steve = c.toDataURL());
   }
 
@@ -657,7 +736,8 @@ class UI {
       $('invSearch').classList.add('hidden');
       if (kind === 'player') {
         const cg = [0, 1, 2, 3].map((i) => this.slot('craft', i, g.craft[i])).join('');
-        top = `<div class="ptop"><div class="steve"><img src="${this.steveURL()}"></div>
+        const ac = [0, 1, 2, 3].map((i) => this.slot('armor', i, g.armor[i])).join('');
+        top = `<div class="ptop"><div class="acol">${ac}</div><div class="steve"><img src="${this.steveURL()}"></div>
           <div class="craftArea"><div class="invTitle">Üretim</div><div class="crow"><div class="grid g2">${cg}</div><div class="arrow"></div>${this.slot('result', 0, this.result, 'big')}</div></div>${book}</div>`;
       } else if (kind === 'crafting') {
         const cg = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => this.slot('craft', i, g.craft[i])).join('');

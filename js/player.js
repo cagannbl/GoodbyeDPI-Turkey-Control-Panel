@@ -6,7 +6,8 @@
 function boxHitsSolid(world, x0, y0, z0, x1, y1, z1) {
   const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0), by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
   for (let y = ay; y <= by; y++) for (let z = az; z <= bz; z++) for (let x = ax; x <= bx; x++) {
-    if (SOLID[world.getBlock(x, y, z)]) return true;
+    const id = world.getBlock(x, y, z);
+    if (SOLID[id] && (HGT[id] === 16 || y0 < y + HGT[id] / 16)) return true;
   }
   return false;
 }
@@ -20,10 +21,13 @@ function sweepAxis(world, p, hw, h, axis, d) {
   const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0), by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
   let hit = false;
   for (let y = ay; y <= by; y++) for (let z = az; z <= bz; z++) for (let x = ax; x <= bx; x++) {
-    if (!SOLID[world.getBlock(x, y, z)]) continue;
+    const id = world.getBlock(x, y, z);
+    if (!SOLID[id]) continue;
+    const top = y + HGT[id] / 16;
+    if (y0 >= top) continue; // alçak bloğun (yatak, tarla) üstünde
     hit = true;
     if (axis === 0) p[0] = d > 0 ? Math.min(p[0], x - hw - E) : Math.max(p[0], x + 1 + hw + E);
-    else if (axis === 1) p[1] = d > 0 ? Math.min(p[1], y - h - E) : Math.max(p[1], y + 1 + E);
+    else if (axis === 1) p[1] = d > 0 ? Math.min(p[1], y - h - E) : Math.max(p[1], top + E);
     else p[2] = d > 0 ? Math.min(p[2], z - hw - E) : Math.max(p[2], z + 1 + hw + E);
   }
   return hit;
@@ -94,6 +98,11 @@ class Player {
     this.dead = false;
     this.fovBoost = 0;
     this.spawn = [0, 80, 0];
+    this.bed = null;
+    // Açlık (Minecraft kuralları): yemek 0-20, doygunluk, yorgunluk
+    this.food = 20; this.sat = 5; this.exh = 0; this.foodTimer = 0;
+    this.regen = 0; this.hungerEff = 0; this.starveFloor = 1;
+    this.onReduce = null;
     this.onHurt = null; this.onStep = null; this.onDeath = null; this.onSplash = null;
   }
 
@@ -104,9 +113,12 @@ class Player {
     return [-Math.sin(this.yaw) * cp, Math.sin(this.pitch), -Math.cos(this.yaw) * cp];
   }
 
-  hurt(amount, kx = 0, kz = 0) {
+  // type: mob, arrow, explosion, fall, drown, lava, starve, void, pearl
+  hurt(amount, kx = 0, kz = 0, type = 'generic') {
     if (this.creative || this.dead || amount <= 0) return;
     if (this.hurtTime > 0.35 && amount < 6) return; // kısa dokunulmazlık
+    if (this.onReduce) amount = this.onReduce(amount, type);
+    this.exh += 0.1;
     this.health = Math.max(0, this.health - amount);
     this.hurtTime = 0.5; this.lastHurt = 0;
     if (kx || kz) { this.vel[0] += kx; this.vel[2] += kz; this.vel[1] = Math.max(this.vel[1], 5); }
@@ -127,7 +139,8 @@ class Player {
     if (this.inWater && !wasInWater && v[1] < -6 && this.onSplash) this.onSplash();
 
     this.sneaking = inp.sneak && !this.flying;
-    if (inp.sprint && inp.f > 0 && !this.sneaking) this.sprinting = true;
+    if (inp.sprint && inp.f > 0 && !this.sneaking && (this.creative || this.food > 6)) this.sprinting = true;
+    if (!this.creative && this.food <= 6) this.sprinting = false;
     if (inp.f <= 0 || this.sneaking || (inp.sprintCollide)) this.sprinting = false;
 
     const fwd = inp.f - inp.b, str = inp.r - inp.l;
@@ -159,6 +172,7 @@ class Player {
       if (v[1] < -60) v[1] = -60;
       if (inp.jump && this.onGround) {
         v[1] = 8.9;
+        this.exh += this.sprinting ? 0.2 : 0.05;
         if (this.sprinting) { v[0] += wx * 1.5; v[2] += wz * 1.5; }
       }
     }
@@ -175,13 +189,23 @@ class Player {
       const fx = Math.floor(p[0] + wx * 0.6), fz = Math.floor(p[2] + wz * 0.6), fy = Math.floor(p[1]);
       if (SOLID[world.getBlock(fx, fy, fz)] && !SOLID[world.getBlock(fx, fy + 1, fz)] && !SOLID[world.getBlock(fx, fy + 2, fz)]) v[1] = 8.9;
     }
+    // Alçak bloklara (yatak, tarla) kendiliğinden çık
+    if (res.wall && wasGround && !this.flying && !liquid && wl > 0) {
+      const fx = Math.floor(p[0] + wx * (this.hw + 0.2)), fz = Math.floor(p[2] + wz * (this.hw + 0.2)), fy = Math.floor(p[1] + 0.01);
+      const id = world.getBlock(fx, fy, fz);
+      const top = fy + HGT[id] / 16;
+      if (SOLID[id] && HGT[id] < 16 && top - p[1] <= 0.6 && top > p[1] &&
+        !boxHitsSolid(world, p[0] - this.hw, top + 0.01, p[2] - this.hw, p[0] + this.hw - 1e-4, top + this.h, p[2] + this.hw - 1e-4)) {
+        p[1] = top + 1e-3; this.onGround = true;
+      }
+    }
     if (res.wall) this.sprinting = false;
 
     // Düşme hasarı
     if (this.onGround || liquid || this.flying) {
       if (this.fallStart !== null && this.onGround && !liquid) {
         const dist = this.fallStart - p[1];
-        if (dist > 3.4) this.hurt(Math.floor(dist - 3));
+        if (dist > 3.4) this.hurt(Math.floor(dist - 3), 0, 0, 'fall');
         if (!wasGround && dist > 0.6 && this.onStep) this.onStep(true);
       }
       this.fallStart = null;
@@ -204,16 +228,54 @@ class Player {
     if (!this.creative) {
       if (this.eyeInWater) {
         this.air -= dt;
-        if (this.air < 0) { this.drownTimer += dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2); } }
+        if (this.air < 0) { this.drownTimer += dt; if (this.drownTimer > 1) { this.drownTimer = 0; this.hurt(2, 0, 0, 'drown'); } }
       } else this.air = Math.min(10, this.air + dt * 4);
-      if (this.inLava) { this.lavaTimer += dt; if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4); } }
-      if (this.health < this.maxHealth && this.lastHurt > 4) {
-        this.regenTimer += dt;
-        if (this.regenTimer > 2.5) { this.regenTimer = 0; this.health = Math.min(this.maxHealth, this.health + 1); }
-      }
-      if (p[1] < -40) this.hurt(4);
-    } else { this.air = 10; this.health = this.maxHealth; }
+      if (this.inLava) { this.lavaTimer += dt; if (this.lavaTimer > 0.5) { this.lavaTimer = 0; this.hurt(4, 0, 0, 'lava'); } }
+      if (p[1] < -40) this.hurt(4, 0, 0, 'void');
+      // Yorgunluk: koşmak, yüzmek
+      if (this.sprinting && this.onGround) this.exh += 0.1 * hs * dt;
+      else if (liquid) this.exh += 0.01 * hs * dt;
+      this.updateHunger(dt);
+    } else { this.air = 10; this.health = this.maxHealth; this.food = 20; }
     this.fovBoost += ((this.sprinting ? 1 : 0) - this.fovBoost) * Math.min(1, dt * 8);
     return oldY;
+  }
+
+  // Açlık barı, doygunluk ve doğal iyileşme (Minecraft 1.11+ kuralları)
+  updateHunger(dt) {
+    if (this.hungerEff > 0) { this.hungerEff -= dt; this.exh += 0.1 * dt; }
+    while (this.exh >= 4) {
+      this.exh -= 4;
+      if (this.sat > 0) this.sat = Math.max(0, this.sat - 1);
+      else this.food = Math.max(0, this.food - 1);
+    }
+    if (this.regen > 0) {
+      this.regen -= dt; this.regenAcc = (this.regenAcc || 0) + dt;
+      if (this.regenAcc >= 1.25) { this.regenAcc = 0; this.health = Math.min(this.maxHealth, this.health + 1); }
+    }
+    const hurtOk = this.health < this.maxHealth;
+    if (this.food >= 20 && this.sat > 0 && hurtOk) {
+      this.foodTimer += dt;
+      if (this.foodTimer >= 0.5) {
+        this.foodTimer = 0;
+        const s = Math.min(this.sat, 6);
+        this.health = Math.min(this.maxHealth, this.health + s / 6);
+        this.exh += s;
+      }
+    } else if (this.food >= 18 && hurtOk) {
+      this.foodTimer += dt;
+      if (this.foodTimer >= 4) { this.foodTimer = 0; this.health = Math.min(this.maxHealth, this.health + 1); this.exh += 6; }
+    } else if (this.food <= 0) {
+      this.foodTimer += dt;
+      if (this.foodTimer >= 4) {
+        this.foodTimer = 0;
+        if (this.health > this.starveFloor) this.hurt(1, 0, 0, 'starve');
+      }
+    } else this.foodTimer = 0;
+  }
+
+  eat(food) {
+    this.food = Math.min(20, this.food + food.h);
+    this.sat = Math.min(this.food, this.sat + food.s);
   }
 }

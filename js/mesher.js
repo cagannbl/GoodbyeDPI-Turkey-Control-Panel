@@ -162,7 +162,7 @@ function faceVisible(id, nid) {
 
 const ao4 = [0, 0, 0, 0], sk4 = [0, 0, 0, 0], bl4 = [0, 0, 0, 0];
 
-function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop) {
+function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop, hgt = 16) {
   const fr = ri + FACE_OFF[f];
   const F = FACES[f];
   for (let c = 0; c < 4; c++) {
@@ -186,6 +186,7 @@ function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop) {
     let y16 = (ly + C.y) * 16;
     let v = C.v;
     if (liquidTop && C.y === 1) { y16 -= 2; }
+    if (hgt < 16 && C.y === 1) { y16 -= 16 - hgt; if (f !== 2 && f !== 3) v = 16 - hgt; }
     if (liquidTop && f !== 2 && f !== 3 && C.y === 1) v = 2;
     buf.push((lx + C.x) * 16, y16, (lz + C.z) * 16, layer | (ao4[c] << 8) | (f << 10), C.u, v, sk4[c], bl4[c]);
   }
@@ -250,14 +251,15 @@ function buildChunkMesh(world, chunk) {
         if (rt === R_CROSS) { emitCross(bufOpaque, x, y, z, TEXF[id * 6 + 2], ri); continue; }
         const buf = PASS[id] ? bufTrans : bufOpaque;
         const liquidTop = rt === R_LIQUID && rIds[ri + DY] !== id;
+        const hgt = HGT[id];
         for (let f = 0; f < 6; f++) {
           if (f === 3 && y === 0) continue;
           const nid = rIds[ri + FACE_OFF[f]];
           if (!faceVisible(id, nid)) {
-            // Sıvı yüzeyi alçaltılmışsa üst yüz hâlâ görünmeli
-            if (!(liquidTop && f === 2 && !OPAQUE[nid])) continue;
+            // Sıvı yüzeyi alçaltılmışsa / blok alçaksa üst yüz hâlâ görünmeli
+            if (!((liquidTop || hgt < 16) && f === 2 && !OPAQUE[nid])) continue;
           }
-          emitFace(buf, x, y, z, f, TEXF[id * 6 + f], ri, liquidTop);
+          emitFace(buf, x, y, z, f, TEXF[id * 6 + f], ri, liquidTop, hgt);
         }
       }
     }

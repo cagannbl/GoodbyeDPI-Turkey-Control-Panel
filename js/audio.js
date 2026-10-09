@@ -151,6 +151,14 @@ class GameAudio {
       }
       case 'zombie': this.tone(d, 'sawtooth', 95, 65, 1.0, 0.2, 0, 0.2); this.noiseBurst(d, 'lowpass', 400, 2, 0.9, 0.2); break;
       case 'creeper': break;
+      case 'eat': this.noiseBurst(d, 'bandpass', 900 + Math.random() * 600, 1.5, 0.12, 0.35); break;
+      case 'burp': this.tone(d, 'sawtooth', 120, 70, 0.3, 0.12); this.noiseBurst(d, 'lowpass', 500, 2, 0.25, 0.2); break;
+      case 'bow': this.tone(d, 'triangle', 220, 90, 0.18, 0.3); this.noiseBurst(d, 'highpass', 2500, 0.8, 0.12, 0.25, 0, 900); break;
+      case 'arrowhit': this.noiseBurst(d, 'bandpass', 500, 2, 0.08, 0.5); this.tone(d, 'square', 160, 90, 0.06, 0.12); break;
+      case 'equip': this.tone(d, 'square', 700, 500, 0.06, 0.12); this.tone(d, 'triangle', 1200, 900, 0.1, 0.1, 0.05); break;
+      case 'chicken': for (let i = 0; i < 2; i++) this.tone(d, 'square', 1100 + Math.random() * 200, 800, 0.07, 0.08, i * 0.12); break;
+      case 'skeleton': for (let i = 0; i < 4; i++) this.noiseBurst(d, 'bandpass', 2200 + Math.random() * 800, 4, 0.04, 0.3, i * 0.07); break;
+      case 'spider': this.noiseBurst(d, 'highpass', 3000, 0.6, 0.5, 0.25, 0, 1500); this.tone(d, 'sawtooth', 90, 60, 0.4, 0.08); break;
     }
   }
 
