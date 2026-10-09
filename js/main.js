@@ -151,7 +151,7 @@ class Game {
   }
 
   makeWorld(dim) {
-    const w = new World(this.meta.seed, this.dims[dim].edits, dim, { dragonKilled: !!this.dims.end.dragonKilled });
+    const w = new World(this.meta.seed, this.dims[dim].edits, dim, { dragonKilled: !!this.dims.end.dragonKilled, gen: this.meta.gen || 1 });
     this.fluids.clear();
     this.redstone.clear();
     w.onBlockChange = (x, y, z, old, id) => { this.fluids.onChange(x, y, z); this.redstone.onChange(x, y, z, old, id); };
@@ -181,7 +181,7 @@ class Game {
 
   createWorld(name, seed, mode, diff) {
     if (this.isTouch) this.goFullscreen(false);
-    const meta = { id: 'w' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name, seed, mode, diff, created: Date.now(), lastPlayed: Date.now() };
+    const meta = { id: 'w' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name, seed, mode, diff, gen: 2, created: Date.now(), lastPlayed: Date.now() };
     const list = this.listWorlds(); list.push(meta); this.saveJSON(LS_WORLDS, list);
     this.openWorld(meta, null);
   }

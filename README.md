@@ -41,6 +41,9 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - **Yaratıcı** mod: sınırsız blok, anında kırma, uçma (Boşluk tuşuna iki kez bas)
 - Canlılar: domuz, inek, koyun, tavuk, zombi ve ok atan iskelet (gün ışığında yanarlar), duvara tırmanan örümcek,
   patlayan creeper, Enderman ve zombi piglin
+- **Arazi (yeni dünyalar)**: bükülmüş gürültüyle doğal kıyılar, kıtalar ve okyanuslar, sırt şeklinde sarp ve karlı
+  dağlar, dik yamaçlarda çıplak taş, kıvrılan nehirler (soğukta donar), tayga (ladin ormanı) ve sıcaklık kuşaklarına
+  göre yumuşak biyom geçişleri. Eski dünyalar bozulmasın diye kendi arazileriyle devam eder
 - Ateşlenebilir TNT ve zincirleme patlamalar, düşen kum/çakıl
 - **Gerçek ses efektleri**: Minetest Game, VoxeLibre ve Kenney'den açık lisanslı kayıtlar (adım, kazma, kırma, koyma,
   hayvanlar, canavarlar, kapı, sandık, TNT, yay, büyü); her çalışta rastgele varyasyon ve perde. Kaydı olmayan sesler

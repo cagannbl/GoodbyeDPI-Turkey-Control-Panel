@@ -46,17 +46,22 @@ function villagerTrades(prof, rng = Math.random) {
 const VILLAGER_FACE = drawRows(['', '', '', 'dddddddd', '.wg..gw.', '', '', '', '', ''], { d: K(70, 45, 30), w: K(250, 250, 250), g: K(40, 140, 60) });
 for (const key in PROFESSIONS) {
   const P = PROFESSIONS[key], skin = { c: K(190, 140, 110) }, robe = { c: P.robe, n: 0.06 };
+  // Kavuşturulmuş kollar (Minecraft ModelVillager): göğüs önünde, pivot etrafında öne 0,75 rad eğik
+  const arm = (box, sk) => Object.assign(part(box, sk, 'rotX', [0, 21, -1]), { rx: 0.75 });
+  const hands = Object.assign({}, robe, { faces: { front: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (x < 2 || x >= w - 2) s(x, y, skin.c); } } });
   const parts = [
     part([-4, 24, -4, 4, 34, 4], HEAD(skin, VILLAGER_FACE), 'head', [0, 24, 0]),
-    part([-1, 23, -6, 1, 27, -4], skin, 'head', [0, 24, 0]),
+    part([-1, 22, -6, 1, 26, -4], skin, 'head', [0, 24, 0]),
     part([-4, 12, -3, 4, 24, 3], P.apron ? Object.assign({}, robe, { faces: { front: (s, w, h) => { for (let y = 2; y < h; y++) for (let x = 1; x < w - 1; x++) s(x, y, P.apron); } } }) : robe),
-    part([-4.3, 3, -3.3, 4.3, 12, 3.3], Object.assign({}, robe, { c: robe.c.map((v) => v * 0.9) })),
-    part([-6, 15, -6, 6, 19, -2], skin),
-    part([-6, 17, -5, -4, 23, -1], robe), part([4, 17, -5, 6, 23, -1], robe),
-    part([-4, 0, -2, 0, 4, 2], { c: K(60, 50, 45) }, 'legA', [-2, 4, 0]),
-    part([0, 0, -2, 4, 4, 2], { c: K(60, 50, 45) }, 'legB', [2, 4, 0]),
+    part([-4.5, 4, -3.5, 4.5, 12, 3.5], Object.assign({}, robe, { c: robe.c.map((v) => v * 0.9) })),
+    arm([-8, 15, -3, -4, 23, 1], robe), arm([4, 15, -3, 8, 23, 1], robe), arm([-4, 15, -3, 4, 19, 1], hands),
+    part([-4, 0, -2, 0, 6, 2], { c: K(60, 50, 45) }, 'legA', [-2, 6, 0]),
+    part([0, 0, -2, 4, 6, 2], { c: K(60, 50, 45) }, 'legB', [2, 6, 0]),
   ];
-  if (P.hat) parts.push(part([-5, 33, -5, 5, 35, 5], { c: P.hat }, 'head', [0, 24, 0]));
+  if (P.hat) {
+    if (key === 'farmer') parts.push(part([-7, 32, -7, 7, 33, 7], { c: P.hat, n: 0.08 }, 'head', [0, 24, 0]), part([-4.5, 33, -4.5, 4.5, 36, 4.5], { c: P.hat, n: 0.08 }, 'head', [0, 24, 0]));
+    else parts.push(part([-4.5, 32, -4.5, 4.5, 35, 4.5], { c: P.hat, n: 0.05 }, 'head', [0, 24, 0]));
+  }
   MOB_TYPES['vil_' + key] = { name: P.name, hw: 0.3, h: 1.95, health: 20, speed: 0.8, hostile: false, villager: key, sound: 'villager', parts };
 }
 

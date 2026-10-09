@@ -166,7 +166,8 @@ const MOB_TYPES = {
     parts: [
       part([-6, 10, -9, 6, 20, 9], WOOL),
       part([-3, 14, -15, 3, 20, -7], HEAD(SHEEPF, FACE_SHEEP), 'head', [0, 17, -8]),
-      part([-3.5, 18, -13, 3.5, 21, -8], WOOL, 'head', [0, 17, -8]),
+      // Yün kafayı üstten, yanlardan ve arkadan sarar; yüz açıkta kalır (Minecraft)
+      part([-3.6, 15.5, -14.2, 3.6, 20.6, -7.6], WOOL, 'head', [0, 17, -8]),
       part([-5, 0, -7, -1, 10, -3], SHEEPF, 'legA', [0, 10, -5]),
       part([1, 0, -7, 5, 10, -3], SHEEPF, 'legB', [0, 10, -5]),
       part([-5, 0, 3, -1, 10, 7], SHEEPF, 'legB', [0, 10, 5]),
@@ -535,6 +536,7 @@ class Mob {
             M4.rotZ(t, side * (0.35 + Math.abs(Math.cos(this.walk * 1.4)) * 0.3 * this.walkAmt * (s2 > 0 ? 1 : 0.5))); M4.mul(m, m, t);
             break;
           }
+          case 'rotX': M4.rotX(t, P.rx); M4.mul(m, m, t); break; // sabit eğim (köylünün kavuşturulmuş kolları)
           case 'wingL': case 'wingR': {
             const fl = this.onGround ? 0 : Math.abs(Math.sin(this.anim * 18)) * 1.1;
             M4.rotZ(t, (P.anim === 'wingL' ? -1 : 1) * fl); M4.mul(m, m, t);

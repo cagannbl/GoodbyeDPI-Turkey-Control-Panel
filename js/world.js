@@ -4,8 +4,8 @@
 // ---------------------------------------------------------------------------
 
 const CS = 16, CH = 128, SEA = 48;
-const BIOME = { PLAINS: 0, FOREST: 1, DESERT: 2, SNOW: 3, MOUNTAIN: 4, BEACH: 5, OCEAN: 6 };
-const BIOME_NAMES = ['Ova', 'Orman', 'Çöl', 'Karlı Tundra', 'Dağlar', 'Sahil', 'Okyanus'];
+const BIOME = { PLAINS: 0, FOREST: 1, DESERT: 2, SNOW: 3, MOUNTAIN: 4, BEACH: 5, OCEAN: 6, RIVER: 7, TAIGA: 8 };
+const BIOME_NAMES = ['Ova', 'Orman', 'Çöl', 'Karlı Tundra', 'Dağlar', 'Sahil', 'Okyanus', 'Nehir', 'Tayga'];
 
 const bidx = (x, y, z) => (y * CS + z) * CS + x;
 const ckey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
@@ -28,6 +28,8 @@ class World {
   constructor(seedStr, edits, dim = 'overworld', opts = {}) {
     this.dim = dim;
     this.dragonKilled = !!opts.dragonKilled;
+    // Arazi sürümü: 1 eski dünyalar (kayıtlar bozulmasın), 2 yeni arazi (nehirler, tayga, sarp dağlar)
+    this.gen = opts.gen || 1;
     this.hasSky = dim !== 'nether';
     this.seedStr = String(seedStr);
     this.seed = hashStr(seedStr);
@@ -46,6 +48,8 @@ class World {
     this._lk = -1; this._lc = null;
     this.onBlockChange = null;
     this.nBiome = new Simplex(s + 10);
+    this.nWarp = new Simplex(s + 11);
+    this.nRiver = new Simplex(s + 12);
     if (dim === 'end') {
       this.pillars = [];
       for (let i = 0; i < 10; i++) {
@@ -99,6 +103,7 @@ class World {
 
   // Bir sütunun yüksekliğini ve biyomunu hesapla (saf fonksiyon)
   column(wx, wz) {
+    if (this.gen >= 2) return this.column2(wx, wz);
     const cont = this.nCont.fbm2(wx * 0.0021, wz * 0.0021, 4);
     const hills = this.nHill.fbm2(wx * 0.011 + 300, wz * 0.011, 3);
     const mnt = this.nMnt.noise2D(wx * 0.0035, wz * 0.0035);
@@ -118,6 +123,53 @@ class World {
     else if (temp > 0.3 && hum < 0.15) biome = BIOME.DESERT;
     else if (h <= SEA + 1) biome = BIOME.BEACH;
     else if (hum > 0.12) biome = BIOME.FOREST;
+    else biome = BIOME.PLAINS;
+    this._h = h; this._b = biome; this._t = temp;
+    return h;
+  }
+
+  // Arazi 2: bükülmüş gürültüyle doğal kıyılar, kıyıdan iç bölgeye yükselen kıtalar, sırt şeklinde sarp dağlar,
+  // kıvrılan nehirler; sıcaklık kuşakları (kar - tayga - ılıman - çöl) birbirine yumuşak geçer.
+  column2(wx, wz) {
+    const wpx = this.nWarp.noise2D(wx * 0.004, wz * 0.004) * 36, wpz = this.nWarp.noise2D(wx * 0.004 + 71, wz * 0.004 - 33) * 36;
+    const ux = wx + wpx, uz = wz + wpz;
+    const cont = this.nCont.fbm2(ux * 0.0017, uz * 0.0017, 5) + 0.2; // kara ağırlıklı (~%30 su)
+    const ero = this.nMnt.fbm2(ux * 0.0026, uz * 0.0026, 2);
+    const hills = this.nHill.fbm2(wx * 0.012 + 300, wz * 0.012, 3);
+    const ridge = 1 - Math.abs(this.nRidge.fbm2(ux * 0.0065, uz * 0.0065, 3));
+    const temp = this.nTemp.fbm2(ux * 0.0011, uz * 0.0011, 2) * 1.25 + this.nHum.noise2D(wx * 0.03, wz * 0.03) * 0.025;
+    const hum = this.nHum.fbm2(ux * 0.0014 + 500, uz * 0.0014, 2) * 1.25;
+    // Kıta profili: derin okyanus -> kıyı -> iç bölge
+    let base;
+    if (cont < -0.3) base = SEA - 22 + (cont + 1) * 18;           // okyanus tabanı
+    else if (cont < 0.02) base = SEA - 9.4 + (cont + 0.3) * 33;   // kıyı yamacı (~SEA+1'e çıkar)
+    else base = SEA + 1 + Math.min(1, (cont - 0.02) / 0.5) * 14;  // iç bölge
+    // Biyoma göre tepe yüksekliği (sürekli geçiş): ova düz, orman/tayga engebeli
+    const rough = 2.5 + smoothstep(-0.1, 0.45, hum) * 5 + smoothstep(-0.2, -0.5, temp) * 3;
+    let h = base + hills * rough * smoothstep(-0.25, 0.1, cont);
+    // Dağlar: iç bölgede, sırt gürültüsüyle keskin zirveler
+    const mf = smoothstep(0.12, 0.55, ero) * smoothstep(0.0, 0.3, cont);
+    h += mf * (Math.pow(ridge, 2.4) * 58 + 6);
+    // Nehirler: bükülmüş gürültünün sıfır çizgisi; dağlarda vadi oyar
+    const rv = Math.abs(this.nRiver.fbm2(ux * 0.0021, uz * 0.0021, 2));
+    const rw = 0.03 + 0.01 * (1 - mf);
+    let river = false;
+    if (rv < rw * 2.2 && cont > -0.25) {
+      const t = Math.min(1, rv / rw);
+      const bed = SEA - 2 - (1 - t) * 2;
+      if (t < 1) { h = Math.min(h, bed + (h - bed) * Math.pow(t, 2.2)); river = h < SEA; }
+      else { const k = (rv - rw) / (rw * 1.2); h = Math.min(h, SEA + 1 + (h - SEA - 1) * (0.35 + 0.65 * k)); }
+    }
+    h = Math.floor(clamp(h, 6, CH - 14));
+    let biome;
+    if (river) biome = BIOME.RIVER;
+    else if (h < SEA - 1) biome = BIOME.OCEAN;
+    else if (mf > 0.35 && h > SEA + 26) biome = BIOME.MOUNTAIN;
+    else if (h <= SEA + 1 && cont < 0.06) biome = BIOME.BEACH;
+    else if (temp < -0.38) biome = BIOME.SNOW;
+    else if (temp < -0.16) biome = BIOME.TAIGA;
+    else if (temp > 0.32 && hum < 0.2) biome = BIOME.DESERT;
+    else if (hum > 0.1) biome = BIOME.FOREST;
     else biome = BIOME.PLAINS;
     this._h = h; this._b = biome; this._t = temp;
     return h;
@@ -160,11 +212,60 @@ class World {
     const H = new Int16Array(256), BI = new Uint8Array(256), TP = new Float32Array(256);
     let maxY = 0;
 
+    // Arazi 2: eğim için bir sütun kenar payıyla yükseklikler
+    const g2 = this.gen >= 2;
+    let HE = null;
+    if (g2) {
+      HE = new Int16Array(18 * 18);
+      for (let z = -1; z <= 16; z++) for (let x = -1; x <= 16; x++) {
+        HE[(z + 1) * 18 + x + 1] = this.column(bx + x, bz + z);
+        if (x >= 0 && z >= 0 && x < 16 && z < 16) { BI[z * 16 + x] = this._b; TP[z * 16 + x] = this._t; }
+      }
+    }
     for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) {
       const wx = bx + x, wz = bz + z;
-      const h = this.column(wx, wz), biome = this._b;
-      H[z * 16 + x] = h; BI[z * 16 + x] = biome; TP[z * 16 + x] = this._t;
+      let h, biome;
+      if (g2) { h = HE[(z + 1) * 18 + x + 1]; biome = BI[z * 16 + x]; this._t = TP[z * 16 + x]; }
+      else { h = this.column(wx, wz); biome = this._b; BI[z * 16 + x] = biome; TP[z * 16 + x] = this._t; }
+      H[z * 16 + x] = h;
       let top, sub, deep = B.STONE;
+      if (g2) {
+        const e = (z + 1) * 18 + x + 1;
+        const slope = Math.max(Math.abs(HE[e - 1] - h), Math.abs(HE[e + 1] - h), Math.abs(HE[e - 18] - h), Math.abs(HE[e + 18] - h));
+        const cold = this._t < -0.16;
+        switch (biome) {
+          case BIOME.DESERT: top = B.SAND; sub = B.SAND; deep = B.SANDSTONE; if (slope >= 4) top = sub = B.SANDSTONE; break;
+          case BIOME.BEACH: top = B.SAND; sub = B.SAND; if (cold && hash2(wx >> 1, wz >> 1, seed + 13) < 0.5) top = sub = B.GRAVEL; break;
+          case BIOME.OCEAN: top = hash2(wx >> 2, wz >> 2, seed + 11) < 0.3 ? B.GRAVEL : B.SAND; sub = top === B.GRAVEL ? B.GRAVEL : B.SAND; break;
+          case BIOME.RIVER: top = hash2(wx >> 1, wz >> 1, seed + 14) < 0.35 ? B.GRAVEL : B.SAND; sub = top; break;
+          case BIOME.MOUNTAIN:
+            if (h > SEA + 44 - Math.floor(hash2(wx, wz, seed + 15) * 4)) { top = slope >= 5 ? B.STONE : B.SNOW; sub = B.STONE; }
+            else if (slope >= 3 || h > SEA + 38) { top = B.STONE; sub = B.STONE; }
+            else { top = cold ? B.SNOWY_GRASS : B.GRASS; sub = B.DIRT; }
+            break;
+          case BIOME.SNOW: top = slope >= 4 ? B.STONE : B.SNOWY_GRASS; sub = slope >= 4 ? B.STONE : B.DIRT; break;
+          default:
+            // Sarp yamaçlar çıplak taş (yarlar), kıyı yamaçlarında toprak
+            if (slope >= 4 && h > SEA + 3) { top = B.STONE; sub = B.STONE; }
+            else if (slope >= 3 && h > SEA + 3 && hash2(wx, wz, seed + 16) < 0.5) { top = B.DIRT; sub = B.DIRT; }
+            else { top = B.GRASS; sub = B.DIRT; }
+        }
+        b[bidx(x, 0, z)] = B.BEDROCK;
+        for (let y = 1; y <= h; y++) {
+          let id;
+          if (y < 5 && hash3(wx, y, wz, seed) < (5 - y) * 0.22) id = B.BEDROCK;
+          else if (y === h) id = top;
+          else if (y > h - 4) id = sub;
+          else if (y > h - 7 && deep === B.SANDSTONE) id = B.SANDSTONE;
+          else id = B.STONE;
+          b[bidx(x, y, z)] = id;
+        }
+        // Soğukta nehir/göl yüzeyi donar
+        for (let y = h + 1; y <= SEA; y++) b[bidx(x, y, z)] = (y === SEA && this._t < -0.3) ? B.ICE : B.WATER;
+        if (h > maxY) maxY = h;
+        if (SEA > maxY && h < SEA) maxY = SEA;
+        continue;
+      }
       switch (biome) {
         case BIOME.DESERT: top = B.SAND; sub = B.SAND; deep = B.SANDSTONE; break;
         case BIOME.BEACH: top = B.SAND; sub = B.SAND; break;
@@ -266,6 +367,8 @@ class World {
         this.oakTree(put, wx, y0, wz, th, B.LOG, B.LEAVES, seed);
       } else if (biome === BIOME.SNOW && r < 0.014) {
         this.spruceTree(put, wx, y0, wz, th + 2);
+      } else if (biome === BIOME.TAIGA && r < 0.03) {
+        this.spruceTree(put, wx, y0, wz, th + 2 + Math.floor(r2 * 3));
       } else if (biome === BIOME.MOUNTAIN && r < 0.004 && h < SEA + 40) {
         this.spruceTree(put, wx, y0, wz, th + 2);
       } else if (biome === BIOME.DESERT && r < 0.005 && inside) {
@@ -283,7 +386,7 @@ class World {
       const r = hash2(wx, wz, seed + 77);
       if (s === B.GRASS) {
         const fl = (this.nHum.noise2D(wx * 0.05, wz * 0.05) > 0.4) ? 0.06 : 0.012;
-        if (biome === BIOME.PLAINS && r < 0.12) b[above] = B.TALL_GRASS;
+        if ((biome === BIOME.PLAINS && r < 0.12) || (biome === BIOME.TAIGA && r < 0.08)) b[above] = B.TALL_GRASS;
         else if (biome === BIOME.FOREST && r < 0.05) b[above] = B.TALL_GRASS;
         else if (r < 0.12 + fl) {
           const r3 = hash2(wx, wz, seed + 78);

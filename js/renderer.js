@@ -397,8 +397,8 @@ class Renderer {
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAX_LEVEL, 4);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    const aniso = gl.getExtension('EXT_texture_filter_anisotropic');
-    if (aniso) gl.texParameterf(gl.TEXTURE_2D_ARRAY, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
+    // Anizotropik filtreleme kullanılmaz: masaüstü ekran kartlarının çoğu onu açınca dokuları doğrusal
+    // filtreleyip bulanıklaştırır. Eğik yüzeylerin keskinliğini shader'daki elle seçilen mip seviyesi sağlar.
   }
 
   initQuadIndex(maxQuads) {

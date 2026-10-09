@@ -799,7 +799,8 @@ function buildTexturesFarm() {
     for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
     for (let y = 7; y < 16; y++) for (let x = 0; x < 16; x++) {
       let c = null;
-      if (y < 10) c = head && x > 1 && x < 14 && y === 7 ? [235, 235, 235] : RED;
+      // Baş tarafında yan yüzün üstü beyaz çarşaf/yastık, ayak tarafında kırmızı battaniye
+      if (y < 10) c = head ? (y === 9 ? [200, 200, 205] : [238, 238, 240]) : RED;
       else if (y < 13) c = WOOD;
       else if (x < 3 || x > 12) c = sh(WOOD, 0.8);
       if (!c) continue;
@@ -859,13 +860,20 @@ function buildTexturesFarm() {
   });
   makeTex('bed_side_head', (d, r) => bedSide(d, r, true));
   makeTex('bed_side_foot', (d, r) => bedSide(d, r, false));
+  // Baş: beyaz çarşaf üstünde kabarık yastık (yatağın yönünden bağımsız görünür)
   makeTex('bed_top_head', (d, r) => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       const edge = x === 0 || x === 15 || y === 0 || y === 15;
-      const pillow = x > 2 && x < 13 && y > 2 && y < 11;
-      const c = edge ? RED : pillow ? [236, 236, 236] : RED;
-      const f = 0.9 + r() * 0.12 - (pillow && (x === 3 || y === 10) ? 0.15 : 0);
-      px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
+      const pillow = x >= 2 && x <= 13 && y >= 2 && y <= 13;
+      let f = 0.93 + r() * 0.07;
+      if (edge) f *= 0.82;
+      else if (pillow) {
+        // Kabarık yastık: ortası aydınlık, kenarları gölgeli
+        const e = Math.min(x - 2, 13 - x, y - 2, 13 - y);
+        f *= e === 0 ? 0.8 : e === 1 ? 0.95 : 1.04;
+        if ((x + y) % 7 === 0 && e > 1) f *= 0.96;
+      } else f *= 0.9;
+      px(d, x, y, Math.min(255, 240 * f), Math.min(255, 240 * f), Math.min(255, 244 * f));
     }
   });
   makeTex('bed_top_foot', (d, r) => {
