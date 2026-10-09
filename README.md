@@ -44,7 +44,9 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - Ateşlenebilir TNT ve zincirleme patlamalar, düşen kum/çakıl
 - Sentezlenmiş ses efektleri ve üretken ambiyans müziği
 - Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
-- Dokunmatik ekran desteği (joystick + butonlar)
+- **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
+  yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
+  yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
 
 ## Kontroller
 

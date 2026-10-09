@@ -53,6 +53,7 @@
       <button class="btn" data-action="worlds">Tek Oyuncu</button>
       <button class="btn" data-action="settings">Ayarlar</button>
       <button class="btn" data-action="help">Nasıl Oynanır?</button>
+      <button class="btn touchOnly" data-action="fullscreen">Tam Ekran</button>
     </div>
     <div class="footer"><span>WebCraft v1.0</span><span>Tarayıcıda çalışan blok oyunu · Kurulum gerekmez</span></div>
   </div>
@@ -108,6 +109,7 @@
         <label class="chk"><input type="checkbox" id="setBob"> Kamera sallanması</label>
         <label class="chk"><input type="checkbox" id="setMobs"> Canlılar</label>
         <label class="chk"><input type="checkbox" id="setInvert"> Fareyi ters çevir</label>
+        <label class="chk"><input type="checkbox" id="setAutoRes"> Otomatik çözünürlük (FPS düşünce)</label>
       </div>
     </div>
     <div class="row"><button class="btn" data-action="settingsBack">Bitti</button></div>
@@ -116,7 +118,17 @@
   <!-- Yardım -->
   <div id="helpMenu" class="screen hidden dim">
     <h2>Nasıl Oynanır?</h2>
-    <div class="helpGrid">
+    <div class="helpGrid touchOnly">
+      <div><b>Sol alt</b> Parmağını sürükle: yürü (kenara it: koş)</div>
+      <div><b>Ekrana dokun</b> Blok koy / kullan / vur</div>
+      <div><b>Basılı tut</b> Kır (yemek ve yayda: ye / ger)</div>
+      <div><b>Sürükle</b> Etrafa bak</div>
+      <div><b>⤒ ⤓</b> Zıpla / eğil (engele yürüyünce kendiliğinden zıplar)</div>
+      <div><b>Eşya çubuğu</b> Dokun: seç, basılı tut: at</div>
+      <div><b>Envanter ⇅ ½</b> Hızlı aktarma / tek tek koyma modu</div>
+      <div><b>◉</b> Kamera görünümü</div>
+    </div>
+    <div class="helpGrid desktopOnly">
       <div><kbd>W A S D</kbd> Hareket</div>
       <div><kbd>Boşluk</kbd> Zıpla / Yüz</div>
       <div><kbd>Shift</kbd> Eğil (kenardan düşmezsin)</div>
@@ -154,6 +166,7 @@
     <h2>Oyun Duraklatıldı</h2>
     <div class="menuButtons">
       <button class="btn" data-action="resume">Oyuna Dön</button>
+      <button class="btn touchOnly" data-action="fullscreen">Tam Ekran</button>
       <button class="btn" data-action="settings">Ayarlar</button>
       <button class="btn" data-action="help">Nasıl Oynanır?</button>
       <button class="btn" data-action="quit">Kaydet ve Ana Menüye Dön</button>
@@ -180,6 +193,11 @@
   <!-- Envanter -->
   <div id="inventory" class="overlay hidden">
     <div class="invWrap">
+      <div class="invTools">
+        <button class="invBtn" id="invClose" aria-label="Kapat">✕</button>
+        <button class="invBtn touchOnly" id="invQuick" title="Dokununca eşyayı diğer bölüme aktar (Shift+tık)">⇅</button>
+        <button class="invBtn touchOnly" id="invOne" title="Dokununca tek tek koy / yarısını al (sağ tık)">½</button>
+      </div>
       <div class="panel book hidden" id="recipePanel">
         <div class="invTitle">Tarif Kitabı</div>
         <input id="bookSearch" type="text" placeholder="Tarif ara…">
@@ -200,20 +218,21 @@
 
   <!-- Dokunmatik kontroller -->
   <div id="touch" class="hidden">
-    <div id="joy"><div id="joyKnob"></div></div>
     <div id="lookArea"></div>
+    <div id="joyZone"></div>
+    <div id="joy"><div id="joyKnob"></div></div>
     <div class="tbtns">
-      <button class="tb" id="tbJump">⤒</button>
-      <button class="tb" id="tbSneak">⤓</button>
-      <button class="tb" id="tbBreak">⛏</button>
-      <button class="tb" id="tbPlace">▣</button>
+      <button class="tb" id="tbSneak" aria-label="Eğil">⤓</button>
+      <button class="tb big" id="tbJump" aria-label="Zıpla">⤒</button>
     </div>
     <div class="ttop">
-      <button class="tb small" id="tbFly">✈</button>
-      <button class="tb small" id="tbInv">▦</button>
-      <button class="tb small" id="tbPause">❚❚</button>
+      <button class="tb small" id="tbFly" aria-label="Uç">✈</button>
+      <button class="tb small" id="tbCam" aria-label="Kamera">◉</button>
+      <button class="tb small" id="tbInv" aria-label="Envanter">▦</button>
+      <button class="tb small" id="tbPause" aria-label="Duraklat">❚❚</button>
     </div>
   </div>
+  <div id="rotateHint" class="hidden">↻ Daha rahat oynamak için telefonu yan çevir</div>
 
   <div id="fatal" class="screen hidden dim">
     <h2>Bir sorun oluştu</h2>

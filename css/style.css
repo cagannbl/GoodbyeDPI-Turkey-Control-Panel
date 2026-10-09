@@ -215,14 +215,36 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 
 /* ---------- Dokunmatik ---------- */
 #touch { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
-#lookArea { position: absolute; right: 0; top: 0; width: 60%; height: 100%; pointer-events: auto; }
-#joy { position: absolute; left: 24px; bottom: 120px; width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.3); pointer-events: auto; }
-#joyKnob { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; background: rgba(255,255,255,0.35); }
-.tbtns { position: absolute; right: 18px; bottom: 120px; display: grid; grid-template-columns: 70px 70px; gap: 10px; pointer-events: none; }
-.ttop { position: absolute; right: 12px; top: 10px; display: flex; gap: 8px; pointer-events: none; }
-.tb { pointer-events: auto; width: 70px; height: 70px; font-size: 30px; color: #fff; background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.45); border-radius: 12px; font-family: var(--font); }
-.tb.small { width: 48px; height: 48px; font-size: 22px; }
+#lookArea { position: absolute; inset: 0; pointer-events: auto; }
+#joyZone { position: absolute; left: 0; bottom: 0; width: 40%; height: 70%; pointer-events: auto; }
+#joy { position: absolute; left: calc(28px + env(safe-area-inset-left, 0px)); bottom: 28px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.28); pointer-events: none; transition: opacity 0.2s; opacity: 0.75; }
+#joy.active { opacity: 1; transition: none; }
+#joyKnob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: rgba(255,255,255,0.38); }
+.tbtns { position: absolute; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: 26px; display: flex; gap: 12px; align-items: flex-end; pointer-events: none; }
+.ttop { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(8px + env(safe-area-inset-top, 0px)); display: flex; gap: 8px; pointer-events: none; }
+.tb { pointer-events: auto; width: 64px; height: 64px; font-size: 30px; color: #fff; background: rgba(0,0,0,0.32); border: 2px solid rgba(255,255,255,0.45); border-radius: 12px; font-family: var(--font); touch-action: none; }
+.tb.big { width: 78px; height: 78px; font-size: 36px; }
+.tb.small { width: 46px; height: 46px; font-size: 22px; }
 .tb.on, .tb:active { background: rgba(255,255,255,0.3); }
+body.touch #crosshair { opacity: 0.8; }
+body.touch #hud { z-index: 9; }
+body.touch #bottom { bottom: calc(4px + env(safe-area-inset-bottom, 0px)); }
+#rotateHint { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 9; font-size: 22px; padding: 8px 14px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.4); text-align: center; pointer-events: none; max-width: 86vw; }
+.touchOnly { display: none !important; }
+body.touch .touchOnly { display: revert !important; }
+body.touch .helpGrid.touchOnly { display: grid !important; }
+body.touch .desktopOnly { display: none !important; }
+body { -webkit-touch-callout: none; overscroll-behavior: none; }
+.invWrap { position: relative; }
+.invTools { position: absolute; right: -6px; top: -6px; z-index: 3; display: flex; flex-direction: column; gap: 6px; transform: translateX(100%); }
+.invBtn { width: 44px; height: 44px; font-size: 24px; font-family: var(--font); background: #c6c6c6; color: #333; border: 3px solid; border-color: #fff #555 #555 #fff; cursor: pointer; }
+.invBtn.on { background: #8bc58b; border-color: #555 #fff #fff #555; }
+/* Dikey ekran: kontroller eşya çubuğunun üstünde */
+@media (orientation: portrait) {
+  body.touch #joy { bottom: 120px; }
+  body.touch .tbtns { bottom: 120px; }
+  body.touch #joyZone { height: 60%; bottom: 90px; }
+}
 
 @media (max-width: 720px) {
   .hslot { width: 38px; height: 38px; }

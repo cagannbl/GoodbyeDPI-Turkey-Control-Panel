@@ -21,13 +21,14 @@ class Game {
     this.canvas = $('game');
     this.isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
     this.settings = Object.assign({
-      renderDist: this.isTouch ? 4 : 7, fov: 75, sensitivity: 1, gamma: 0.2, volume: 0.7, music: 0.5, resScale: 1,
+      renderDist: this.isTouch ? 4 : 7, fov: this.isTouch ? 70 : 75, autoRes: true, sensitivity: 1, gamma: 0.2, volume: 0.7, music: 0.5, resScale: 1,
       clouds: true, viewBob: true, mobs: true, invertY: false,
     }, this.loadJSON(LS_SETTINGS) || {});
 
     initBlocks();
     this.renderer = new Renderer(this.canvas);
-    this.renderer.resScale = this.settings.resScale;
+    // Telefonda %75 ile başla; FPS yeterliyse otomatik çözünürlük ayardaki değere kadar yükseltir
+    this.renderer.resScale = this.isTouch ? Math.min(this.settings.resScale, 0.75) : this.settings.resScale;
     this.audio = new GameAudio();
     this.audio.setVolume(this.settings.volume);
     this.audio.setMusic(this.settings.music > 0, this.settings.music);
@@ -44,7 +45,8 @@ class Game {
     this.keys = {};
     this.mouse = { left: false, right: false };
     this.leftPressed = false; this.rightPressed = false; this.midPressed = false;
-    this.touch = { jump: false, break: false, place: false, sneak: false };
+    this.touch = { jump: false, break: false, place: false, sneak: false, hold: 0 };
+    this.touchTap = false;
     this.touchMove = [0, 0];
     this.tapPlace = false;
     this.locked = false;
@@ -174,12 +176,14 @@ class Game {
   }
 
   createWorld(name, seed, mode, diff) {
+    if (this.isTouch) this.goFullscreen(false);
     const meta = { id: 'w' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name, seed, mode, diff, created: Date.now(), lastPlayed: Date.now() };
     const list = this.listWorlds(); list.push(meta); this.saveJSON(LS_WORLDS, list);
     this.openWorld(meta, null);
   }
 
   loadWorld(id) {
+    if (this.isTouch) this.goFullscreen(false);
     const meta = this.listWorlds().find((w) => w.id === id);
     if (!meta) return;
     this.openWorld(meta, this.loadJSON(LS_WORLD + id));
@@ -259,7 +263,7 @@ class Game {
     $('hud').classList.remove('hidden');
     $('modeTag').textContent = p.creative ? 'Yaratıcı' : '';
     this.ui.showItemName();
-    this.ui.toast(this.meta.name, 2.5);
+    this.ui.toast(this.isTouch ? 'Dokun: koy · Basılı tut: kır · Sürükle: bak' : this.meta.name, 3);
     this.setupEnd();
     this.startPlaying();
     this.saveWorld();
@@ -1246,6 +1250,15 @@ class Game {
     this.target = this.targetMob ? null : hit;
 
     this.breakCd -= dt; this.placeCd -= dt; this.attackCd -= dt;
+    // Dokunmatik (Minecraft cep sürümü gibi): dokun = koy/kullan/vur, basılı tut = kır; yemek/yayda basılı tut = kullan
+    const heldNow = this.inv[this.selected], hdef = heldNow && itemDef(heldNow.id);
+    const holdUse = !!(hdef && (hdef.food || heldNow.id === I.BOW));
+    this.touch.break = this.touch.hold > 0 && !holdUse;
+    this.touch.place = this.touch.hold > 0 && holdUse;
+    if (this.touchTap) {
+      this.touchTap = false;
+      if (this.targetMob) { this.leftPressed = true; this.touch.break = true; } else this.tapPlace = true;
+    }
     const breakDown = this.mouse.left || this.touch.break;
     const placeDown = this.mouse.right || this.touch.place;
 
@@ -1462,7 +1475,14 @@ class Game {
     const dt = Math.min(0.05, (t - this.last) / 1000);
     this.last = t;
     this.fpsAcc += dt; this.fpsN++;
-    if (this.fpsAcc >= 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
+    if (this.fpsAcc >= 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.adaptQuality(); }
+    if (this.isTouch) {
+      // Dokunmatik kontroller sadece oyun sırasında; dikey ekranda yan çevir ipucu
+      const show = this.state === 'playing';
+      if (show !== this._touchShown) { this._touchShown = show; $('touch').classList.toggle('hidden', !show); if (!show) { this.touch.hold = 0; this.touch.jump = false; this.touchMove = [0, 0]; } }
+      const rot = show && innerHeight > innerWidth * 1.1 && !this.rotateDismissed;
+      if (rot !== this._rotShown) { this._rotShown = rot; $('rotateHint').classList.toggle('hidden', !rot); if (rot) setTimeout(() => { this.rotateDismissed = true; }, 6000); }
+    }
     try {
       if (this.state === 'menu') this.frameMenu(dt);
       else if (this.state === 'loading') this.frameLoading();
@@ -1553,7 +1573,7 @@ class Game {
     this.shake = Math.max(0, this.shake - dt * 1.5);
 
     const R = this.settings.renderDist;
-    this.updateChunks(playing ? 7 : 12, p.pos[0], p.pos[2], R);
+    this.updateChunks(playing ? (this.isTouch ? 5 : 7) : 12, p.pos[0], p.pos[2], R);
 
     // Kamera
     this.computeSky();
@@ -1684,6 +1704,27 @@ class Game {
     m.headYaw = d; m.headPitch = p.pitch;
     m.swing = this.swingT > 0 ? 1 - this.swingT / 0.3 : 0;
     m.holding = !!this.inv[this.selected];
+  }
+
+  // FPS düşükse çözünürlüğü kendiliğinden azalt, toparlanınca geri yükselt (ayardaki değeri aşmaz)
+  adaptQuality() {
+    if (!this.settings.autoRes || this.state !== 'playing') return;
+    const r = this.renderer, max = this.settings.resScale;
+    this.lowFps = this.fps < 32 ? (this.lowFps || 0) + 1 : 0;
+    this.highFps = this.fps > 55 ? (this.highFps || 0) + 1 : 0;
+    if (this.lowFps >= 4 && r.resScale > 0.5) { r.resScale = Math.max(0.5, Math.round((r.resScale - 0.1) * 10) / 10); this.lowFps = 0; }
+    else if (this.highFps >= 8 && r.resScale < max) { r.resScale = Math.min(max, Math.round((r.resScale + 0.1) * 10) / 10); this.highFps = 0; }
+  }
+
+  // Tam ekran + yatay kilit (telefon); izin verilmezse sessizce geç
+  goFullscreen(explicit) {
+    const el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen) { if (explicit && !el.requestFullscreen) this.ui.toast('Tam ekran desteklenmiyor', 2); return; }
+    try {
+      const pr = el.requestFullscreen({ navigationUI: 'hide' });
+      if (pr && pr.then) pr.then(() => { try { const o = screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'); if (o && o.catch) o.catch(() => {}); } catch (e) { /* yok say */ } })
+        .catch(() => { if (explicit) this.ui.toast('Tam ekran bu sayfada açılamadı', 2); });
+    } catch (e) { if (explicit) this.ui.toast('Tam ekran bu sayfada açılamadı', 2); }
   }
 
   screenshot() {

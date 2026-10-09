@@ -147,6 +147,7 @@ class UI {
         case 'resume': g.resume(); break;
         case 'quit': g.quitToMenu(); break;
         case 'respawn': g.respawn(); break;
+        case 'fullscreen': g.goFullscreen(true); break;
       }
     });
     $('modeToggle').addEventListener('click', (e) => {
@@ -176,8 +177,9 @@ class UI {
     bindRange('setVol', 'volume', 'volVal', (v) => Math.round(v * 100) + '%', (v) => g.audio.setVolume(v));
     bindRange('setMus', 'music', 'musVal', (v) => v === 0 ? 'Kapalı' : Math.round(v * 100) + '%', (v) => g.audio.setMusic(v > 0, v));
     bindRange('setRes', 'resScale', 'resVal', (v) => Math.round(v * 100) + '%', (v) => { g.renderer.resScale = v; });
+    this.g.settings.autoRes = this.g.settings.autoRes !== false;
     const bindChk = (id, key) => $(id).addEventListener('change', () => { S[key] = $(id).checked; });
-    bindChk('setClouds', 'clouds'); bindChk('setBob', 'viewBob'); bindChk('setMobs', 'mobs'); bindChk('setInvert', 'invertY');
+    bindChk('setClouds', 'clouds'); bindChk('setBob', 'viewBob'); bindChk('setMobs', 'mobs'); bindChk('setInvert', 'invertY'); bindChk('setAutoRes', 'autoRes');
   }
 
   syncSettings() {
@@ -185,7 +187,7 @@ class UI {
     const set = (id, v) => { $(id).value = v; $(id).dispatchEvent(new Event('input')); };
     set('setRD', S.renderDist); set('setFOV', S.fov); set('setSens', S.sensitivity); set('setGamma', S.gamma);
     set('setVol', S.volume); set('setMus', S.music); set('setRes', S.resScale);
-    $('setClouds').checked = S.clouds; $('setBob').checked = S.viewBob; $('setMobs').checked = S.mobs; $('setInvert').checked = S.invertY;
+    $('setClouds').checked = S.clouds; $('setBob').checked = S.viewBob; $('setMobs').checked = S.mobs; $('setInvert').checked = S.invertY; $('setAutoRes').checked = S.autoRes !== false;
   }
 
   renderWorldList() {
@@ -529,6 +531,9 @@ class UI {
       }
       e.preventDefault();
       const c = slot.dataset.c, i = c === 'pal' ? slot.dataset.i : +slot.dataset.i;
+      // Dokunmatik modlar: ⇅ hızlı aktarma (Shift), ½ tek tek (sağ tık)
+      if (this.quickMode && c !== 'trash') { g.audio.play('click'); this.clickSlot(c, i, false, true); this.afterChange(); return; }
+      const rightBtn = e.button === 2 || !!this.oneMode;
       const now = performance.now();
       if (!e.shiftKey && this.cursor && this.lastClick && now - this.lastClick.t < 300 && this.lastClick.key === c + ':' + i && e.button === 0) {
         this.collect(); this.lastClick = null; this.render(); return;
@@ -536,14 +541,14 @@ class UI {
       this.lastClick = { t: now, key: c + ':' + i };
       // İmleçte eşya varken sürükleyerek dağıt
       if (this.cursor && !e.shiftKey && c !== 'pal' && c !== 'result' && c !== 'trash') {
-        this.drag = { right: e.button === 2, slots: [], start: { c, i } };
+        this.drag = { right: rightBtn, slots: [], start: { c, i } };
         const t = this.getSlot(c, i);
         if ((!t || (t.id === this.cursor.id && !toolOf(t))) && this.canPut(c, i, this.cursor)) { this.drag.slots.push({ key: c + ':' + i, c, i }); slot.classList.add('dragsel'); }
-        else { this.drag = null; this.clickSlot(c, i, e.button === 2, false); this.afterChange(); }
+        else { this.drag = null; this.clickSlot(c, i, rightBtn, false); this.afterChange(); }
         return;
       }
       g.audio.play('click');
-      this.clickSlot(c, i, e.button === 2, e.shiftKey);
+      this.clickSlot(c, i, rightBtn, e.shiftKey);
       this.afterChange();
     });
     window.addEventListener('pointerup', () => {
@@ -570,6 +575,9 @@ class UI {
       this.g.audio.play('click');
       this.afterChange();
     });
+    $('invClose').addEventListener('pointerdown', (e) => { e.stopPropagation(); this.g.closeInventory(); });
+    window.addEventListener('resize', () => this.fitInventory());
+    this.fitInventory();
     $('invSearch').addEventListener('input', () => this.render());
     $('bookSearch').addEventListener('input', () => this.render());
     $('bookSearch').addEventListener('keydown', (e) => e.stopPropagation());
@@ -791,63 +799,110 @@ class UI {
     const g = this.g;
     $('touch').classList.remove('hidden');
     document.body.classList.add('touch');
-    const joy = $('joy'), knob = $('joyKnob');
-    let joyId = null, jx = 0, jy = 0;
+    // Sol alt bölge: parmağın değdiği yerde beliren joystick
+    const joy = $('joy'), knob = $('joyKnob'), zone = $('joyZone');
+    let joyId = null, cx = 0, cy = 0;
+    const R = 58;
     const joyMove = (t) => {
-      const r = joy.getBoundingClientRect();
-      let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2);
-      const l = Math.hypot(dx, dy), max = r.width / 2;
-      if (l > max) { dx *= max / l; dy *= max / l; }
+      let dx = t.clientX - cx, dy = t.clientY - cy;
+      const l = Math.hypot(dx, dy);
+      if (l > R) { dx *= R / l; dy *= R / l; }
       knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      jx = dx / max; jy = dy / max;
-      g.touchMove = [jx, jy];
+      g.touchMove = [dx / R, dy / R];
     };
-    joy.addEventListener('touchstart', (e) => { e.preventDefault(); const t = e.changedTouches[0]; joyId = t.identifier; joyMove(t); }, { passive: false });
-    joy.addEventListener('touchmove', (e) => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joyId) joyMove(t); }, { passive: false });
-    const joyEnd = (e) => { for (const t of e.changedTouches) if (t.identifier === joyId) { joyId = null; knob.style.transform = ''; g.touchMove = [0, 0]; } };
-    joy.addEventListener('touchend', joyEnd); joy.addEventListener('touchcancel', joyEnd);
+    zone.addEventListener('touchstart', (e) => {
+      e.preventDefault(); g.audio.init();
+      if (joyId !== null) return;
+      const t = e.changedTouches[0]; joyId = t.identifier; cx = t.clientX; cy = t.clientY;
+      joy.style.left = (cx - 65) + 'px'; joy.style.top = (cy - 65) + 'px'; joy.style.bottom = 'auto';
+      joy.classList.add('active');
+      joyMove(t);
+    }, { passive: false });
+    zone.addEventListener('touchmove', (e) => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joyId) joyMove(t); }, { passive: false });
+    const joyEnd = (e) => {
+      for (const t of e.changedTouches) if (t.identifier === joyId) {
+        joyId = null; knob.style.transform = ''; g.touchMove = [0, 0];
+        joy.classList.remove('active'); joy.style.left = ''; joy.style.top = ''; joy.style.bottom = '';
+      }
+    };
+    zone.addEventListener('touchend', joyEnd); zone.addEventListener('touchcancel', joyEnd);
 
+    // Bakış: sürükle = bak, kısa dokunuş = koy/kullan/vur, basılı tut = kır (ya da ye/ger)
     const look = $('lookArea');
     const looks = new Map();
+    const HOLD = 260;
     look.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      for (const t of e.changedTouches) looks.set(t.identifier, { x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t: performance.now() });
+      e.preventDefault(); g.audio.init();
+      for (const t of e.changedTouches) {
+        const l = { x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t: performance.now(), ts: e.timeStamp, moved: false, hold: false };
+        l.timer = setTimeout(() => { if (looks.get(t.identifier) === l && !l.moved) { l.hold = true; g.touch.hold++; } }, HOLD);
+        looks.set(t.identifier, l);
+      }
     }, { passive: false });
     look.addEventListener('touchmove', (e) => {
       e.preventDefault();
       for (const t of e.changedTouches) {
         const l = looks.get(t.identifier); if (!l) continue;
-        g.look(t.clientX - l.x, t.clientY - l.y, 2.2);
+        g.look(t.clientX - l.x, t.clientY - l.y, 2.0);
         l.x = t.clientX; l.y = t.clientY;
+        if (Math.hypot(t.clientX - l.sx, t.clientY - l.sy) > 14) l.moved = true;
       }
     }, { passive: false });
     const lookEnd = (e) => {
       for (const t of e.changedTouches) {
         const l = looks.get(t.identifier); if (!l) continue;
-        looks.delete(t.identifier);
-        // Kısa dokunuş = blok koy
-        if (performance.now() - l.t < 250 && Math.hypot(t.clientX - l.sx, t.clientY - l.sy) < 12) g.tapPlace = true;
+        looks.delete(t.identifier); clearTimeout(l.timer);
+        if (l.hold) g.touch.hold = Math.max(0, g.touch.hold - 1);
+        // Olay zaman damgasıyla ölç: ana iş parçacığı yavaşsa da kısa dokunuş doğru algılanır
+        if (!l.moved && e.timeStamp - l.ts < HOLD) { g.touchTap = true; if (l.hold) g.mining = null; }
       }
     };
     look.addEventListener('touchend', lookEnd); look.addEventListener('touchcancel', lookEnd);
 
     const hold = (id, key) => {
       const el = $(id);
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); g.touch[key] = true; el.classList.add('on'); }, { passive: false });
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); g.audio.init(); g.touch[key] = true; el.classList.add('on'); }, { passive: false });
       const up = (e) => { e.preventDefault(); g.touch[key] = false; el.classList.remove('on'); };
       el.addEventListener('touchend', up); el.addEventListener('touchcancel', up);
     };
-    hold('tbJump', 'jump'); hold('tbBreak', 'break'); hold('tbPlace', 'place');
+    hold('tbJump', 'jump');
     const sneak = $('tbSneak');
     sneak.addEventListener('touchstart', (e) => { e.preventDefault(); g.touch.sneak = !g.touch.sneak; sneak.classList.toggle('on', g.touch.sneak); }, { passive: false });
-    const tap = (id, fn) => $(id).addEventListener('touchstart', (e) => { e.preventDefault(); fn(); }, { passive: false });
-    tap('tbFly', () => { if (g.player.creative) { g.player.flying = !g.player.flying; g.player.vel[1] = 0; } });
+    const tap = (id, fn) => $(id).addEventListener('touchstart', (e) => { e.preventDefault(); g.audio.init(); fn(); }, { passive: false });
+    tap('tbFly', () => { if (g.player.creative) { g.player.flying = !g.player.flying; g.player.vel[1] = 0; g.ui.toast(g.player.flying ? 'Uçuş açık' : 'Uçuş kapalı', 1); } });
+    tap('tbCam', () => { g.thirdPerson = ((g.thirdPerson || 0) + 1) % 3; });
     tap('tbInv', () => g.toggleInventory());
     tap('tbPause', () => g.pause());
-    $('hotbar').style.pointerEvents = 'auto';
-    $('hotbar').addEventListener('touchstart', (e) => {
+    // Eşya çubuğu: dokun = seç, basılı tut = at
+    const hb = $('hotbar');
+    hb.style.pointerEvents = 'auto';
+    let dropTimer = null;
+    hb.addEventListener('touchstart', (e) => {
+      e.preventDefault();
       const s = e.target.closest('.hslot'); if (!s) return;
-      g.selectSlot([...$('hotbar').children].indexOf(s));
+      g.selectSlot([...hb.children].indexOf(s));
+      clearInterval(dropTimer);
+      dropTimer = setTimeout(() => { g.dropSelected(false); dropTimer = setInterval(() => g.dropSelected(false), 220); }, 550);
+    }, { passive: false });
+    const stopDrop = () => { clearTimeout(dropTimer); clearInterval(dropTimer); dropTimer = null; };
+    hb.addEventListener('touchend', stopDrop); hb.addEventListener('touchcancel', stopDrop);
+    // Envanterde dokunmatik modlar
+    const mode = (id, key) => $(id).addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this[key] = !this[key];
+      if (this[key]) { this[key === 'quickMode' ? 'oneMode' : 'quickMode'] = false; }
+      $('invQuick').classList.toggle('on', !!this.quickMode); $('invOne').classList.toggle('on', !!this.oneMode);
+      g.audio.play('click');
     });
+    mode('invQuick', 'quickMode'); mode('invOne', 'oneMode');
+    if (!this.hintShown) { this.hintShown = true; }
+  }
+
+  // Envanter yuva boyutunu ekrana sığdır (telefonlarda yatay ekran yüksekliği küçüktür)
+  fitInventory() {
+    const h = innerHeight, w = innerWidth;
+    let sl = Math.floor(Math.min((h - 64) / 9.6, (w - 120) / 9.6, 40));
+    sl = Math.max(24, sl);
+    document.documentElement.style.setProperty('--sl', sl + 'px');
   }
 }
