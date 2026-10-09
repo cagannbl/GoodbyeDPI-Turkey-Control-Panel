@@ -160,7 +160,8 @@ function armorSprite(d, rng, slot, c) {
 }
 function bowSprite(d, rng, pull) {
   clearTile(d);
-  const A = [2.5, 3.5], Z = [12.5, 13.5], n = [0.7071, -0.7071], wood = [126, 88, 46];
+  // Minecraft dokusu gibi: ip sol alttan sağ üste, ahşap kavis sol üste doğru
+  const A = [2.5, 12.5], Z = [12.5, 2.5], n = [-0.7071, -0.7071], wood = [126, 88, 46];
   const pt = (t, b) => [A[0] + (Z[0] - A[0]) * t + n[0] * b, A[1] + (Z[1] - A[1]) * t + n[1] * b];
   const pb = pull * 2.6;
   for (let k = 0; k <= 60; k++) {
