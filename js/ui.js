@@ -299,6 +299,9 @@ class UI {
     const lo = $('liquidOverlay');
     const cls = p.eyeInLava ? 'lava' : p.eyeInWater ? 'water' : '';
     if (lo.className !== cls) lo.className = cls;
+    const dr = g.entities.dragon;
+    $('bossBar').classList.toggle('hidden', !dr);
+    if (dr) $('bossFill').style.width = Math.max(0, dr.health / dr.T.health * 100) + '%';
     $('portalOverlay').style.opacity = Math.min(0.85, (g.portalT || 0) / 2.5);
   }
 

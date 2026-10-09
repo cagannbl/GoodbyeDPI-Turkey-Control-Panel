@@ -3,12 +3,35 @@
 // Fizik (AABB-blok çarpışması), ışın izleme ve oyuncu
 // ---------------------------------------------------------------------------
 
+// Bloğun çarpışma kutuları (1/16 birim) ya da null
+const FULL_BOX = [[0, 0, 0, 16, 16, 16]];
+const _lowBox = [[0, 0, 0, 16, 16, 16]];
+function blockColl(world, x, y, z, id) {
+  if (SHAPE[id]) return SOLID[id] ? shapeOf(id, (d) => world.getBlock(x + DIR4[d][0], y, z + DIR4[d][1])).coll : null;
+  if (!SOLID[id]) return null;
+  if (HGT[id] < 16) { _lowBox[0][4] = HGT[id]; return _lowBox; }
+  return FULL_BOX;
+}
+
 function boxHitsSolid(world, x0, y0, z0, x1, y1, z1) {
-  const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0), by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
+  const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0) - 1, by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
   for (let y = ay; y <= by; y++) for (let z = az; z <= bz; z++) for (let x = ax; x <= bx; x++) {
-    const id = world.getBlock(x, y, z);
-    if (SOLID[id] && (HGT[id] === 16 || y0 < y + HGT[id] / 16)) return true;
+    const bs = blockColl(world, x, y, z, world.getBlock(x, y, z));
+    if (!bs) continue;
+    for (const b of bs) {
+      if (x0 < x + b[3] / 16 && x1 > x + b[0] / 16 && y0 < y + b[4] / 16 && y1 > y + b[1] / 16 && z0 < z + b[5] / 16 && z1 > z + b[2] / 16) return true;
+    }
   }
+  return false;
+}
+
+// Nokta katı bir kutunun içinde mi? (oklar)
+function pointInSolid(world, px, py, pz) {
+  const x = Math.floor(px), y = Math.floor(py), z = Math.floor(pz);
+  const bs = blockColl(world, x, y, z, world.getBlock(x, y, z));
+  if (!bs) return false;
+  const fx = (px - x) * 16, fy = (py - y) * 16, fz = (pz - z) * 16;
+  for (const b of bs) if (fx >= b[0] && fx <= b[3] && fy >= b[1] && fy <= b[4] && fz >= b[2] && fz <= b[5]) return true;
   return false;
 }
 
@@ -18,19 +41,53 @@ function sweepAxis(world, p, hw, h, axis, d) {
   const E = 1e-4;
   p[axis] += d;
   const x0 = p[0] - hw, x1 = p[0] + hw - E, y0 = p[1], y1 = p[1] + h - E, z0 = p[2] - hw, z1 = p[2] + hw - E;
-  const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0), by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
+  const ax = Math.floor(x0), bx = Math.floor(x1), ay = Math.floor(y0) - 1, by = Math.floor(y1), az = Math.floor(z0), bz = Math.floor(z1);
   let hit = false;
   for (let y = ay; y <= by; y++) for (let z = az; z <= bz; z++) for (let x = ax; x <= bx; x++) {
-    const id = world.getBlock(x, y, z);
-    if (!SOLID[id]) continue;
-    const top = y + HGT[id] / 16;
-    if (y0 >= top) continue; // alçak bloğun (yatak, tarla) üstünde
-    hit = true;
-    if (axis === 0) p[0] = d > 0 ? Math.min(p[0], x - hw - E) : Math.max(p[0], x + 1 + hw + E);
-    else if (axis === 1) p[1] = d > 0 ? Math.min(p[1], y - h - E) : Math.max(p[1], top + E);
-    else p[2] = d > 0 ? Math.min(p[2], z - hw - E) : Math.max(p[2], z + 1 + hw + E);
+    const bs = blockColl(world, x, y, z, world.getBlock(x, y, z));
+    if (!bs) continue;
+    for (const b of bs) {
+      const bx0 = x + b[0] / 16, bx1 = x + b[3] / 16, by0 = y + b[1] / 16, by1 = y + b[4] / 16, bz0 = z + b[2] / 16, bz1 = z + b[5] / 16;
+      if (!(x0 < bx1 && x1 > bx0 && y0 < by1 && y1 > by0 && z0 < bz1 && z1 > bz0)) continue;
+      hit = true;
+      if (axis === 0) p[0] = d > 0 ? Math.min(p[0], bx0 - hw - E) : Math.max(p[0], bx1 + hw + E);
+      else if (axis === 1) p[1] = d > 0 ? Math.min(p[1], by0 - h - E) : Math.max(p[1], by1 + E);
+      else p[2] = d > 0 ? Math.min(p[2], bz0 - hw - E) : Math.max(p[2], bz1 + hw + E);
+    }
   }
   return hit;
+}
+
+// Önündeki alçak engelin (yarım blok, basamak, yatak) üst yüksekliği; çıkılamıyorsa -1
+function stepTop(world, x0, z0, x1, z1, ylo, yhi) {
+  let top = -1;
+  for (let z = Math.floor(z0); z <= Math.floor(z1); z++) for (let x = Math.floor(x0); x <= Math.floor(x1); x++) {
+    for (let y = Math.floor(ylo) - 1; y <= Math.floor(yhi); y++) {
+      const bs = blockColl(world, x, y, z, world.getBlock(x, y, z));
+      if (!bs) continue;
+      for (const b of bs) {
+        if (!(x0 < x + b[3] / 16 && x1 > x + b[0] / 16 && z0 < z + b[5] / 16 && z1 > z + b[2] / 16)) continue;
+        const t = y + b[4] / 16;
+        if (t > ylo + 1e-3 && t <= yhi) top = Math.max(top, t);
+      }
+    }
+  }
+  return top;
+}
+
+// Akan suyun itme yönü
+function flowAt(world, x, y, z) {
+  const id = world.getBlock(x, y, z);
+  if (!isWater(id) || isSource(id)) return null;
+  const lv = liquidLevel(id);
+  let fx = 0, fz = 0;
+  for (const [dx, dz] of DIR4) {
+    const n = world.getBlock(x + dx, y, z + dz);
+    if (isWater(n)) { const nl = liquidLevel(n); if (nl > lv && nl !== 8) { fx += dx; fz += dz; } else if (nl < lv) { fx -= dx * 0.5; fz -= dz * 0.5; } }
+    else if (!SOLID[n]) { fx += dx; fz += dz; }
+  }
+  const l = Math.hypot(fx, fz);
+  return l > 0 ? [fx / l, fz / l] : null;
 }
 
 // Genel hareket: e = {pos, vel, hw, h}. Dönüş: {ground, ceil, wallX, wallZ}
@@ -70,7 +127,7 @@ function raycast(world, o, d, maxDist, liquids) {
   let nx = 0, ny = 0, nz = 0, t = 0;
   while (t <= maxDist) {
     const id = world.getBlock(x, y, z);
-    if (id && (RENDER[id] !== R_LIQUID || (liquids && (id === B.WATER || id === B.LAVA)))) return { x, y, z, nx, ny, nz, dist: t, id };
+    if (id && (RENDER[id] !== R_LIQUID || (liquids && isLiquid(id)))) return { x, y, z, nx, ny, nz, dist: t, id };
     if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; nx = -sx; ny = 0; nz = 0; }
     else if (ty < tz) { y += sy; t = ty; ty += tdy; nx = 0; ny = -sy; nz = 0; }
     else { z += sz; t = tz; tz += tdz; nx = 0; ny = 0; nz = -sz; }
@@ -132,10 +189,12 @@ class Player {
     const feet = world.getBlock(Math.floor(p[0]), Math.floor(p[1] + 0.3), Math.floor(p[2]));
     const eyeB = world.getBlock(Math.floor(p[0]), Math.floor(p[1] + this.eyeHeight), Math.floor(p[2]));
     const wasInWater = this.inWater;
-    this.inWater = feet === B.WATER;
-    this.inLava = feet === B.LAVA;
-    this.eyeInWater = eyeB === B.WATER;
-    this.eyeInLava = eyeB === B.LAVA;
+    this.inWater = isWater(feet);
+    this.inLava = isLava(feet);
+    this.eyeInWater = isWater(eyeB);
+    this.eyeInLava = isLava(eyeB);
+    const fb = (dy) => world.getBlock(Math.floor(p[0]), Math.floor(p[1] + dy), Math.floor(p[2]));
+    const onLadder = isLadder(fb(0.1)) || isLadder(fb(1));
     if (this.inWater && !wasInWater && v[1] < -6 && this.onSplash) this.onSplash();
 
     this.sneaking = inp.sneak && !this.flying;
@@ -164,13 +223,23 @@ class Player {
       if (inp.jump) v[1] = Math.min(v[1] + 34 * dt, 3.6);
       v[1] *= Math.exp(-dt * 2.5);
       if (v[1] < -5) v[1] = -5;
+      if (this.inWater) {
+        const fl = flowAt(world, Math.floor(p[0]), Math.floor(p[1] + 0.3), Math.floor(p[2]));
+        if (fl) { v[0] += fl[0] * 14 * dt; v[2] += fl[1] * 14 * dt; }
+      }
     } else {
       const sp = this.sneaking ? 1.31 : this.sprinting ? 5.61 : 4.32;
       const k = 1 - Math.exp(-dt * (this.onGround ? 16 : 3.2));
       v[0] += (wx * sp - v[0]) * k; v[2] += (wz * sp - v[2]) * k;
       v[1] -= 30 * dt;
       if (v[1] < -60) v[1] = -60;
-      if (inp.jump && this.onGround) {
+      if (onLadder) {
+        // Merdiven: yavaş in, zıplayınca ya da duvara yürüyünce tırman, eğilince tutun
+        this.fallStart = null;
+        if (inp.jump || (this.lastWall && wl > 0)) v[1] = 2.35;
+        else if (this.sneaking) v[1] = 0;
+        else if (v[1] < -3) v[1] = -3;
+      } else if (inp.jump && this.onGround) {
         v[1] = 8.9;
         this.exh += this.sprinting ? 0.2 : 0.05;
         if (this.sprinting) { v[0] += wx * 1.5; v[2] += wz * 1.5; }
@@ -189,14 +258,13 @@ class Player {
       const fx = Math.floor(p[0] + wx * 0.6), fz = Math.floor(p[2] + wz * 0.6), fy = Math.floor(p[1]);
       if (SOLID[world.getBlock(fx, fy, fz)] && !SOLID[world.getBlock(fx, fy + 1, fz)] && !SOLID[world.getBlock(fx, fy + 2, fz)]) v[1] = 8.9;
     }
-    // Alçak bloklara (yatak, tarla) kendiliğinden çık
+    // Alçak bloklara (yarım blok, basamak, yatak) kendiliğinden çık
+    this.lastWall = res.wall;
     if (res.wall && wasGround && !this.flying && !liquid && wl > 0) {
-      const fx = Math.floor(p[0] + wx * (this.hw + 0.2)), fz = Math.floor(p[2] + wz * (this.hw + 0.2)), fy = Math.floor(p[1] + 0.01);
-      const id = world.getBlock(fx, fy, fz);
-      const top = fy + HGT[id] / 16;
-      if (SOLID[id] && HGT[id] < 16 && top - p[1] <= 0.6 && top > p[1] &&
-        !boxHitsSolid(world, p[0] - this.hw, top + 0.01, p[2] - this.hw, p[0] + this.hw - 1e-4, top + this.h, p[2] + this.hw - 1e-4)) {
-        p[1] = top + 1e-3; this.onGround = true;
+      const nx = p[0] + wx * 0.15, nz = p[2] + wz * 0.15, hw = this.hw;
+      const top = stepTop(world, nx - hw, nz - hw, nx + hw - 1e-4, nz + hw - 1e-4, p[1], p[1] + 0.6);
+      if (top > 0 && !boxHitsSolid(world, nx - hw, top + 1e-3, nz - hw, nx + hw - 1e-4, top + this.h, nz + hw - 1e-4)) {
+        p[1] = top + 1e-3; p[0] = nx; p[2] = nz; this.onGround = true;
       }
     }
     if (res.wall) this.sprinting = false;

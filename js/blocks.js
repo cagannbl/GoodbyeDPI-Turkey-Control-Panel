@@ -22,14 +22,30 @@ const B = {
   REDSTONE_BLOCK: 96, LAPIS_ORE: 97, LAPIS_BLOCK: 98, CHEST: 99, END_ROD: 100,
   FARMLAND: 101, FARMLAND_WET: 102, WHEAT_0: 103, WHEAT_7: 110, OAK_SAPLING: 111, BIRCH_SAPLING: 112,
   SPRUCE_SAPLING: 113, BED_FOOT: 114, BED_HEAD: 115,
+  WATER_1: 116, WATER_FALL: 123, LAVA_1: 124, LAVA_FALL: 131,
+  SLAB: 132, SLAB_TOP: 137, STAIRS: 142, DOOR: 158, TRAPDOOR: 174, TRAPDOOR_OPEN: 175,
+  FENCE: 179, GATE: 180, GLASS_PANE: 184, LADDER: 185,
 };
+// Sıvılar: kaynak (seviye 0), akan 1-7, düşen (8)
+const isWater = (id) => id === B.WATER || (id >= B.WATER_1 && id <= B.WATER_FALL);
+const isLava = (id) => id === B.LAVA || (id >= B.LAVA_1 && id <= B.LAVA_FALL);
+const isLiquid = (id) => isWater(id) || isLava(id);
+const isSource = (id) => id === B.WATER || id === B.LAVA;
+const liquidLevel = (id) => (isSource(id) ? 0 : id === B.WATER_FALL || id === B.LAVA_FALL ? 8 : isWater(id) ? id - B.WATER_1 + 1 : id - B.LAVA_1 + 1);
+const liquidId = (lava, lvl) => (lvl === 0 ? (lava ? B.LAVA : B.WATER) : lvl === 8 ? (lava ? B.LAVA_FALL : B.WATER_FALL) : (lava ? B.LAVA_1 : B.WATER_1) + lvl - 1);
+const sameLiquid = (a, b) => (isWater(a) && isWater(b)) || (isLava(a) && isLava(b));
+// Şekilli bloklar: yarım blok/basamak malzemeleri
+const SLAB_MATS = ['PLANKS', 'COBBLE', 'STONE', 'STONE_BRICKS', 'BRICKS'];
+const STAIR_MATS = ['PLANKS', 'COBBLE', 'STONE_BRICKS', 'BRICKS'];
+const isDoor = (id) => id >= B.DOOR && id < B.DOOR + 16;
+const isLadder = (id) => id >= B.LADDER && id < B.LADDER + 4;
 // WHEAT_0..WHEAT_7 ardışık 8 büyüme evresidir
 const isWheat = (id) => id >= B.WHEAT_0 && id <= B.WHEAT_7;
 const isSapling = (id) => id >= B.OAK_SAPLING && id <= B.SPRUCE_SAPLING;
 const isBed = (id) => id === B.BED_FOOT || id === B.BED_HEAD;
 
 // Render tipleri
-const R_NONE = 0, R_CUBE = 1, R_CROSS = 2, R_LIQUID = 3;
+const R_NONE = 0, R_CUBE = 1, R_CROSS = 2, R_LIQUID = 3, R_SHAPE = 4;
 
 const BLOCKS = [];
 const OPAQUE = new Uint8Array(256);   // ışığı keser + komşu yüzleri gizler
@@ -41,6 +57,10 @@ const PASS = new Uint8Array(256);     // 0: opak/kesik, 1: yarı saydam
 const CULLSAME = new Uint8Array(256); // aynı bloğa komşu yüzleri çizme
 const TEXF = new Uint8Array(256 * 6); // yüz başına doku katmanı
 const HGT = new Uint8Array(256).fill(16); // blok yüksekliği (1/16 birim): yatak, tarla
+const SHAPE = new Uint8Array(256);   // şekil türü (shapes.js), 0: yok
+const SHAPEF = new Uint8Array(256);  // şekil parametresi: yön (0 -z, 1 +x, 2 +z, 3 -x) ve bayraklar
+const FLAT = new Uint8Array(256);    // elde/ikonda düz resim olarak gösterilir
+const LIQH = new Uint8Array(256);    // sıvı yüzey yüksekliği (1/16)
 
 // --- Doku üretimi --------------------------------------------------------
 const TEX = {};
@@ -736,6 +756,35 @@ function buildTexturesFarm() {
       const f = 0.9 + r() * 0.15; px(d, x, y, c[0] * f, c[1] * f, c[2] * f);
     }
   };
+  // Kapı, tuzak kapı ve tırmanma merdiveni
+  const W = [150, 112, 64];
+  const doorTex = (d, r, top) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const frame = x < 2 || x > 13 || (top ? y < 2 : y > 13) || (!top && (y === 6 || y === 7));
+      const win = top && !frame && y >= 3 && y <= 12 && x !== 7 && x !== 8 && y !== 7 && y !== 8;
+      if (win) { px(d, x, y, 0, 0, 0, 0); continue; }
+      const plank = (x >> 2) % 2 ? 0.92 : 1.04;
+      const f = (frame ? 0.82 : plank) * (0.9 + r() * 0.14);
+      px(d, x, y, W[0] * f, W[1] * f, W[2] * f);
+    }
+    if (!top) { px(d, 12, 2, 60, 50, 40); px(d, 12, 3, 60, 50, 40); }
+  };
+  makeTex('door_top', (d, r) => doorTex(d, r, true));
+  makeTex('door_bottom', (d, r) => doorTex(d, r, false));
+  makeTex('trapdoor', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const frame = x < 2 || x > 13 || y < 2 || y > 13;
+      const hole = !frame && (x === 5 || x === 10) && y > 3 && y < 12;
+      if (hole) { px(d, x, y, 0, 0, 0, 0); continue; }
+      const f = (frame ? 0.82 : 1) * (0.9 + r() * 0.14);
+      px(d, x, y, W[0] * f, W[1] * f, W[2] * f);
+    }
+  });
+  makeTex('ladder', (d, r) => {
+    for (let i = 0; i < 1024; i += 4) d[i + 3] = 0;
+    for (let y = 0; y < 16; y++) for (const x of [2, 3, 12, 13]) { const f = 0.85 + r() * 0.2; px(d, x, y, W[0] * f * 0.9, W[1] * f * 0.9, W[2] * f * 0.9); }
+    for (const yy of [1, 5, 9, 13]) for (let x = 4; x < 12; x++) for (let k = 0; k < 2; k++) { const f = 0.9 + r() * 0.2; px(d, x, yy + k, W[0] * f, W[1] * f, W[2] * f); }
+  });
   makeTex('bed_side_head', (d, r) => bedSide(d, r, true));
   makeTex('bed_side_foot', (d, r) => bedSide(d, r, false));
   makeTex('bed_top_head', (d, r) => {
@@ -866,7 +915,7 @@ function defineBlocks() {
   def(B.PURPUR_PILLAR, 'Purpur Sütunu', { top: 'purpur_pillar_top', bottom: 'purpur_pillar_top', side: 'purpur_pillar' }, P(1, { hardness: 1.5 }));
   def(B.END_FRAME, 'End Geçidi Çerçevesi', { top: 'end_frame_top', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3 }));
   def(B.END_FRAME_EYE, 'Gözlü End Çerçevesi', { top: 'end_frame_eye', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3, emit: 1, drop: B.END_FRAME, creative: false }));
-  def(B.END_PORTAL, 'End Geçidi', 'end_portal', { solid: false, opaque: false, render: R_LIQUID, emit: 15, cullSame: true, hardness: -1, drop: 0, creative: false });
+  def(B.END_PORTAL, 'End Geçidi', 'end_portal', { solid: false, opaque: false, render: R_LIQUID, emit: 15, cullSame: true, hardness: -1, drop: 0, creative: false, portalSurface: true });
   def(B.DRAGON_EGG, 'Ejderha Yumurtası', 'dragon_egg', { hardness: 3, emit: 1 });
   def(B.CHORUS_PLANT, 'Koro Bitkisi', 'chorus_plant', AX({ hardness: 0.4, opaque: false, drop: 0 }));
   def(B.CHORUS_FLOWER, 'Koro Çiçeği', 'chorus_flower', AX({ hardness: 0.4, opaque: false }));
@@ -883,6 +932,36 @@ function defineBlocks() {
   def(B.BED_FOOT, 'Yatak', { top: 'bed_top_foot', bottom: 'planks', side: 'bed_side_foot' }, bed);
   def(B.BED_HEAD, 'Yatak', { top: 'bed_top_head', bottom: 'planks', side: 'bed_side_head' }, bed);
 
+  // Akan sıvılar (kaynak blokları WATER/LAVA)
+  const flowO = (b) => { const o = Object.assign({}, b, { creative: false }); delete o.id; delete o.name; delete o.tex; return o; };
+  for (let k = 0; k < 8; k++) {
+    def(B.WATER_1 + k, 'Su', 'water', flowO(BLOCKS[B.WATER]));
+    def(B.LAVA_1 + k, 'Lav', 'lava', flowO(BLOCKS[B.LAVA]));
+  }
+  // Yarım bloklar ve basamaklar: malzemenin dokusunu ve kazma kurallarını kullanır
+  const MAT = (m) => { const b = BLOCKS[B[m]]; return { tex: b.tex, o: { hardness: b.hardness, tool: b.tool, tier: b.tier, sound: b.sound } }; };
+  const shapeO = (o, extra) => Object.assign({}, o, { opaque: false, render: R_SHAPE }, extra);
+  SLAB_MATS.forEach((m, k) => {
+    const M = MAT(m), nm = BLOCKS[B[m]].name;
+    def(B.SLAB + k, nm + ' Yarım Blok', M.tex, shapeO(M.o, { shape: 1, full: B[m], drop: B.SLAB + k }));
+    def(B.SLAB_TOP + k, nm + ' Yarım Blok', M.tex, shapeO(M.o, { shape: 2, full: B[m], drop: B.SLAB + k, creative: false }));
+  });
+  STAIR_MATS.forEach((m, k) => {
+    const M = MAT(m), nm = BLOCKS[B[m]].name;
+    for (let f = 0; f < 4; f++) def(B.STAIRS + k * 4 + f, nm + ' Basamak', M.tex, shapeO(M.o, { shape: 3, sf: f, drop: B.STAIRS + k * 4, creative: f === 0 }));
+  });
+  const wood = AX({ hardness: 3 });
+  for (let k = 0; k < 16; k++) {
+    // k = yön + açık*4 + üst*8
+    def(B.DOOR + k, 'Meşe Kapı', k & 8 ? 'door_top' : 'door_bottom', shapeO(wood, { shape: 4, sf: k & 7, flat: true, drop: B.DOOR, creative: k === 0, upper: !!(k & 8) }));
+  }
+  def(B.TRAPDOOR, 'Tuzak Kapı', 'trapdoor', shapeO(wood, { shape: 5, sf: 8, flat: true }));
+  for (let f = 0; f < 4; f++) def(B.TRAPDOOR_OPEN + f, 'Tuzak Kapı', 'trapdoor', shapeO(wood, { shape: 5, sf: f, flat: true, drop: B.TRAPDOOR, creative: false }));
+  def(B.FENCE, 'Meşe Çit', 'planks', shapeO(AX({ hardness: 2 }), { shape: 6, flat: true }));
+  for (let k = 0; k < 4; k++) def(B.GATE + k, 'Meşe Çit Kapısı', 'planks', shapeO(AX({ hardness: 2 }), { shape: 7, sf: k, flat: true, drop: B.GATE, creative: k === 0 }));
+  def(B.GLASS_PANE, 'Cam Panel', 'glass', shapeO({ hardness: 0.3, sound: 'glass' }, { shape: 8, flat: true, drop: 0 }));
+  for (let f = 0; f < 4; f++) def(B.LADDER + f, 'Merdiven', 'ladder', shapeO(AX({ hardness: 0.4 }), { shape: 9, sf: f, flat: true, solid: false, drop: B.LADDER, creative: f === 0 }));
+
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 
   for (let id = 0; id < BLOCKS.length; id++) {
@@ -896,6 +975,10 @@ function defineBlocks() {
     PASS[id] = b.pass;
     CULLSAME[id] = b.cullSame ? 1 : 0;
     HGT[id] = b.height || 16;
+    SHAPE[id] = b.shape || 0;
+    SHAPEF[id] = b.sf || 0;
+    FLAT[id] = b.flat ? 1 : 0;
+    if (b.liquid) LIQH[id] = isSource(id) ? 14 : Math.round(16 * (8 - liquidLevel(id)) / 9);
     if (b.tex) {
       const t = b.tex;
       const side = TEX[t.side];
@@ -929,8 +1012,19 @@ function buildIcons() {
     const c = document.createElement('canvas'); c.width = c.height = S;
     const ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
+    const T = (i) => tiles[TEXF[i * 6 + 2]];
     if (b.render === R_CROSS) {
       ctx.drawImage(tiles[TEXF[id * 6 + 2]], 4, 4, S - 8, S - 8);
+    } else if (b.flat) {
+      // Düz simgeler: kapı, çit, panel, merdiven
+      const t = T(id);
+      if (isDoor(id)) { ctx.drawImage(T(B.DOOR + 8), 12, 0, 24, 24); ctx.drawImage(T(B.DOOR), 12, 24, 24, 24); }
+      else if (b.shape === 6 || b.shape === 7) {
+        const posts = b.shape === 6 ? [[6, 4], [34, 4]] : [[2, 10], [40, 10]];
+        for (const [x, y] of posts) ctx.drawImage(t, 0, 0, 4, 16, x, y, 8, 44 - y);
+        for (const y of [12, 28]) ctx.drawImage(t, 0, 0, 16, 3, b.shape === 6 ? 6 : 2, y, b.shape === 6 ? 36 : 46, 6);
+      } else if (b.shape === 8) { ctx.drawImage(t, 4, 4, S - 8, S - 8); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; ctx.strokeRect(5, 5, S - 10, S - 10); }
+      else ctx.drawImage(t, 4, 4, S - 8, S - 8);
     } else {
       const k = S / 32;
       const top = tiles[TEXF[id * 6 + 2]], left = tiles[TEXF[id * 6 + 4]], right = tiles[TEXF[id * 6 + 0]];
@@ -944,7 +1038,7 @@ function buildIcons() {
           ctx.globalCompositeOperation = 'source-over';
         }
       };
-      const h = b.liquid ? 0.12 : (16 - (b.height || 16)) / 16;
+      const h = b.liquid ? 0.12 : b.shape === 1 ? 0.5 : (16 - (b.height || 16)) / 16;
       draw(left, [k, k * 0.5, 0, k * (1 - h), 0, S * 0.25 + S * h * 0.5], 0.28);
       draw(right, [k, -k * 0.5, 0, k * (1 - h), S / 2, S * 0.5 + S * h * 0.5], 0.45);
       draw(top, [k, k * 0.5, -k, k * 0.5, S / 2, S * h], 0);

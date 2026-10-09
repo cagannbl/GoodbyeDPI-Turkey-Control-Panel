@@ -23,6 +23,7 @@
     <div id="liquidOverlay"></div>
     <div id="portalOverlay"></div>
     <div id="sleepOverlay"></div>
+    <div id="bossBar" class="hidden"><div id="bossName">Ender Ejderhası</div><div class="bbar"><i id="bossFill"></i></div></div>
     <div id="toast"></div>
     <div id="bottom">
       <div id="itemName"></div>
@@ -139,7 +140,10 @@
       Açlık barı koştukça ve zıpladıkça azalır; tokken canın yenilenir. Çapayla toprağı sür, tohum ek (uzun çimenden düşer),
       suya yakın tarlada buğday daha hızlı büyür; 3 buğday = ekmek. Kemik tozu ekini ve fidanı hızla büyütür.
       Zırhı envanterdeki zırh yuvalarına koy ya da elindeyken sağ tıkla. Yatakta gece uyursan sabah olur ve doğma noktan ayarlanır
-      (Nether ve End'de yatak patlar!). Yay için ip (örümcek), ok için tüy (tavuk) gerekir.</p>
+      (Nether ve End'de yatak patlar!). Yay için ip (örümcek), ok için tüy (tavuk) gerekir.<br>
+      Su ve lav akar: kaynak bloğu kovayla alınır, iki kaynak arasına yeni kaynak oluşur. Kapı, tuzak kapı ve çit kapısı sağ tıkla açılır;
+      merdivene doğru yürüyerek tırman. End'de Ender Ejderhası seni bekliyor: önce sütunlardaki kristalleri ok ile patlat,
+      ejderhayı yenince çıkış geçidi açılır.</p>
     <div class="row"><button class="btn" data-action="back">Geri</button></div>
   </div>
 
@@ -217,11 +221,14 @@
   <script src="js/util.js"></script>
   <script src="js/blocks.js"></script>
   <script src="js/items.js"></script>
+  <script src="js/shapes.js"></script>
   <script src="js/world.js"></script>
   <script src="js/mesher.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/player.js"></script>
   <script src="js/entities.js"></script>
+  <script src="js/dragon.js"></script>
+  <script src="js/fluids.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>

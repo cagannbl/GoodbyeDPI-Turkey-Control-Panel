@@ -156,13 +156,14 @@ function faceVisible(id, nid) {
   if (nid === 0) return true;
   if (OPAQUE[nid]) return false;
   if (nid === id && CULLSAME[id]) return false;
+  if (sameLiquid(id, nid)) return false;
   if (RENDER[id] === R_LIQUID && RENDER[nid] !== R_LIQUID && SOLID[nid] && nid !== B.GLASS && nid !== B.ICE && nid !== B.LEAVES) return false;
   return true;
 }
 
 const ao4 = [0, 0, 0, 0], sk4 = [0, 0, 0, 0], bl4 = [0, 0, 0, 0];
 
-function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop, hgt = 16) {
+function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop, hgt = 16, ch = null) {
   const fr = ri + FACE_OFF[f];
   const F = FACES[f];
   for (let c = 0; c < 4; c++) {
@@ -185,10 +186,49 @@ function emitFace(buf, lx, ly, lz, f, layer, ri, liquidTop, hgt = 16) {
     const C = F[c];
     let y16 = (ly + C.y) * 16;
     let v = C.v;
-    if (liquidTop && C.y === 1) { y16 -= 2; }
+    if (ch && C.y === 1) { const h = ch[C.x + C.z * 2]; y16 -= 16 - h; if (f !== 2 && f !== 3) v = 16 - h; }
+    else if (liquidTop && C.y === 1) { y16 -= 2; }
     if (hgt < 16 && C.y === 1) { y16 -= 16 - hgt; if (f !== 2 && f !== 3) v = 16 - hgt; }
-    if (liquidTop && f !== 2 && f !== 3 && C.y === 1) v = 2;
+    if (liquidTop && !ch && f !== 2 && f !== 3 && C.y === 1) v = 2;
     buf.push((lx + C.x) * 16, y16, (lz + C.z) * 16, layer | (ao4[c] << 8) | (f << 10), C.u, v, sk4[c], bl4[c]);
+  }
+}
+
+// Sıvı yüzeyi: her köşe, köşeyi paylaşan 4 hücredeki aynı sıvının ortalama yüksekliği
+const liqCh = [16, 16, 16, 16];
+function liquidCorners(ri, id) {
+  for (let cz = 0; cz < 2; cz++) for (let cx = 0; cx < 2; cx++) {
+    let sum = 0, n = 0, full = false;
+    for (let dz = cz - 1; dz <= cz; dz++) for (let dx = cx - 1; dx <= cx; dx++) {
+      const rj = ri + dx * DX + dz * DZ, nid = rIds[rj];
+      if (!sameLiquid(nid, id)) continue;
+      if (sameLiquid(rIds[rj + DY], id)) { full = true; break; }
+      sum += LIQH[nid]; n++;
+    }
+    liqCh[cx + cz * 2] = full ? 16 : n ? Math.round(sum / n) : LIQH[id];
+  }
+  return liqCh;
+}
+
+// Şekilli blok kutusu (1/16 birim). Sınırdaki yüzler komşu opaksa gizlenir.
+const BOX_LO = [0, 0, 0], BOX_HI = [0, 0, 0];
+function emitBox(buf, lx, ly, lz, b, id, ri) {
+  BOX_LO[0] = b[0]; BOX_LO[1] = b[1]; BOX_LO[2] = b[2]; BOX_HI[0] = b[3]; BOX_HI[1] = b[4]; BOX_HI[2] = b[5];
+  buf.ensure(24);
+  for (let f = 0; f < 6; f++) {
+    const n = FACE_N[f], ax = n[0] ? 0 : n[1] ? 1 : 2, pos = n[ax] > 0;
+    const edge = pos ? BOX_HI[ax] === 16 : BOX_LO[ax] === 0;
+    const fr = ri + FACE_OFF[f];
+    if (edge && OPAQUE[rIds[fr]]) continue;
+    const L = edge ? fr : ri;
+    const s = rSky[L] * 17, l = rBlk[L] * 17;
+    const layer = TEXF[id * 6 + f];
+    for (let c = 0; c < 4; c++) {
+      const C = FACES[f][c];
+      const x = C.x ? BOX_HI[0] : BOX_LO[0], y = C.y ? BOX_HI[1] : BOX_LO[1], z = C.z ? BOX_HI[2] : BOX_LO[2];
+      const uv = faceUV(f, [x / 16, y / 16, z / 16]);
+      buf.push(lx * 16 + x, ly * 16 + y, lz * 16 + z, layer | (3 << 8) | (f << 10), Math.round(uv[0] * 16), Math.round(uv[1] * 16), s, l);
+    }
   }
 }
 
@@ -249,8 +289,14 @@ function buildChunkMesh(world, chunk) {
         if (!id) continue;
         const rt = RENDER[id];
         if (rt === R_CROSS) { emitCross(bufOpaque, x, y, z, TEXF[id * 6 + 2], ri); continue; }
+        if (rt === R_SHAPE) {
+          const sh = shapeOf(id, (d) => rIds[ri + DIR4[d][0] * DX + DIR4[d][1] * DZ]);
+          for (const b of sh.draw) emitBox(bufOpaque, x, y, z, b, id, ri);
+          continue;
+        }
         const buf = PASS[id] ? bufTrans : bufOpaque;
-        const liquidTop = rt === R_LIQUID && rIds[ri + DY] !== id;
+        const liquidTop = rt === R_LIQUID && (isLiquid(id) ? !sameLiquid(rIds[ri + DY], id) : rIds[ri + DY] !== id);
+        const ch = liquidTop && isLiquid(id) ? liquidCorners(ri, id) : null;
         const hgt = HGT[id];
         for (let f = 0; f < 6; f++) {
           if (f === 3 && y === 0) continue;
@@ -259,7 +305,7 @@ function buildChunkMesh(world, chunk) {
             // Sıvı yüzeyi alçaltılmışsa / blok alçaksa üst yüz hâlâ görünmeli
             if (!((liquidTop || hgt < 16) && f === 2 && !OPAQUE[nid])) continue;
           }
-          emitFace(buf, x, y, z, f, TEXF[id * 6 + f], ri, liquidTop, hgt);
+          emitFace(buf, x, y, z, f, TEXF[id * 6 + f], ri, liquidTop, hgt, ch);
         }
       }
     }
@@ -272,7 +318,7 @@ const itemBuf = new VBuf(256);
 function buildBlockMesh(id, sky, blk, layerOverride) {
   itemBuf.n = 0;
   const s = Math.round(sky * 255), l = Math.round(blk * 255);
-  if ((id >= 256 || RENDER[id] === R_CROSS) && layerOverride === undefined) {
+  if ((id >= 256 || RENDER[id] === R_CROSS || FLAT[id]) && layerOverride === undefined) {
     const layer = heldLayer(id);
     const w = layer | (3 << 8) | (6 << 10);
     const q = [[8, 0, 0], [8, 16, 0], [8, 16, 16], [8, 0, 16]];

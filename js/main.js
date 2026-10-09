@@ -32,6 +32,7 @@ class Game {
     this.audio.setVolume(this.settings.volume);
     this.audio.setMusic(this.settings.music > 0, this.settings.music);
     this.particles = new Particles();
+    this.fluids = new Fluids(this);
     this.entities = new EntityManager(this);
     this.player = new Player();
     this.inv = new Array(36).fill(null);
@@ -146,6 +147,32 @@ class Game {
     $('hud').classList.add('hidden');
   }
 
+  makeWorld(dim) {
+    const w = new World(this.meta.seed, this.dims[dim].edits, dim, { dragonKilled: !!this.dims.end.dragonKilled });
+    this.fluids.clear();
+    w.onBlockChange = (x, y, z) => this.fluids.onChange(x, y, z);
+    return w;
+  }
+
+  // End: ejderha ve kristaller (ejderha yenilmediyse)
+  setupEnd() {
+    const E = this.dims.end;
+    if (this.dim !== 'end' || E.dragonKilled || this.entities.dragon) return;
+    this.entities.mobs.push(new Dragon(0, 82, 70));
+    E.crystals = E.crystals || {};
+    this.world.pillars.forEach((P, i) => { if (E.crystals[i] !== false) this.entities.mobs.push(new EndCrystal(P.x + 0.5, P.h + 2, P.z + 0.5, i)); });
+  }
+
+  onDragonDeath() {
+    const E = this.dims.end, w = this.world;
+    E.dragonKilled = true; w.dragonKilled = true;
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) if (Math.hypot(dx, dz) <= 2.6 && (dx || dz)) w.setBlock(dx, 61, dz, B.END_PORTAL);
+    w.setBlock(0, 65, 0, B.DRAGON_EGG);
+    this.audio.play('explode');
+    this.ui.toast('Ender Ejderhası yenildi! Çıkış geçidi açıldı.', 4);
+    this.saveWorld();
+  }
+
   createWorld(name, seed, mode, diff) {
     const meta = { id: 'w' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), name, seed, mode, diff, created: Date.now(), lastPlayed: Date.now() };
     const list = this.listWorlds(); list.push(meta); this.saveJSON(LS_WORLDS, list);
@@ -165,7 +192,7 @@ class Game {
     this.dims = data && data.v >= 2 ? data.dims : { overworld: { edits: (data && data.edits) || {}, tiles: {} } };
     for (const d of ['overworld', 'nether', 'end']) if (!this.dims[d]) this.dims[d] = blank();
     this.dim = (data && data.dim) || 'overworld';
-    this.world = new World(meta.seed, this.dims[this.dim].edits, this.dim);
+    this.world = this.makeWorld(this.dim);
     this.arrival = null;
     this.craft = new Array(9).fill(null);
     const p = this.player;
@@ -216,6 +243,7 @@ class Game {
       this.ui.show(null);
       $('hud').classList.remove('hidden');
       this.ui.toast({ nether: 'Nether', end: 'End', overworld: 'Yerüstü' }[this.dim], 2);
+      this.setupEnd();
       this.startPlaying();
       this.saveWorld();
       return;
@@ -232,6 +260,7 @@ class Game {
     $('modeTag').textContent = p.creative ? 'Yaratıcı' : '';
     this.ui.showItemName();
     this.ui.toast(this.meta.name, 2.5);
+    this.setupEnd();
     this.startPlaying();
     this.saveWorld();
   }
@@ -574,10 +603,17 @@ class Game {
     // Üstteki bitki/kaktüs desteksiz kalır
     const above = w.getBlock(x, y + 1, z);
     if (RENDER[above] === R_CROSS || above === B.CACTUS) this.breakBlock(x, y + 1, z, byPlayer);
-    // Yandaki/üstteki su boşluğu doldurur
-    for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]]) {
-      const n = w.getBlock(x + dx, y + dy, z + dz);
-      if (n === B.WATER || n === B.LAVA) { w.setBlock(x, y, z, n); break; }
+    // Kapının diğer yarısı / üstteki kapı
+    if (isDoor(id)) {
+      const oy = (id - B.DOOR) & 8 ? y - 1 : y + 1;
+      if (isDoor(w.getBlock(x, oy, z))) w.setBlock(x, oy, z, 0);
+    }
+    const ab = w.getBlock(x, y + 1, z);
+    if (isDoor(ab) && !((ab - B.DOOR) & 8)) this.breakBlock(x, y + 1, z, byPlayer);
+    // Bu bloğa tutunan merdivenler düşer
+    for (let d = 0; d < 4; d++) {
+      const nx = x - DIR4[d][0], nz = z - DIR4[d][1], nid = w.getBlock(nx, y, nz);
+      if (isLadder(nid) && nid - B.LADDER === d) this.breakBlock(nx, y, nz, byPlayer);
     }
     this.applyGravity(x, y + 1, z);
   }
@@ -600,7 +636,7 @@ class Game {
     const w = this.world;
     if (y < 0 || y >= CH) return false;
     const cur = w.getBlock(x, y, z);
-    if (cur && cur !== B.WATER && cur !== B.LAVA && !REPLACEABLE.has(cur)) return false;
+    if (cur && !isLiquid(cur) && !REPLACEABLE.has(cur)) return false;
     if (RENDER[id] === R_CROSS) {
       const below = w.getBlock(x, y - 1, z);
       if (id === B.TORCH) return !!SOLID[below] && below !== B.CACTUS;
@@ -640,6 +676,7 @@ class Game {
         return true;
       }
       if (isBed(hit.id)) { this.useBed(hit); return true; }
+      if (this.toggleShape(hit)) return true;
     }
     if (armorOf(s)) return this.equipArmor();
     if (hit && this.useFarmItem(hit, s)) return true;
@@ -660,7 +697,7 @@ class Game {
     }
     if (id === I.BUCKET) {
       const lh = raycast(w, p.eye(), p.lookDir(), 5, true);
-      if (lh && (lh.id === B.WATER || lh.id === B.LAVA)) {
+      if (lh && isSource(lh.id)) {
         w.setBlock(lh.x, lh.y, lh.z, 0);
         this.audio.play('splash', [lh.x + 0.5, lh.y + 0.5, lh.z + 0.5]);
         this.consumeHeld(lh.id === B.WATER ? I.WATER_BUCKET : I.LAVA_BUCKET);
@@ -680,6 +717,7 @@ class Game {
     }
     if (hit.id === B.TNT && !p.sneaking && p.creative && !isPlaceable(id)) { this.ignite(hit.x, hit.y, hit.z, 3); return true; }
     if (!isPlaceable(id)) return false;
+    if (SHAPE[id] && SHAPE[id] !== 6 && SHAPE[id] !== 8) return this.placeShape(id, hit);
     let x = hit.x + hit.nx, y = hit.y + hit.ny, z = hit.z + hit.nz;
     if (REPLACEABLE.has(hit.id)) { x = hit.x; y = hit.y; z = hit.z; }
     if (!this.canPlaceAt(id, x, y, z)) return false;
@@ -781,7 +819,7 @@ class Game {
           if (SOLID[above]) { w.setBlock(x, y, z, B.DIRT); continue; }
           let wet = false;
           for (let dy = 0; dy <= 1 && !wet; dy++) for (let dz = -4; dz <= 4 && !wet; dz++) for (let dx = -4; dx <= 4; dx++) {
-            if (w.getBlock(x + dx, y + dy, z + dz) === B.WATER) { wet = true; break; }
+            if (isWater(w.getBlock(x + dx, y + dy, z + dz))) { wet = true; break; }
           }
           if (wet && id === B.FARMLAND) w.setBlock(x, y, z, B.FARMLAND_WET);
           else if (!wet && id === B.FARMLAND_WET && chance(1 / 20)) w.setBlock(x, y, z, B.FARMLAND);
@@ -898,14 +936,77 @@ class Game {
     this.ui.hotbarDirty = true;
   }
 
-  // Su + lav = obsidyen
+  // Oyuncunun baktığı yön: 0 -z, 1 +x, 2 +z, 3 -x
+  facing() {
+    const d = this.player.lookDir();
+    return Math.abs(d[0]) > Math.abs(d[2]) ? (d[0] > 0 ? 1 : 3) : (d[2] > 0 ? 2 : 0);
+  }
+
+  // Yarım blok, basamak, kapı, tuzak kapı, çit kapısı, merdiven yerleştirme
+  placeShape(id, hit) {
+    const w = this.world, p = this.player, k = SHAPE[id], f = this.facing();
+    let x = hit.x + hit.nx, y = hit.y + hit.ny, z = hit.z + hit.nz;
+    if (REPLACEABLE.has(hit.id)) { x = hit.x; y = hit.y; z = hit.z; }
+    const done = (bid, at = [x, y, z]) => {
+      this.audio.play('place', [at[0] + 0.5, at[1] + 0.5, at[2] + 0.5], BLOCKS[bid].sound);
+      this.consumeHeld();
+      return true;
+    };
+    if (k === 1) {
+      const m = id - B.SLAB, full = BLOCKS[id].full;
+      // İki yarım blok birleşince tam blok olur
+      if ((hit.id === B.SLAB + m && hit.ny === 1) || (hit.id === B.SLAB_TOP + m && hit.ny === -1)) { w.setBlock(hit.x, hit.y, hit.z, full); return done(full, [hit.x, hit.y, hit.z]); }
+      const cur = w.getBlock(x, y, z);
+      if (cur === B.SLAB + m || cur === B.SLAB_TOP + m) { w.setBlock(x, y, z, full); return done(full); }
+      const hy = p.eye()[1] + p.lookDir()[1] * hit.dist;
+      const top = hit.ny === -1 || (hit.ny === 0 && hy - Math.floor(hy) > 0.5);
+      const bid = top ? B.SLAB_TOP + m : id;
+      if (!this.canPlaceAt(bid, x, y, z)) return false;
+      w.setBlock(x, y, z, bid);
+      return done(bid);
+    }
+    let bid = id;
+    if (k === 3) bid = id + f;
+    else if (k === 7) bid = B.GATE + (f === 1 || f === 3 ? 2 : 0);
+    else if (k === 9) {
+      if (hit.ny !== 0 || !OPAQUE[hit.id]) return false;
+      bid = B.LADDER + DIR4.findIndex(([dx, dz]) => dx === -hit.nx && dz === -hit.nz);
+    }
+    if (k === 4) {
+      if (!this.canPlaceAt(id, x, y, z) || !this.canPlaceAt(id, x, y + 1, z) || !SOLID[w.getBlock(x, y - 1, z)]) return false;
+      w.setBlock(x, y, z, B.DOOR + f);
+      w.setBlock(x, y + 1, z, B.DOOR + 8 + f);
+      return done(id);
+    }
+    if (!this.canPlaceAt(bid, x, y, z)) return false;
+    w.setBlock(x, y, z, bid);
+    return done(bid);
+  }
+
+  // Kapı, tuzak kapı ve çit kapısını aç/kapa
+  toggleShape(hit) {
+    const w = this.world, id = hit.id, k = SHAPE[id];
+    const at = [hit.x + 0.5, hit.y + 0.5, hit.z + 0.5];
+    if (k === 4) {
+      const v = id - B.DOOR, ly = v & 8 ? hit.y - 1 : hit.y;
+      const lo = w.getBlock(hit.x, ly, hit.z), up = w.getBlock(hit.x, ly + 1, hit.z);
+      if (isDoor(lo)) w.setBlock(hit.x, ly, hit.z, B.DOOR + ((lo - B.DOOR) ^ 4));
+      if (isDoor(up)) w.setBlock(hit.x, ly + 1, hit.z, B.DOOR + ((up - B.DOOR) ^ 4));
+    } else if (k === 5) w.setBlock(hit.x, hit.y, hit.z, id === B.TRAPDOOR ? B.TRAPDOOR_OPEN + this.facing() : B.TRAPDOOR);
+    else if (k === 7) w.setBlock(hit.x, hit.y, hit.z, B.GATE + ((id - B.GATE) ^ 1));
+    else return false;
+    this.audio.play('door', at);
+    return true;
+  }
+
+  // Su + lav = obsidyen (akışın geri kalanını Fluids yönetir)
   placeLiquid(x, y, z, id) {
     const w = this.world;
     let result = id;
     for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
       const n = w.getBlock(x + dx, y + dy, z + dz);
-      if (id === B.WATER && n === B.LAVA) { w.setBlock(x + dx, y + dy, z + dz, B.OBSIDIAN); this.particles.puff(x + dx + 0.5, y + dy + 1, z + dz + 0.5, 5); }
-      if (id === B.LAVA && n === B.WATER) result = B.OBSIDIAN;
+      if (id === B.WATER && isLava(n)) { w.setBlock(x + dx, y + dy, z + dz, isSource(n) ? B.OBSIDIAN : B.COBBLE); this.particles.puff(x + dx + 0.5, y + dy + 1, z + dz + 0.5, 5); }
+      if (id === B.LAVA && isWater(n)) result = B.OBSIDIAN;
     }
     w.setBlock(x, y, z, result);
     if (result !== id) { this.particles.puff(x + 0.5, y + 1, z + 0.5, 6); this.audio.play('fuse', [x, y, z]); }
@@ -1001,7 +1102,7 @@ class Game {
     this.saveWorld();
     this.disposeWorld();
     this.dim = dim;
-    this.world = new World(this.meta.seed, this.dims[dim].edits, dim);
+    this.world = this.makeWorld(dim);
     p.pos = pos.slice(); p.vel = [0, 0, 0]; p.fallStart = null; p.flying = false;
     this.arrival = arrival;
     this.portalT = 0; this.portalCd = 4;
@@ -1045,7 +1146,7 @@ class Game {
     } else ty = Math.max(SEA + 1, w.surfaceY(tx, tz) + 1);
     for (let z = tz - 1; z <= tz + 2; z++) for (let x = tx - 1; x <= tx + 2; x++) {
       for (let y = ty; y <= ty + 3; y++) w.setBlock(x, y, z, 0);
-      if (!SOLID[w.getBlock(x, ty - 1, z)] || w.getBlock(x, ty - 1, z) === B.LAVA) w.setBlock(x, ty - 1, z, B.OBSIDIAN);
+      if (!SOLID[w.getBlock(x, ty - 1, z)] || isLava(w.getBlock(x, ty - 1, z))) w.setBlock(x, ty - 1, z, B.OBSIDIAN);
     }
     for (let x = tx - 1; x <= tx + 2; x++) for (let y = ty - 1; y <= ty + 3; y++) {
       const frame = x === tx - 1 || x === tx + 2 || y === ty - 1 || y === ty + 3;
@@ -1403,6 +1504,7 @@ class Game {
       this.dayTime = (this.dayTime + dt / DAY_LENGTH) % 1;
       this.entities.update(dt);
       this.tickPlants(dt);
+      this.fluids.tick(dt);
       // Ateşlenmiş TNT
       for (const pr of this.primed) {
         pr.t -= dt;

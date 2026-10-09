@@ -151,6 +151,9 @@ class GameAudio {
       }
       case 'zombie': this.tone(d, 'sawtooth', 95, 65, 1.0, 0.2, 0, 0.2); this.noiseBurst(d, 'lowpass', 400, 2, 0.9, 0.2); break;
       case 'creeper': break;
+      case 'roar': this.tone(d, 'sawtooth', 110, 55, 1.6, 0.35, 0, 0.15); this.tone(d, 'sawtooth', 83, 40, 1.6, 0.25, 0, 0.2); this.noiseBurst(d, 'lowpass', 700, 1, 1.4, 0.4, 0, 200); break;
+      case 'flap': this.noiseBurst(d, 'lowpass', 400, 0.7, 0.45, 0.6, 0, 120); break;
+      case 'door': this.noiseBurst(d, 'bandpass', 420, 2, 0.15, 0.5); this.tone(d, 'triangle', 140, 90, 0.12, 0.2); break;
       case 'eat': this.noiseBurst(d, 'bandpass', 900 + Math.random() * 600, 1.5, 0.12, 0.35); break;
       case 'burp': this.tone(d, 'sawtooth', 120, 70, 0.3, 0.12); this.noiseBurst(d, 'lowpass', 500, 2, 0.25, 0.2); break;
       case 'bow': this.tone(d, 'triangle', 220, 90, 0.18, 0.3); this.noiseBurst(d, 'highpass', 2500, 0.8, 0.12, 0.25, 0, 900); break;

@@ -25,8 +25,9 @@ class Chunk {
 }
 
 class World {
-  constructor(seedStr, edits, dim = 'overworld') {
+  constructor(seedStr, edits, dim = 'overworld', opts = {}) {
     this.dim = dim;
+    this.dragonKilled = !!opts.dragonKilled;
     this.hasSky = dim !== 'nether';
     this.seedStr = String(seedStr);
     this.seed = hashStr(seedStr);
@@ -72,7 +73,7 @@ class World {
 
   isLoadedAt(x, z) { return !!this.getChunk(Math.floor(x) >> 4, Math.floor(z) >> 4); }
 
-  setBlock(x, y, z, id) {
+  setBlock(x, y, z, id, urgent = true) {
     if (y < 0 || y >= CH) return false;
     const cx = x >> 4, cz = z >> 4;
     const c = this.getChunk(cx, cz);
@@ -85,7 +86,7 @@ class World {
     let e = this.edits[c.key];
     if (!e) e = this.edits[c.key] = {};
     e[i] = id;
-    c.dirty = true; c.urgent = true;
+    c.dirty = true; if (urgent) c.urgent = true;
     if (growable(id)) c.plants.add(i); else if (growable(old)) c.plants.delete(i);
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dz) continue;
@@ -139,7 +140,12 @@ class World {
     c.maxY = Math.min(CH - 1, maxY + 1);
     // Büyüyen bloklar (ekin, fidan, tarla) sadece oyuncu düzenlemelerinden gelir
     c.plants = new Set();
-    if (e) for (const k in e) if (growable(e[k])) c.plants.add(k | 0);
+    if (e) for (const k in e) {
+      const id = e[k], i = k | 0;
+      if (growable(id)) c.plants.add(i);
+      // Kayıtta yarım kalmış akışlar yeniden başlasın
+      if (isLiquid(id) && !isSource(id)) (this.pendingFluids || (this.pendingFluids = [])).push([c.cx * 16 + (i & 15), i >> 8, c.cz * 16 + ((i >> 4) & 15)]);
+    }
     this.chunks.set(c.key, c);
     this._lk = -1;
     return c;
@@ -421,7 +427,8 @@ class World {
       for (const P of this.pillars) {
         if (Math.hypot(wx - P.x, wz - P.z) <= P.r + 0.5) {
           for (let y = 40; y <= P.h; y++) b[bidx(x, y, z)] = B.OBSIDIAN;
-          if (P.h > maxY) maxY = P.h;
+          if (wx === P.x && wz === P.z) b[bidx(x, P.h + 1, z)] = B.BEDROCK;
+          if (P.h + 1 > maxY) maxY = P.h + 1;
         }
       }
       // Çıkış geçidi (merkez)
@@ -430,11 +437,9 @@ class World {
         const ty = 61;
         for (let y = ty + 1; y < ty + 7; y++) b[bidx(x, y, z)] = 0;
         b[bidx(x, ty - 1, z)] = B.BEDROCK;
-        b[bidx(x, ty, z)] = dd > 2.6 ? B.BEDROCK : B.END_PORTAL;
-        if (wx === 0 && wz === 0) {
-          for (let y = ty; y <= ty + 3; y++) b[bidx(x, y, z)] = B.BEDROCK;
-          b[bidx(x, ty + 4, z)] = B.DRAGON_EGG;
-        }
+        // Geçit ejderha ölünce açılır; yumurta ölümde yerleştirilir
+        b[bidx(x, ty, z)] = dd > 2.6 ? B.BEDROCK : this.dragonKilled ? B.END_PORTAL : 0;
+        if (wx === 0 && wz === 0) for (let y = ty; y <= ty + 3; y++) b[bidx(x, y, z)] = B.BEDROCK;
         maxY = Math.max(maxY, ty + 4);
       }
       // Koro bitkileri (dış adalar)

@@ -339,10 +339,10 @@ class Mob {
     if (speed > 0 && !hostile && !this.angry && this.onGround) {
       const ax = Math.floor(p[0] + fx * 0.9), az = Math.floor(p[2] + fz * 0.9), ay = Math.floor(p[1]);
       const below = world.getBlock(ax, ay - 1, az), below2 = world.getBlock(ax, ay - 2, az);
-      if ((!SOLID[below] && !SOLID[below2]) || below === B.WATER || below === B.LAVA) { this.targetYaw += Math.PI; speed = 0; this.aiTimer = 1; }
+      if ((!SOLID[below] && !SOLID[below2]) || isLiquid(below)) { this.targetYaw += Math.PI; speed = 0; this.aiTimer = 1; }
     }
 
-    const inWater = world.getBlock(Math.floor(p[0]), Math.floor(p[1] + 0.4), Math.floor(p[2])) === B.WATER;
+    const inWater = isWater(world.getBlock(Math.floor(p[0]), Math.floor(p[1] + 0.4), Math.floor(p[2])));
     const k = 1 - Math.exp(-dt * (this.onGround ? 10 : 2));
     v[0] += (fx * speed - v[0]) * k; v[2] += (fz * speed - v[2]) * k;
     if (inWater) { v[1] += (2 - v[1]) * Math.min(1, dt * 4); }
@@ -441,6 +441,7 @@ class EntityManager {
     this.verts = new Float32Array(9 * 24 * 12 * 40);
   }
   clear() { this.mobs.length = 0; this.arrows.length = 0; }
+  get dragon() { return this.mobs.find((m) => m.type === 'dragon') || null; }
 
   // Ok fırlat (Minecraft: yerçekimi 20 b/s², tik başına %1 sürtünme)
   shoot(pos, vel, owner, dmg) {
@@ -467,7 +468,7 @@ class EntityManager {
           if (g.addItem(I.ARROW, 1)) { g.audio.play('pop'); a.life = 0; }
         }
         // Takıldığı blok kırıldıysa düş
-        if (!SOLID[w.getBlock(Math.floor(a.pos[0] + a.dir[0] * 0.05), Math.floor(a.pos[1] + a.dir[1] * 0.05), Math.floor(a.pos[2] + a.dir[2] * 0.05))]) { a.stuck = false; a.vel = [0, 0, 0]; }
+        if (!pointInSolid(w, a.pos[0] + a.dir[0] * 0.08, a.pos[1] + a.dir[1] * 0.08, a.pos[2] + a.dir[2] * 0.08)) { a.stuck = false; a.vel = [0, 0, 0]; }
         continue;
       }
       a.life -= dt;
@@ -495,8 +496,7 @@ class EntityManager {
           a.life = 0;
         }
         if (a.life <= 0) break;
-        const id = w.getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
-        if (SOLID[id] && y < Math.floor(y) + HGT[id] / 16) {
+        if (pointInSolid(w, x, y, z)) {
           a.stuck = true; a.life = a.owner === 'player' ? 60 : 10; a.vel = [0, 0, 0];
           g.audio.play('arrowhit', a.pos);
         } else { a.pos[0] = x; a.pos[1] = y; a.pos[2] = z; }
@@ -522,6 +522,7 @@ class EntityManager {
     const g = this.game;
     for (const m of this.mobs) {
       m.update(dt, g);
+      if (m.T.boss) continue;
       const d = Math.hypot(m.pos[0] - g.player.pos[0], m.pos[2] - g.player.pos[2]);
       if (d > 110) m.remove = true;
       if ((m.T.hostile || m.T.neutral) && g.player.creative && d > 40) m.remove = true;
@@ -531,6 +532,7 @@ class EntityManager {
     // Mob'lar birbirini itsin
     for (let i = 0; i < this.mobs.length; i++) for (let j = i + 1; j < this.mobs.length; j++) {
       const a = this.mobs[i], b = this.mobs[j];
+      if (a.T.boss || b.T.boss) continue;
       const dx = b.pos[0] - a.pos[0], dz = b.pos[2] - a.pos[2], dd = dx * dx + dz * dz, r = a.hw + b.hw;
       if (dd < r * r && dd > 1e-6 && Math.abs(a.pos[1] - b.pos[1]) < 1.5) {
         const l = Math.sqrt(dd), push = (r - l) * 2;
@@ -545,7 +547,7 @@ class EntityManager {
   trySpawn() {
     const g = this.game, w = g.world, pl = g.player;
     let passive = 0, hostile = 0;
-    for (const m of this.mobs) (m.T.hostile || m.T.neutral) ? hostile++ : passive++;
+    for (const m of this.mobs) if (!m.T.boss) (m.T.hostile || m.T.neutral) ? hostile++ : passive++;
     const ang = Math.random() * Math.PI * 2;
     if (w.dim !== 'overworld') {
       if (hostile >= (w.dim === 'end' ? 12 : 10)) return;
@@ -623,11 +625,13 @@ class EntityManager {
   buildMesh(cam) {
     const g = this.game;
     let n = 0;
-    const need = (this.mobs.length * 16 + this.arrows.length * 3) * 24 * 9;
+    let boxes = this.arrows.length * 3 + 2;
+    for (const m of this.mobs) boxes += m.T.boxes || 16;
+    const need = boxes * 24 * 9;
     if (this.verts.length < need) this.verts = new Float32Array(need * 2);
     for (const m of this.mobs) {
       const d = Math.hypot(m.pos[0] - cam[0], m.pos[2] - cam[2]);
-      if (d > g.settings.renderDist * 16) continue;
+      if (d > g.settings.renderDist * 16 + (m.T.boss ? 64 : 0)) continue;
       let light;
       if (g.world.dim === 'nether') light = 0.6;
       else if (g.world.dim === 'end') light = 0.7;
@@ -637,6 +641,8 @@ class EntityManager {
       }
       n = m.buildMesh(this.verts, n, cam, light);
     }
+    const dr = this.dragon;
+    if (dr && dr.healFrom && !dr.dead) n = beamMesh(this.verts, n, [dr.healFrom.pos[0], dr.healFrom.pos[1] + 0.9, dr.healFrom.pos[2]], [dr.pos[0], dr.pos[1] + 1.2, dr.pos[2]], cam);
     for (const a of this.arrows) {
       let light = 0.7;
       if (g.world.dim === 'overworld') light = Math.max(0.15, g.world.skyLightAt(Math.floor(a.pos[0]), Math.floor(a.pos[1]), Math.floor(a.pos[2])) ? g.sunLevel : 0.3);

@@ -12,7 +12,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - Sonsuz, tohum tabanlı prosedürel dünya: ova, orman, çöl, karlı tundra, dağlar, sahil ve okyanus biyomları
 - Mağaralar, yer altı lav gölleri, kömür / demir / altın / kızıltaş / elmas / zümrüt cevherleri
 - Meşe, huş ve ladin ağaçları, kaktüsler, çiçekler, uzun çimen, balkabakları
-- 115 blok türü + 100'den fazla eşya, kodla üretilmiş keskin piksel-art dokular
+- 185 blok türü (durumlar dahil) + 100'den fazla eşya, kodla üretilmiş keskin piksel-art dokular
 - **Nether**: kızıl ve çarpık ormanlar, ruh kumu vadileri, lav denizi, ışıktaşı, kuvars, kadim kalıntı (netherit)
 - **End**: End adası, obsidyen sütunlar, çıkış geçidi, ejderha yumurtası, koro bitkili dış adalar
 - Obsidyen çerçeve + çakmak ile Nether geçidi; 12 gözlü çerçeve ile End geçidi
@@ -24,6 +24,12 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - **Zırh**: deri, altın, demir, elmas ve netherit miğfer/göğüslük/pantolon/botlar (Minecraft koruma formülü, dayanıklılık)
 - **Yatak**: gece uyuyup sabaha geç, doğma noktası ayarla (Nether ve End'de patlar)
 - **Yay ve ok**: gerdikçe güçlenen atış, yerdeki okları geri toplama
+- **Akan su ve lav**: kaynak/akan/düşen sıvı, en yakın çukura yönelen akış, sonsuz su kaynağı, akıntının itmesi,
+  su + lav = obsidyen / kırıktaş / taş
+- **Şekilli bloklar**: yarım bloklar (birleşince tam blok), basamaklar, açılır kapı, tuzak kapı, çit ve çit kapısı,
+  cam panel, tırmanma merdiveni; alçak bloklara kendiliğinden çıkma
+- **Ender Ejderhası**: uçan, dalış yapan, çıkış geçidine konan boss; sütunlardaki End kristalleri onu iyileştirir,
+  yenilince çıkış geçidi açılır ve ejderha yumurtası belirir
 - Güneş ışığı + blok ışığı (meşale, ışıktaşı, lav, fener balkabağı) yayılımı, yumuşak aydınlatma ve ambient occlusion
 - Gece-gündüz döngüsü, kare güneş ve ay, yıldızlar, gün batımı, hareketli bulutlar, sis, animasyonlu su ve lav
 - **Hayatta Kalma** modu: sağlık, düşme hasarı, boğulma, lav, kırma süresi, envanter ve tarifler (üretim)
@@ -60,6 +66,9 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/util.js` | Gürültü (simplex), rastgele sayı, matris yardımcıları |
 | `js/blocks.js` | Blok tanımları, prosedürel dokular, ikonlar |
 | `js/items.js` | Eşyalar, aletler, tarifler, fırın tarifleri, kazma kuralları |
+| `js/shapes.js` | Yarım blok, basamak, kapı, çit vb. kutu modelleri (çizim + çarpışma) |
+| `js/fluids.js` | Su ve lav akış simülasyonu |
+| `js/dragon.js` | Ender Ejderhası ve End kristalleri |
 | `js/world.js` | Parçalar, arazi/biyom/mağara/ağaç üretimi |
 | `js/mesher.js` | Işık yayılımı ve mesh üretimi |
 | `js/renderer.js` | WebGL2 çizici ve shader'lar |

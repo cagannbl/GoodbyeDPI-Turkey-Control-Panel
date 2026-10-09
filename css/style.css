@@ -123,6 +123,9 @@ kbd { display: inline-block; font-family: var(--font); font-size: 20px; backgrou
 #bubbles, #foodBar { flex-direction: row-reverse; }
 #hearts img, #bubbles img, #armorBar img, #foodBar img { width: 20px; height: 20px; image-rendering: pixelated; }
 #foodBar.starve img { animation: shake 0.5s infinite; }
+#bossBar { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: min(420px, 80vw); text-align: center; font-size: 22px; text-shadow: 2px 2px 0 #333; }
+#bossBar .bbar { height: 9px; background: #3a1640; border: 2px solid #111; margin-top: 2px; }
+#bossBar .bbar i { display: block; height: 100%; background: linear-gradient(#ff7ff0, #b532c8); }
 #sleepOverlay { position: absolute; inset: 0; background: #05060c; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
 #hearts.shake { animation: shake 0.3s; }
 @keyframes shake { 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, 2px); } }
