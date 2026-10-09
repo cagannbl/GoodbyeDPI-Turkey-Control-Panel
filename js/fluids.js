@@ -123,7 +123,7 @@ class Fluids {
     const g = this.g;
     g.world.setBlock(x, y, z, id);
     g.particles.puff(x + 0.5, y + 1, z + 0.5, 6);
-    g.audio.play('fuse', [x + 0.5, y + 0.5, z + 0.5]);
+    g.audio.play('fizz', [x + 0.5, y + 0.5, z + 0.5]);
     this.onChange(x, y, z);
   }
 

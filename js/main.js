@@ -548,7 +548,7 @@ class Game {
     if (c && !this.player.creative) this.addStack(c);
     this.ui.cursor = null;
     this.screen = null;
-    if (this.openTile) { this.audio.play('click'); this.openTile = null; }
+    if (this.openTile) { this.audio.play(this.openTile.type === 'chest' ? 'chest_close' : 'click'); this.openTile = null; }
     $('inventory').classList.add('hidden');
     $('tooltip').style.display = 'none';
     this.ui.hotbarDirty = true;
@@ -705,7 +705,7 @@ class Game {
     const ub = enchLvl(s, 'unbreaking');
     if (ub) { let n = 0; for (let k = 0; k < amount; k++) if (Math.random() < 1 / (ub + 1)) n++; amount = n; if (!n) return; }
     s.dmg = (s.dmg || 0) + amount;
-    if (s.dmg >= t.dur) { this.inv[this.selected] = null; this.audio.play('dig', null, 'glass'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
+    if (s.dmg >= t.dur) { this.inv[this.selected] = null; this.audio.play('toolbreak'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
     this.ui.hotbarDirty = true;
   }
   consumeHeld(replace) {
@@ -790,7 +790,7 @@ class Game {
       const ub = enchLvl(s, 'unbreaking');
       if (ub && Math.random() >= 0.6 + 0.4 / (ub + 1)) continue;
       s.dmg = (s.dmg || 0) + wear;
-      if (s.dmg >= t.dur) { this.armor[i] = null; this.audio.play('dig', null, 'glass'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
+      if (s.dmg >= t.dur) { this.armor[i] = null; this.audio.play('toolbreak'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
     }
     this.ui.lastArmor = -1;
     return dmg * (1 - f);
@@ -936,7 +936,7 @@ class Game {
       if (hit.id === B.FURNACE || hit.id === B.CHEST) {
         const tile = this.getTile(hit.x, hit.y, hit.z, hit.id === B.FURNACE ? 'furnace' : 'chest');
         this.openTile = tile;
-        this.audio.play('click');
+        this.audio.play(hit.id === B.CHEST ? 'chest' : 'click', [hit.x + 0.5, hit.y + 0.5, hit.z + 0.5]);
         this.openInventory(hit.id === B.FURNACE ? 'furnace' : 'chest', tile);
         return true;
       }
@@ -975,7 +975,7 @@ class Game {
       let x = hit.x + hit.nx, y = hit.y + hit.ny, z = hit.z + hit.nz;
       if (REPLACEABLE.has(hit.id)) { x = hit.x; y = hit.y; z = hit.z; }
       if (!this.canPlaceAt(B.WATER, x, y, z)) return false;
-      if (id === I.WATER_BUCKET && this.dim === 'nether') { this.particles.puff(x + 0.5, y + 0.5, z + 0.5, 8); this.audio.play('fuse', [x, y, z]); this.consumeHeld(I.BUCKET); return true; }
+      if (id === I.WATER_BUCKET && this.dim === 'nether') { this.particles.puff(x + 0.5, y + 0.5, z + 0.5, 8); this.audio.play('fizz', [x, y, z]); this.consumeHeld(I.BUCKET); return true; }
       this.placeLiquid(x, y, z, id === I.WATER_BUCKET ? B.WATER : B.LAVA);
       this.consumeHeld(I.BUCKET);
       return true;
@@ -1285,7 +1285,9 @@ class Game {
     } else if (k === 5) w.setBlock(hit.x, hit.y, hit.z, id === B.TRAPDOOR ? B.TRAPDOOR_OPEN + this.facing() : B.TRAPDOOR);
     else if (k === 7) w.setBlock(hit.x, hit.y, hit.z, B.GATE + ((id - B.GATE) ^ 1));
     else return false;
-    this.audio.play('door', at);
+    const nid = w.getBlock(hit.x, hit.y, hit.z);
+    const open = isDoor(nid) ? ((nid - B.DOOR) & 4) : k === 5 ? nid !== B.TRAPDOOR : (nid - B.GATE) & 1;
+    this.audio.play(open ? 'door_open' : 'door_close', at);
     return true;
   }
 
@@ -1299,7 +1301,7 @@ class Game {
       if (id === B.LAVA && isWater(n)) result = B.OBSIDIAN;
     }
     w.setBlock(x, y, z, result);
-    if (result !== id) { this.particles.puff(x + 0.5, y + 1, z + 0.5, 6); this.audio.play('fuse', [x, y, z]); }
+    if (result !== id) { this.particles.puff(x + 0.5, y + 1, z + 0.5, 6); this.audio.play('fizz', [x, y, z]); }
     else this.audio.play('splash', [x + 0.5, y + 0.5, z + 0.5]);
   }
 
@@ -1348,7 +1350,7 @@ class Game {
       }
       if (!ok) continue;
       for (let i = 0; i < width; i++) for (let j = 0; j < h; j++) w.setBlock(sx + dx * i, by + j, sz + dz * i, B.NETHER_PORTAL);
-      this.audio.play('fuse', [x, y, z]);
+      this.audio.play('flint', [x, y, z]);
       this.ui.toast('Nether geçidi açıldı!', 2);
       return true;
     }
@@ -1497,7 +1499,7 @@ class Game {
     m.lastPlayerHit = performance.now();
     if (ench) this.particles.enchHit(m.pos[0], m.pos[1] + m.h * 0.6, m.pos[2]);
     if (tool && tool.dur && tool.kind !== 'armor' && tool.kind !== 'bow') this.damageTool(tool.kind === 'sword' ? 1 : 2);
-    this.audio.play('mobhurt', m.pos);
+    this.audio.play(m.dead ? 'mobdeath' : 'mobhurt', m.pos, m.type);
     this.player.exh += 0.1;
     if (m.dead) this.mobDrops(m, E('looting'));
   }

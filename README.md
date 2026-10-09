@@ -42,7 +42,11 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - Canlılar: domuz, inek, koyun, tavuk, zombi ve ok atan iskelet (gün ışığında yanarlar), duvara tırmanan örümcek,
   patlayan creeper, Enderman ve zombi piglin
 - Ateşlenebilir TNT ve zincirleme patlamalar, düşen kum/çakıl
-- Sentezlenmiş ses efektleri ve üretken ambiyans müziği
+- **Gerçek ses efektleri**: Minetest Game, VoxeLibre ve Kenney'den açık lisanslı kayıtlar (adım, kazma, kırma, koyma,
+  hayvanlar, canavarlar, kapı, sandık, TNT, yay, büyü); her çalışta rastgele varyasyon ve perde. Kaydı olmayan sesler
+  sentezlenir; müzik üretken piyano. Emeği geçenler ve lisanslar: [`sounds/CREDITS.md`](sounds/CREDITS.md).
+  Not: sesler `fetch` ile yüklendiği için oyunu bir web sunucusundan aç (`python3 -m http.server`); dosyaya çift
+  tıklayarak açılırsa sentez sesler çalar.
 - Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
 - **Köyler**: ova (meşe), karlı (ladin) ve çöl (kumtaşı) köyleri; yollar, kuyu, eğimli çatılı evler, demirci (ganimet
   sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
@@ -95,6 +99,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/renderer.js` | WebGL2 çizici ve shader'lar |
 | `js/player.js` | Fizik, çarpışma, ışın izleme, oyuncu |
 | `js/entities.js` | Canlılar, yapay zekâ, parçacıklar |
-| `js/audio.js` | Ses efektleri ve müzik |
+| `js/audio.js` | Ses kayıtlarını yükleme/çalma, sentez yedekleri ve müzik |
+| `sounds/` | Ses kayıtları (OGG) ve `CREDITS.md` |
 | `js/ui.js` | Menüler, HUD, envanter, dokunmatik kontroller |
 | `js/main.js` | Oyun döngüsü, etkileşim, kayıt |

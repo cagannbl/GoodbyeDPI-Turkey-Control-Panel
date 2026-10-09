@@ -109,7 +109,7 @@ const MOB_TYPES = {
     ],
   },
   enderman: {
-    name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'zombie',
+    name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'enderman',
     parts: [
       part([-4, 40, -4, 4, 48, 4], HEAD(ENDER, FACE_ENDER), 'head', [0, 40, 0]),
       part([-4, 28, -2, 4, 40, 2], ENDER),
@@ -120,7 +120,7 @@ const MOB_TYPES = {
     ],
   },
   zpiglin: {
-    name: 'Zombi Piglin', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'pig',
+    name: 'Zombi Piglin', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'zpiglin',
     parts: [
       part([-5, 24, -4, 5, 32, 4], HEAD(PIGSKIN, FACE_PIGLIN), 'head', [0, 24, 0]),
       part([-2, 25, -5, 2, 28, -4], HEAD({ c: K(200, 120, 115) }, FACE_SNOUT), 'head', [0, 24, 0]),
@@ -324,7 +324,7 @@ class Mob {
       if (!world.isLoadedAt(x, z)) continue;
       for (let y = Math.floor(this.pos[1]) + 8; y > Math.floor(this.pos[1]) - 8; y--) {
         if (SOLID[world.getBlock(x, y - 1, z)] && !world.getBlock(x, y, z) && !world.getBlock(x, y + 1, z) && !world.getBlock(x, y + 2, z)) {
-          if (this.game) { this.game.particles.puff(this.pos[0], this.pos[1] + 1.4, this.pos[2], 10, 0.5); this.game.audio.play('pop', this.pos); }
+          if (this.game) { this.game.particles.puff(this.pos[0], this.pos[1] + 1.4, this.pos[2], 10, 0.5); this.game.audio.play('teleport', this.pos); }
           this.pos = [x + 0.5, y, z + 0.5]; this.vel = [0, 0, 0];
           return;
         }
@@ -380,7 +380,7 @@ class Mob {
         if (dist < 0.4 + this.hw) speed = 0;
       } else if (this.type === 'creeper') {
         if (dist < 3 && Math.abs(dy) < 3) {
-          if (this.fuse === 0) game.audio.play('fuse', p);
+          if (this.fuse === 0) game.audio.play('creeperfuse', p);
           this.fuse += dt; speed = 0;
           if (this.fuse > 1.5) {
             this.remove = true;
@@ -727,7 +727,7 @@ class EntityManager {
               m.hit(a.dmg, a.vel[0], a.vel[2]);
               m.lastPlayerHit = performance.now();
               if (a.fire && !m.dead && m.type !== 'zpiglin') m.fireT = Math.max(m.fireT || 0, 5);
-              g.audio.play('mobhurt', m.pos);
+              g.audio.play(m.dead ? 'mobdeath' : 'mobhurt', m.pos, m.type);
               if (m.dead) g.mobDrops(m);
               a.life = 0; break;
             }

@@ -1,7 +1,32 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Web Audio ile sentezlenen ses efektleri ve üretken ambiyans müziği
+// Ses efektleri: açık lisanslı gerçek kayıtlar (sounds/, emeği geçenler sounds/CREDITS.md)
+// Minecraft gibi her çalışta rastgele varyasyon ve hafif perde farkı. Kaydı olmayan ya da
+// yüklenemeyen sesler Web Audio ile sentezlenir. Müzik üretkendir (piyano).
 // ---------------------------------------------------------------------------
+
+// Ses adı -> varyasyon sayısı (sounds/<ad><n>.ogg)
+const SOUND_FILES = {'step_stone': 3, 'step_grass': 3, 'step_gravel': 3, 'step_sand': 3, 'step_snow': 3, 'step_wood': 2, 'step_glass': 1, 'step_metal': 3, 'step_water': 3, 'step_cloth': 3, 'hit_stone': 3, 'hit_wood': 3, 'hit_grass': 2, 'hit_gravel': 2, 'hit_glass': 3, 'hit_metal': 1, 'hit_snow': 3, 'break_stone': 2, 'break_gravel': 3, 'break_glass': 3, 'break_metal': 2, 'break_ice': 1, 'place': 3, 'place_hard': 2, 'place_metal': 2, 'hurt': 1, 'toolbreak': 3, 'chest_open': 1, 'chest_close': 1, 'door_open': 1, 'door_close': 1, 'explode': 1, 'fuse': 1, 'fizz': 3, 'splash': 1, 'flint': 1, 'pig': 1, 'hurt_pig': 1, 'cow': 1, 'hurt_cow': 1, 'sheep': 1, 'chicken': 3, 'hurt_chicken': 1, 'zombie': 1, 'hurt_zombie': 1, 'death_zombie': 1, 'skeleton': 2, 'hurt_skeleton': 1, 'death_skeleton': 1, 'spider': 1, 'hurt_spider': 3, 'death_spider': 1, 'hurt_creeper': 1, 'death_creeper': 1, 'enderman': 1, 'hurt_enderman': 3, 'teleport': 1, 'zpiglin': 1, 'hurt_zpiglin': 3, 'roar': 1, 'eat': 1, 'bow': 1, 'arrowhit': 1, 'enchant': 3, 'orb': 1};
+
+// Malzeme sesleri: [dosya, ses seviyesi, perde]
+const MAT_SOUNDS = {
+  break: { stone: ['hit_stone', 0.9, 0.78], wood: ['hit_wood', 0.9, 0.8], grass: ['break_stone', 0.9, 1], gravel: ['break_gravel', 0.9, 1], sand: ['step_sand', 1, 0.8],
+    snow: ['step_snow', 1, 0.8], glass: ['break_glass', 0.8, 1], cloth: ['step_cloth', 1, 0.85], metal: ['break_metal', 0.8, 1], water: ['splash', 0.6, 1.1] },
+  hit: { stone: ['hit_stone', 0.45, 1], wood: ['hit_wood', 0.45, 1], grass: ['hit_grass', 0.45, 1], gravel: ['hit_gravel', 0.45, 1], sand: ['step_sand', 0.5, 0.9],
+    snow: ['hit_snow', 0.45, 1], glass: ['hit_glass', 0.45, 1.2], cloth: ['step_cloth', 0.5, 1], metal: ['hit_metal', 0.45, 1], water: ['step_water', 0.4, 1] },
+  place: { stone: ['place_hard', 0.75, 1], glass: ['place_hard', 0.7, 1.2], metal: ['place_metal', 0.7, 1], wood: ['place_hard', 0.7, 0.85] },
+  step: { stone: ['step_stone', 0.22, 1], grass: ['step_grass', 0.22, 1], gravel: ['step_gravel', 0.22, 1], sand: ['step_sand', 0.22, 1], snow: ['step_snow', 0.22, 1],
+    wood: ['step_wood', 0.22, 1], glass: ['step_glass', 0.22, 1], metal: ['step_metal', 0.22, 1], cloth: ['step_cloth', 0.22, 1], water: ['step_water', 0.25, 1] },
+};
+// Diğer sesler: oyun adı -> [dosya, ses seviyesi, perde]
+const SFX = {
+  hurt: ['hurt', 0.8, 1], explode: ['explode', 1.2, 1], fuse: ['fuse', 0.7, 1], fizz: ['fizz', 0.6, 1], splash: ['splash', 0.7, 1],
+  flint: ['flint', 0.7, 1], toolbreak: ['toolbreak', 0.8, 1], chest: ['chest_open', 0.6, 1], chest_close: ['chest_close', 0.6, 1],
+  door_open: ['door_open', 0.6, 1], door_close: ['door_close', 0.6, 1], bow: ['bow', 0.7, 1], arrowhit: ['arrowhit', 0.6, 1],
+  eat: ['eat', 0.6, 1], enchant: ['enchant', 0.6, 1], anvil: ['break_metal', 0.6, 1.25], roar: ['roar', 1.2, 1], teleport: ['teleport', 0.7, 1],
+  creeperfuse: ['hurt_creeper', 0.8, 1], pig: ['pig', 0.6, 1], cow: ['cow', 0.6, 1], sheep: ['sheep', 0.6, 1], chicken: ['chicken', 0.6, 1],
+  zombie: ['zombie', 0.6, 1], skeleton: ['skeleton', 0.6, 1], spider: ['spider', 0.6, 1], enderman: ['enderman', 0.6, 1], zpiglin: ['zpiglin', 0.6, 1],
+};
 
 class GameAudio {
   constructor() {
@@ -12,6 +37,46 @@ class GameAudio {
     this.listener = [0, 0, 0];
     this.listenerYaw = 0;
     this.musicTimer = null;
+    this.buf = {};          // ses adı -> çözülmüş kayıtlar
+    this.base = 'sounds/';
+  }
+
+  // Kayıtları arka planda yükle (yüklenmeyen ses sentezle çalar)
+  loadSamples() {
+    const ctx = this.ctx;
+    if (location.protocol === 'file:') return; // dosyadan açılınca tarayıcı yüklemeye izin vermez: sentez
+    for (const k in SOUND_FILES) for (let i = 1; i <= SOUND_FILES[k]; i++) {
+      fetch(this.base + k + i + '.ogg')
+        .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej)))
+        .then((buf) => { (this.buf[k] || (this.buf[k] = [])).push(buf); })
+        .catch(() => { /* sentez yedeği kullanılır */ });
+    }
+  }
+  // Kayıt çal: rastgele varyasyon, ±%8 perde. Kayıt yoksa false
+  sample(key, dest, vol = 1, pitch = 1) {
+    const L = this.buf[key];
+    if (!L || !L.length) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = L[Math.floor(Math.random() * L.length)];
+    src.playbackRate.value = pitch * (0.92 + Math.random() * 0.16);
+    const g = this.ctx.createGain(); g.gain.value = vol;
+    src.connect(g); g.connect(dest);
+    src.start();
+    return true;
+  }
+  // Oyun içi ses adını kayda çevir
+  sampleFor(name, arg) {
+    const mk = { dig: 'break', hit: 'hit', place: 'place', step: 'step', land: 'step' }[name];
+    if (mk) {
+      const T = MAT_SOUNDS[mk];
+      const r = T[arg] || (mk === 'place' ? ['place', 0.7, 1] : T.stone);
+      return r && name === 'land' ? [r[0], r[1] * 2.2, 0.85] : r;
+    }
+    if (name === 'mobhurt' && arg) return SOUND_FILES['hurt_' + arg] ? ['hurt_' + arg, 0.8, 1] : null;
+    if (name === 'mobdeath' && arg) return SOUND_FILES['death_' + arg] ? ['death_' + arg, 0.8, 1] : SOUND_FILES['hurt_' + arg] ? ['hurt_' + arg, 0.8, 0.8] : null;
+    if (name === 'orb') return ['orb', 0.35, (arg || 1) * (0.75 + Math.random() * 0.5)];
+    return SFX[name] || null;
   }
 
   init() {
@@ -37,6 +102,7 @@ class GameAudio {
     this.reverb = ctx.createConvolver(); this.reverb.buffer = ir;
     const wet = ctx.createGain(); wet.gain.value = 0.55;
     this.reverb.connect(wet); wet.connect(this.music);
+    this.loadSamples();
     this.scheduleMusic(6000);
   }
 
@@ -118,7 +184,16 @@ class GameAudio {
     const ctx = this.ctx;
     const d = this.out(pos, 1);
     if (!d) return;
+    const sm = this.sampleFor(name, arg);
+    if (sm && this.sample(sm[0], d, sm[1], sm[2])) return;
     switch (name) {
+      case 'mobdeath': this.play('mobhurt', pos, arg); break;
+      case 'chest': case 'chest_close': case 'door_open': case 'door_close': this.play('door', pos); break;
+      case 'fizz': case 'creeperfuse': case 'flint': this.play('fuse', pos); break;
+      case 'toolbreak': this.material('glass', d, 1, 1.3); break;
+      case 'teleport': this.play('pop', pos); break;
+      case 'enderman': this.play('zombie', pos); break;
+      case 'zpiglin': this.play('pig', pos); break;
       case 'dig': this.material(arg, d, 1, 1.3); break;
       case 'place': this.material(arg, d, 0.85, 1); break;
       case 'hit': this.material(arg, d, 0.35, 0.6); break;
