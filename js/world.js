@@ -304,10 +304,25 @@ class World {
       for (let k = 1; k <= n && !b[bidx(x, h + k, z)]; k++) b[bidx(x, h + k, z)] = B.SUGAR_CANE;
     }
 
-    // Yıkık Nether geçidi (obsidyen kaynağı)
-    if (hash2(cx, cz, seed + 500) < 0.025) {
-      const h = H[8 * 16 + 5];
+    // Düzeltmeler: altı boş kum kumtaşı olur (Minecraft gibi, mağara tavanından kum yağmasın);
+    // desteksiz kalan çiçek/ot kaldırılır
+    for (let z = 0; z < CS; z++) for (let x = 0; x < CS; x++) for (let y = 1; y <= maxY + 1 && y < CH; y++) {
+      const i = bidx(x, y, z), id = b[i];
+      if (!id) continue;
+      const below = b[bidx(x, y - 1, z)];
+      if (id === B.SAND && below === 0 && b[bidx(x, y + 1, z)] !== B.CACTUS) b[i] = B.SANDSTONE;
+      else if ((id === B.POPPY || id === B.DANDELION || id === B.BLUE_FLOWER || id === B.TALL_GRASS || id === B.DEAD_BUSH) && below !== B.GRASS && below !== B.SAND && below !== B.DIRT) b[i] = 0;
+    }
+    // Yıkık Nether geçidi (obsidyen kaynağı): 24x24 parçalık bölge başına en çok bir tane (~384 blok),
+    // köyde ve dik yamaçta oluşmaz, altı temelle doldurulur
+    const RG = 24, rx = Math.floor(cx / RG), rz = Math.floor(cz / RG);
+    const pcx = rx * RG + Math.floor(hash2(rx, rz, seed + 504) * RG), pcz = rz * RG + Math.floor(hash2(rz, rx, seed + 505) * RG);
+    const cols = [4, 5, 6, 7].map((x) => H[8 * 16 + x]);
+    if (cx === pcx && cz === pcz && hash2(rx, rz, seed + 500) < 0.6 && Math.max(...cols) - Math.min(...cols) <= 3 &&
+      !vills.some((v) => bx + 16 > v.x0 - 8 && bx < v.x1 + 8 && bz + 16 > v.z0 - 8 && bz < v.z1 + 8)) {
+      const h = Math.max(...cols);
       if (h > SEA && h < CH - 10) {
+        for (let x = 4; x <= 7; x++) for (let y = H[8 * 16 + x] + 1; y <= h; y++) b[bidx(x, y, 8)] = B.NETHERRACK;
         for (let y = h + 1; y <= h + 5; y++) for (let x = 4; x <= 7; x++) {
           const frame = x === 4 || x === 7 || y === h + 1 || y === h + 5;
           const i = bidx(x, y, 8);
@@ -319,6 +334,7 @@ class World {
           const x = 2 + Math.floor(hash2(k, cx, seed + 502) * 8), z = 5 + Math.floor(hash2(k, cz, seed + 503) * 7);
           const hh = H[z * 16 + x];
           b[bidx(x, hh, z)] = k % 3 ? B.NETHERRACK : B.MAGMA;
+          if (RENDER[b[bidx(x, hh + 1, z)]] === R_CROSS) b[bidx(x, hh + 1, z)] = 0;
         }
         maxY = Math.max(maxY, h + 5);
       }
