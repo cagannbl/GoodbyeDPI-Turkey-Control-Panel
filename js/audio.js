@@ -41,16 +41,30 @@ class GameAudio {
     this.base = 'sounds/';
   }
 
-  // Kayıtları arka planda yükle (yüklenmeyen ses sentezle çalar)
+  // Kayıtları arka planda çöz: önce sayfaya gömülü veri (js/sounds-data.js), yoksa sounds/ klasöründen indir.
+  // Çözülemeyen ses sentezle çalar.
   loadSamples() {
     const ctx = this.ctx;
-    if (location.protocol === 'file:') return; // dosyadan açılınca tarayıcı yüklemeye izin vermez: sentez
-    for (const k in SOUND_FILES) for (let i = 1; i <= SOUND_FILES[k]; i++) {
-      fetch(this.base + k + i + '.ogg')
-        .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
-        .then((b) => new Promise((res, rej) => ctx.decodeAudioData(b, res, rej)))
-        .then((buf) => { (this.buf[k] || (this.buf[k] = [])).push(buf); })
-        .catch(() => { /* sentez yedeği kullanılır */ });
+    const decode = (k, ab) => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej))
+      .then((buf) => { (this.buf[k] || (this.buf[k] = [])).push(buf); })
+      .catch(() => { /* sentez yedeği kullanılır */ });
+    const embedded = typeof SOUND_DATA !== 'undefined' ? SOUND_DATA : null;
+    for (const k in SOUND_FILES) {
+      if (embedded && embedded[k]) {
+        for (const b64 of embedded[k]) {
+          const bin = atob(b64), u = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+          decode(k, u.buffer);
+        }
+        continue;
+      }
+      if (location.protocol === 'file:') continue; // dosyadan açılınca tarayıcı indirmeye izin vermez
+      for (let i = 1; i <= SOUND_FILES[k]; i++) {
+        fetch(this.base + k + i + '.ogg')
+          .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+          .then((ab) => decode(k, ab))
+          .catch(() => { /* sentez yedeği kullanılır */ });
+      }
     }
   }
   // Kayıt çal: rastgele varyasyon, ±%8 perde. Kayıt yoksa false
@@ -182,6 +196,7 @@ class GameAudio {
   play(name, pos, arg) {
     if (!this.ctx) return;
     const ctx = this.ctx;
+    if (ctx.state === 'suspended') ctx.resume();
     const d = this.out(pos, 1);
     if (!d) return;
     const sm = this.sampleFor(name, arg);

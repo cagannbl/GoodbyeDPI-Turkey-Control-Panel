@@ -558,6 +558,8 @@ class Game {
 
   bindInput() {
     const cv = this.canvas;
+    // Chrome sesi ancak kullanıcı etkileşiminden sonra açar: ilk dokunuş/tıklama/tuşta ses motorunu başlat
+    for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, () => this.audio.init(), { capture: true, passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === cv;
       if (this.locked) $('clickToPlay').classList.add('hidden');

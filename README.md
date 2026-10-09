@@ -45,8 +45,8 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - **Gerçek ses efektleri**: Minetest Game, VoxeLibre ve Kenney'den açık lisanslı kayıtlar (adım, kazma, kırma, koyma,
   hayvanlar, canavarlar, kapı, sandık, TNT, yay, büyü); her çalışta rastgele varyasyon ve perde. Kaydı olmayan sesler
   sentezlenir; müzik üretken piyano. Emeği geçenler ve lisanslar: [`sounds/CREDITS.md`](sounds/CREDITS.md).
-  Not: sesler `fetch` ile yüklendiği için oyunu bir web sunucusundan aç (`python3 -m http.server`); dosyaya çift
-  tıklayarak açılırsa sentez sesler çalar.
+  Sesler `js/sounds-data.js` içine gömülüdür; oyun dosyaya çift tıklanarak açıldığında da çalar. Ses ekleyip
+  çıkardıktan sonra `python3 tools/build_sounds_data.py` ile yeniden üret.
 - Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
 - **Köyler**: ova (meşe), karlı (ladin) ve çöl (kumtaşı) köyleri; yollar, kuyu, eğimli çatılı evler, demirci (ganimet
   sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
@@ -101,5 +101,6 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/entities.js` | Canlılar, yapay zekâ, parçacıklar |
 | `js/audio.js` | Ses kayıtlarını yükleme/çalma, sentez yedekleri ve müzik |
 | `sounds/` | Ses kayıtları (OGG) ve `CREDITS.md` |
+| `js/sounds-data.js` | Sayfaya gömülü ses verisi (otomatik üretilir) |
 | `js/ui.js` | Menüler, HUD, envanter, dokunmatik kontroller |
 | `js/main.js` | Oyun döngüsü, etkileşim, kayıt |
