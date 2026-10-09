@@ -402,6 +402,13 @@ class Mob {
           this.moving = Math.random() < 0.55;
           this.targetYaw = Math.random() * Math.PI * 2;
           this.aiTimer = 2 + Math.random() * 4;
+          // Köylüler köyden uzaklaşmaz; gece evlerine döner
+          if (this.home) {
+            const hx = this.home[0] - p[0], hz = this.home[2] - p[2], hd = Math.hypot(hx, hz);
+            const night = game.sunLevel < 0.35;
+            if (hd > (night ? 1.5 : 26)) { this.targetYaw = Math.atan2(-hx, -hz) + (Math.random() - 0.5) * 0.6; this.moving = true; }
+            else if (night) this.moving = false;
+          }
         }
         if (this.moving) speed = this.T.speed;
       }
@@ -717,7 +724,7 @@ class EntityManager {
   trySpawn() {
     const g = this.game, w = g.world, pl = g.player;
     let passive = 0, hostile = 0;
-    for (const m of this.mobs) if (!m.T.boss) (m.T.hostile || m.T.neutral) ? hostile++ : passive++;
+    for (const m of this.mobs) if (!m.T.boss && !m.T.villager) (m.T.hostile || m.T.neutral) ? hostile++ : passive++;
     const ang = Math.random() * Math.PI * 2;
     if (w.dim !== 'overworld') {
       if (hostile >= (w.dim === 'end' ? 12 : 10)) return;
@@ -734,6 +741,16 @@ class EntityManager {
         }
       }
       return;
+    }
+    // Köylüler: köyün yanındayken eksik olan sakinleri evlerinde doğur
+    for (const v of w.villagesNear(pl.pos[0], pl.pos[2], 80)) {
+      v.residents.forEach((r, i) => {
+        if (this.mobs.some((m) => m.village === v && m.resIdx === i)) return;
+        if (!w.isLoadedAt(r.pos[0], r.pos[2])) return;
+        const m = new Mob('vil_' + r.prof, r.pos[0], r.pos[1], r.pos[2]);
+        m.village = v; m.resIdx = i; m.home = r.pos;
+        this.mobs.push(m);
+      });
     }
     if (passive < 10 && Math.random() < 0.5) {
       const r = 24 + Math.random() * 40;

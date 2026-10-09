@@ -239,9 +239,11 @@ class World {
       b[i] = id;
       if (y > maxY) maxY = y;
     };
+    const vills = this.villagesNear(bx + 8, bz + 8, 24);
     for (let wz = bz - 3; wz < bz + 19; wz++) for (let wx = bx - 3; wx < bx + 19; wx++) {
       const r = hash2(wx, wz, seed + 1);
       if (r > 0.04) continue;
+      if (vills.some((v) => wx >= v.x0 - 3 && wx <= v.x1 + 3 && wz >= v.z0 - 3 && wz <= v.z1 + 3)) continue; // köyde ağaç yok
       const lx = wx - bx, lz = wz - bz;
       const inside = lx >= 0 && lz >= 0 && lx < 16 && lz < 16;
       let h, biome;
@@ -309,7 +311,7 @@ class World {
         maxY = Math.max(maxY, h + 5);
       }
     }
-    return maxY;
+    return this.applyVillages(c, maxY);
   }
 
   netherBiome(wx, wz) {

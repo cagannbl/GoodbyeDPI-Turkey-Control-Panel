@@ -44,6 +44,10 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 - Ateşlenebilir TNT ve zincirleme patlamalar, düşen kum/çakıl
 - Sentezlenmiş ses efektleri ve üretken ambiyans müziği
 - Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
+- **Köyler**: ova (meşe), karlı (ladin) ve çöl (kumtaşı) köyleri; yollar, kuyu, eğimli çatılı evler, demirci (ganimet
+  sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
+- **Köylüler ve ticaret**: 8 meslek (çiftçi, çoban, okçu, kasap, rahip, kütüphaneci, zırhçı, alet ustası), zümrütle
+  ticaret, günlük yenilenen stok; köylüler gündüz köyde dolaşır, gece evlerine döner
 - **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
   yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
   yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
@@ -77,6 +81,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/shapes.js` | Yarım blok, basamak, kapı, çit vb. kutu modelleri (çizim + çarpışma) |
 | `js/fluids.js` | Su ve lav akış simülasyonu |
 | `js/dragon.js` | Ender Ejderhası ve End kristalleri |
+| `js/villages.js` | Köy üretimi, köylüler, ticaret, sandık ganimeti |
 | `js/world.js` | Parçalar, arazi/biyom/mağara/ağaç üretimi |
 | `js/mesher.js` | Işık yayılımı ve mesh üretimi |
 | `js/renderer.js` | WebGL2 çizici ve shader'lar |

@@ -202,6 +202,17 @@ body.nohud #hud > *:not(#hurtFlash):not(#liquidOverlay) { display: none; }
 .bookBtn { width: 40px; height: 36px; padding: 0; background: #8b8b8b; border: 2px solid; border-color: #fff #373737 #373737 #fff; cursor: pointer; align-self: center; }
 .ptop .bookBtn { position: absolute; right: 0; bottom: 0; }
 .bookBtn img { width: 28px; height: 28px; image-rendering: pixelated; }
+.trades { display: flex; flex-direction: column; gap: 3px; max-height: calc(var(--sl) * 5.2); overflow-y: auto; margin-bottom: 6px; touch-action: pan-y; }
+.trade { display: flex; align-items: center; gap: 4px; padding: 3px 6px; background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff; cursor: pointer; }
+.trade:hover { background: #c9d9c9; }
+.trade.no { opacity: 0.6; }
+.trade.out { background: #a07070; }
+.tslot { position: relative; width: calc(var(--sl) - 6px); height: calc(var(--sl) - 6px); flex: none; }
+.tslot img { width: 100%; height: 100%; image-rendering: pixelated; }
+.tslot .cnt { position: absolute; right: -2px; bottom: -4px; font-size: 18px; color: #fff; text-shadow: 2px 2px 0 #333; }
+.tplus, .tarr { color: #404040; font-size: 20px; width: 14px; text-align: center; }
+.tarr { width: 26px; font-size: 22px; }
+.tleft { margin-left: auto; color: #404040; font-size: 18px; min-width: 22px; text-align: right; }
 .ctabs { display: flex; gap: 3px; margin-bottom: 6px; flex-wrap: wrap; }
 .ctab { width: 46px; height: 42px; background: #a8a8a8; border: 2px solid; border-color: #fff #555 #555 #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .ctab.on { background: #c6c6c6; border-color: #fff #555 #c6c6c6 #fff; transform: translateY(2px); }

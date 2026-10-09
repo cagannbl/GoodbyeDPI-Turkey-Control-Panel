@@ -24,7 +24,7 @@ const B = {
   SPRUCE_SAPLING: 113, BED_FOOT: 114, BED_HEAD: 115,
   WATER_1: 116, WATER_FALL: 123, LAVA_1: 124, LAVA_FALL: 131,
   SLAB: 132, SLAB_TOP: 137, STAIRS: 142, DOOR: 158, TRAPDOOR: 174, TRAPDOOR_OPEN: 175,
-  FENCE: 179, GATE: 180, GLASS_PANE: 184, LADDER: 185,
+  FENCE: 179, GATE: 180, GLASS_PANE: 184, LADDER: 185, DIRT_PATH: 189, HAY: 190,
 };
 // Sıvılar: kaynak (seviye 0), akan 1-7, düşen (8)
 const isWater = (id) => id === B.WATER || (id >= B.WATER_1 && id <= B.WATER_FALL);
@@ -812,6 +812,28 @@ function buildTexturesFarm() {
     for (let y = 0; y < 16; y++) for (const x of [2, 3, 12, 13]) { const f = 0.85 + r() * 0.2; px(d, x, y, W[0] * f * 0.9, W[1] * f * 0.9, W[2] * f * 0.9); }
     for (const yy of [1, 5, 9, 13]) for (let x = 4; x < 12; x++) for (let k = 0; k < 2; k++) { const f = 0.9 + r() * 0.2; px(d, x, yy + k, W[0] * f, W[1] * f, W[2] * f); }
   });
+  // Köy yolu ve saman balyası
+  makeTex('path_top', (d, r) => paletteFill(d, r, [[132, 104, 60], [146, 116, 66], [155, 125, 72], [155, 125, 72], [166, 134, 80], [176, 146, 92]]));
+  makeTex('path_side', (d, r) => {
+    copyTex(d, 'dirt');
+    for (let x = 0; x < 16; x++) for (let y = 0; y < 2 + (r() < 0.5 ? 1 : 0); y++) { const f = 0.9 + r() * 0.2; px(d, x, y, 150 * f, 120 * f, 70 * f); }
+  });
+  const HAYC = [190, 160, 40];
+  makeTex('hay_side', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      let f = (0.85 + r() * 0.3) * ((x + (y >> 2)) % 3 === 0 ? 0.85 : 1);
+      if (y === 3 || y === 12) { px(d, x, y, 120, 70, 30); continue; }
+      px(d, x, y, HAYC[0] * f, HAYC[1] * f, HAYC[2] * f);
+    }
+  });
+  makeTex('hay_top', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const rr = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+      const f = (0.8 + r() * 0.35) * (Math.floor(rr) % 3 === 0 ? 0.88 : 1);
+      if (x === 3 || x === 12) { px(d, x, y, 120, 70, 30); continue; }
+      px(d, x, y, HAYC[0] * f, HAYC[1] * f, HAYC[2] * f);
+    }
+  });
   makeTex('bed_side_head', (d, r) => bedSide(d, r, true));
   makeTex('bed_side_foot', (d, r) => bedSide(d, r, false));
   makeTex('bed_top_head', (d, r) => {
@@ -988,6 +1010,9 @@ function defineBlocks() {
   for (let k = 0; k < 4; k++) def(B.GATE + k, 'Meşe Çit Kapısı', 'planks', shapeO(AX({ hardness: 2 }), { shape: 7, sf: k, flat: true, drop: B.GATE, creative: k === 0 }));
   def(B.GLASS_PANE, 'Cam Panel', 'glass', shapeO({ hardness: 0.3, sound: 'glass' }, { shape: 8, flat: true, drop: 0 }));
   for (let f = 0; f < 4; f++) def(B.LADDER + f, 'Merdiven', 'ladder', shapeO(AX({ hardness: 0.4 }), { shape: 9, sf: f, flat: true, solid: false, drop: B.LADDER, creative: f === 0 }));
+
+  def(B.DIRT_PATH, 'Toprak Yol', { top: 'path_top', bottom: 'dirt', side: 'path_side' }, SH({ hardness: 0.65, drop: B.DIRT, sound: 'gravel', opaque: false, height: 15 }));
+  def(B.HAY, 'Saman Balyası', { top: 'hay_top', bottom: 'hay_top', side: 'hay_side' }, { hardness: 0.5, sound: 'grass' });
 
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 

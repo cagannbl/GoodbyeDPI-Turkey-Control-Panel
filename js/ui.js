@@ -529,6 +529,8 @@ class UI {
       const tab = e.target.closest('[data-tab]');
       if (tab) { this.tab = +tab.dataset.tab; g.audio.play('click'); this.render(); return; }
       if (e.target.closest('#bookBtn')) { this.bookOpen = !this.bookOpen; g.audio.play('click'); this.render(); return; }
+      const tr = e.target.closest('.trade');
+      if (tr) { g.doTrade(+tr.dataset.t); return; }
       const rec = e.target.closest('.rbook');
       if (rec) { this.fillRecipe(+rec.dataset.r); return; }
       const slot = e.target.closest('.slot');
@@ -593,6 +595,14 @@ class UI {
     $('bookOk').addEventListener('change', () => this.render());
     $('invSearch').addEventListener('keydown', (e) => e.stopPropagation());
     inv.addEventListener('pointerover', (e) => {
+      const tr = e.target.closest('.trade');
+      if (tr && this.g.screen && this.g.screen.kind === 'trade') {
+        const T = this.g.screen.tile.trades[+tr.dataset.t], tt = $('tooltip');
+        const nm = (st) => `${st[1]}× ${itemName(st[0])}`;
+        tt.innerHTML = `<b>${nm(T.out)}</b><br><span class="tt2">Bedel: ${nm(T.cost)}${T.cost2 ? ' + ' + nm(T.cost2) : ''}</span>`;
+        tt.style.display = 'block';
+        return;
+      }
       const s = e.target.closest('.slot, .rbook');
       const tt = $('tooltip');
       if (!s) { tt.style.display = 'none'; return; }
@@ -769,6 +779,14 @@ class UI {
         const fl = t.burnMax ? Math.round(t.burn / t.burnMax * 100) : 0, pr = Math.round((t.prog / SMELT_TIME) * 100);
         top = `<div class="invTitle">Fırın</div><div class="crow furn"><div class="fcol">${this.slot('tile', 0, t.items[0])}<div class="flame"><i style="height:${fl}%"></i></div>${this.slot('tile', 1, t.items[1])}</div>
           <div class="arrow prog"><i style="width:${Math.min(22, pr * 0.22)}px"></i></div>${this.slot('tile', 2, t.items[2], 'big')}</div>`;
+      } else if (kind === 'trade') {
+        const m = S.tile, rec = g.tradeRecord(m);
+        const box = (st) => `<span class="tslot">${this.slotInner({ id: st[0], count: st[1] })}</span>`;
+        const rows = m.trades.map((T, i) => {
+          const left = T.max - (rec.uses[i] || 0), ok = left > 0 && g.canAfford(T);
+          return `<div class="trade ${ok ? '' : 'no'} ${left <= 0 ? 'out' : ''}" data-t="${i}">${box(T.cost)}${T.cost2 ? '<span class="tplus">+</span>' + box(T.cost2) : '<span class="tplus"></span><span class="tslot ghost"></span>'}<span class="tarr">➜</span>${box(T.out)}<span class="tleft">${left > 0 ? left : '✕'}</span></div>`;
+        }).join('');
+        top = `<div class="invTitle">${m.T.name} · Zümrüt: ${g.player.creative ? '∞' : g.countItem(I.EMERALD)}</div><div class="trades">${rows}</div>`;
       } else if (kind === 'chest') {
         top = `<div class="invTitle">Sandık</div><div class="grid">${S.tile.items.map((s, i) => this.slot('tile', i, s)).join('')}</div>`;
       }

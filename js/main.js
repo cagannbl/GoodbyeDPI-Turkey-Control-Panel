@@ -114,7 +114,7 @@ class Game {
     if (!this.world || !this.meta) return;
     const p = this.player;
     const data = {
-      v: 2, dim: this.dim, dims: this.dims, time: this.dayTime, selected: this.selected,
+      v: 2, dim: this.dim, dims: this.dims, time: this.dayTime, day: this.dayCount || 0, selected: this.selected,
       inv: this.inv.map((s) => (s ? [s.id, s.count, s.dmg || 0] : 0)),
       armor: this.armor.map((s) => (s ? [s.id, 1, s.dmg || 0] : 0)),
       player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, health: p.health, flying: p.flying, spawn: p.spawn, bed: p.bed, food: p.food, sat: p.sat, exh: p.exh },
@@ -218,12 +218,13 @@ class Game {
       (data.armor || []).forEach((s, i) => { if (s && itemDef(s[0])) this.armor[i] = st(s); });
       this.selected = data.selected || 0;
       this.dayTime = data.time || 0.03;
+      this.dayCount = data.day || 0;
     } else {
       p.spawn = this.world.findSpawn();
       p.pos = p.spawn.slice(); p.yaw = Math.random() * Math.PI * 2; p.pitch = 0;
       this.fresh = true;
       this.selected = 0;
-      this.dayTime = 0.03;
+      this.dayTime = 0.03; this.dayCount = 0;
       if (p.creative) [B.GRASS, B.DIRT, B.STONE, B.COBBLE, B.PLANKS, B.LOG, B.GLASS, B.TORCH, B.BRICKS].forEach((id, i) => { this.inv[i] = { id, count: 64 }; });
     }
     const diff = meta.diff === undefined ? 1 : meta.diff;
@@ -322,6 +323,39 @@ class Game {
     if (this.state !== 'paused') return;
     this.startPlaying();
     this.requestLock();
+  }
+
+  // ------------------------------------------------------------ Ticaret
+  tradeRecord(m) {
+    const ow = this.dims.overworld, key = m.village.key + ':' + m.resIdx;
+    if (!ow.vtrades) ow.vtrades = {};
+    let r = ow.vtrades[key];
+    // Her yeni günde stok yenilenir
+    if (!r || r.day !== (this.dayCount || 0)) r = ow.vtrades[key] = { day: this.dayCount || 0, uses: (r && r.day === (this.dayCount || 0)) ? r.uses : [] };
+    return r;
+  }
+  openTrade(m) {
+    m.vel[0] = m.vel[2] = 0;
+    m.yaw = Math.atan2(-(this.player.pos[0] - m.pos[0]), -(this.player.pos[2] - m.pos[2]));
+    this.audio.play('villager', m.pos);
+    if (!m.trades) m.trades = villagerTrades(m.T.villager);
+    this.openInventory('trade', m);
+  }
+  canAfford(T) {
+    if (this.player.creative) return true;
+    return this.countItem(T.cost[0]) >= T.cost[1] && (!T.cost2 || this.countItem(T.cost2[0]) >= T.cost2[1]);
+  }
+  doTrade(i) {
+    const m = this.screen && this.screen.tile;
+    if (!m || !m.trades) return;
+    const T = m.trades[i], rec = this.tradeRecord(m);
+    if ((rec.uses[i] || 0) >= T.max) { this.ui.toast('Bu takasın stoğu bitti, yarın yenilenir', 1.8); this.audio.play('villager', m.pos); return; }
+    if (!this.canAfford(T)) { this.ui.toast('Yeterli malzemen yok', 1.5); this.audio.play('villager', m.pos); return; }
+    if (!this.player.creative) { this.removeItem(T.cost[0], T.cost[1]); if (T.cost2) this.removeItem(T.cost2[0], T.cost2[1]); }
+    this.addStack({ id: T.out[0], count: T.out[1] });
+    rec.uses[i] = (rec.uses[i] || 0) + 1;
+    this.audio.play('trade');
+    this.ui.render(); this.ui.hotbarDirty = true;
   }
 
   // Geri tuşu: işlendiyse true (ana menüde false: sayfadan çıkılabilir)
@@ -535,7 +569,15 @@ class Game {
   }
   getTile(x, y, z, type) {
     const tiles = this.dims[this.dim].tiles, k = x + ',' + y + ',' + z;
-    if (!tiles[k]) tiles[k] = { type, items: new Array(type === 'chest' ? 27 : 3).fill(null), burn: 0, burnMax: 0, prog: 0 };
+    if (!tiles[k]) {
+      tiles[k] = { type, items: new Array(type === 'chest' ? 27 : 3).fill(null), burn: 0, burnMax: 0, prog: 0 };
+      // Köy sandığı ilk açılışta ganimetle dolar
+      const vc = type === 'chest' && this.world.villageChestAt(x, y, z);
+      if (vc) {
+        const rng = mulberry32(hashStr(k) ^ this.world.seed), items = tiles[k].items;
+        for (const st of villageLoot(vc.loot, rng)) { let i; do i = Math.floor(rng() * 27); while (items[i]); items[i] = st; }
+      }
+    }
     return tiles[k];
   }
   tickFurnaces(dt) {
@@ -778,6 +820,13 @@ class Game {
     const w = this.world, id = s ? s.id : 0, t = toolOf(s);
     const above = w.getBlock(hit.x, hit.y + 1, hit.z);
     const at = [hit.x + 0.5, hit.y + 1, hit.z + 0.5];
+    // Kürek: çimeni köy yoluna çevir
+    if (t && t.kind === 'shovel' && (hit.id === B.GRASS || hit.id === B.DIRT || hit.id === B.SNOWY_GRASS) && hit.ny !== -1 && !above) {
+      w.setBlock(hit.x, hit.y, hit.z, B.DIRT_PATH);
+      this.audio.play('place', at, 'gravel');
+      this.damageTool();
+      return true;
+    }
     if (t && t.kind === 'hoe') {
       if ((hit.id === B.GRASS || hit.id === B.DIRT || hit.id === B.SNOWY_GRASS) && hit.ny !== -1 && !above) {
         w.setBlock(hit.x, hit.y, hit.z, B.FARMLAND);
@@ -931,6 +980,7 @@ class Game {
     $('sleepOverlay').style.opacity = Math.min(1, s.t / 2);
     if (s.t >= 2.6) {
       this.dayTime = 0.002;
+      this.dayCount = (this.dayCount || 0) + 1;
       this.wake();
       this.ui.toast('Günaydın!', 2);
       this.saveWorld();
@@ -1273,7 +1323,14 @@ class Game {
     this.touch.place = this.touch.hold > 0 && holdUse;
     if (this.touchTap) {
       this.touchTap = false;
-      if (this.targetMob) { this.leftPressed = true; this.touch.break = true; } else this.tapPlace = true;
+      if (this.targetMob && this.targetMob.T.villager) this.rightPressed = true;
+      else if (this.targetMob) { this.leftPressed = true; this.touch.break = true; } else this.tapPlace = true;
+    }
+    // Köylüyle ticaret
+    if (this.targetMob && this.targetMob.T.villager && !this.targetMob.dead && (this.rightPressed || this.tapPlace)) {
+      this.rightPressed = this.tapPlace = false;
+      this.openTrade(this.targetMob);
+      return;
     }
     const breakDown = this.mouse.left || this.touch.break;
     const placeDown = this.mouse.right || this.touch.place;
@@ -1561,7 +1618,8 @@ class Game {
       if (w.isLoadedAt(p.pos[0], p.pos[2])) p.update(dt, inp, w);
       this.interact(dt);
       if (this.checkPortals(dt)) return;
-      this.dayTime = (this.dayTime + dt / DAY_LENGTH) % 1;
+      this.dayTime += dt / DAY_LENGTH;
+      if (this.dayTime >= 1) { this.dayTime -= 1; this.dayCount = (this.dayCount || 0) + 1; }
       this.entities.update(dt);
       this.tickPlants(dt);
       this.fluids.tick(dt);
