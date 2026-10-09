@@ -10,7 +10,7 @@ const BIOME_NAMES = ['Ova', 'Orman', 'Çöl', 'Karlı Tundra', 'Dağlar', 'Sahil
 const bidx = (x, y, z) => (y * CS + z) * CS + x;
 const ckey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
 
-const growable = (id) => isWheat(id) || isSapling(id) || id === B.FARMLAND || id === B.FARMLAND_WET;
+const growable = (id) => isWheat(id) || isSapling(id) || id === B.FARMLAND || id === B.FARMLAND_WET || id === B.SUGAR_CANE;
 
 class Chunk {
   constructor(cx, cz) {
@@ -290,6 +290,18 @@ class World {
       } else if (s === B.SAND && biome === BIOME.DESERT && r < 0.006) {
         b[above] = B.DEAD_BUSH;
       }
+    }
+    // Şeker kamışı: suyun hemen yanındaki kum/çimen/toprak üstünde 1-3 blok
+    for (let z = 1; z < CS - 1; z++) for (let x = 1; x < CS - 1; x++) {
+      const h = H[z * 16 + x];
+      if (h < SEA || h > SEA + 2 || h >= CH - 4) continue;
+      const s = b[bidx(x, h, z)];
+      if ((s !== B.GRASS && s !== B.SAND && s !== B.DIRT) || b[bidx(x, h + 1, z)] !== 0) continue;
+      if (!DIR4.some(([dx, dz]) => isWater(b[bidx(x + dx, h, z + dz)]))) continue;
+      const r = hash2(bx + x, bz + z, seed + 91);
+      if (r > 0.16) continue;
+      const n = 1 + Math.floor(hash2(bx + x, bz + z, seed + 92) * 3);
+      for (let k = 1; k <= n && !b[bidx(x, h + k, z)]; k++) b[bidx(x, h + k, z)] = B.SUGAR_CANE;
     }
 
     // Yıkık Nether geçidi (obsidyen kaynağı)

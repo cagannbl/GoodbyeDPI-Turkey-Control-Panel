@@ -115,9 +115,9 @@ class Game {
     const p = this.player;
     const data = {
       v: 2, dim: this.dim, dims: this.dims, time: this.dayTime, day: this.dayCount || 0, selected: this.selected,
-      inv: this.inv.map((s) => (s ? [s.id, s.count, s.dmg || 0] : 0)),
-      armor: this.armor.map((s) => (s ? [s.id, 1, s.dmg || 0] : 0)),
-      player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, health: p.health, flying: p.flying, spawn: p.spawn, bed: p.bed, food: p.food, sat: p.sat, exh: p.exh },
+      inv: this.inv.map(stackToSave),
+      armor: this.armor.map(stackToSave),
+      player: { pos: p.pos, yaw: p.yaw, pitch: p.pitch, health: p.health, flying: p.flying, spawn: p.spawn, bed: p.bed, food: p.food, sat: p.sat, exh: p.exh, xl: p.xpLevel, xp: p.xpProg, es: p.enchSeed },
     };
     this.saveJSON(LS_WORLD + this.meta.id, data);
     const list = this.listWorlds();
@@ -133,7 +133,7 @@ class Game {
     this.world.chunks.clear();
     this.world = null;
     this.genQueue = []; this.genCenter = null;
-    this.entities.clear(); this.particles.clear(); this.primed = [];
+    this.entities.clear(); this.particles.clear(); this.primed = []; this.enchTables = null;
   }
 
   openMenuWorld() {
@@ -171,6 +171,8 @@ class Game {
     for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) if (Math.hypot(dx, dz) <= 2.6 && (dx || dz)) w.setBlock(dx, 61, dz, B.END_PORTAL);
     w.setBlock(0, 65, 0, B.DRAGON_EGG);
     this.audio.play('explode');
+    const dr = this.entities.dragon, at = dr ? dr.pos : [0, 70, 0];
+    this.entities.spawnXp(at[0], at[1], at[2], 12000, 6);
     this.ui.toast('Ender Ejderhası yenildi! Çıkış geçidi açıldı.', 4);
     this.saveWorld();
   }
@@ -203,6 +205,7 @@ class Game {
     p.creative = meta.mode === 'creative';
     p.dead = false; p.health = 20; p.air = 10; p.vel = [0, 0, 0]; p.flying = false; p.hurtTime = 0; p.fallStart = null;
     p.food = 20; p.sat = 5; p.exh = 0; p.regen = 0; p.hungerEff = 0; p.bed = null;
+    p.xpLevel = 0; p.xpProg = 0; p.enchSeed = Math.floor(Math.random() * 2147483647);
     this.inv = new Array(36).fill(null);
     this.armor = [null, null, null, null];
     this.sleeping = null; this.bowT = 0;
@@ -213,9 +216,9 @@ class Game {
       p.bed = data.player.bed || null;
       if (data.player.food !== undefined) { p.food = data.player.food; p.sat = data.player.sat; p.exh = data.player.exh || 0; }
       this.fresh = false;
-      const st = (s) => (s[2] ? { id: s[0], count: s[1], dmg: s[2] } : { id: s[0], count: s[1] });
-      (data.inv || []).forEach((s, i) => { if (s && itemDef(s[0])) this.inv[i] = st(s); });
-      (data.armor || []).forEach((s, i) => { if (s && itemDef(s[0])) this.armor[i] = st(s); });
+      if (data.player.xl !== undefined) { p.xpLevel = data.player.xl; p.xpProg = data.player.xp || 0; p.enchSeed = data.player.es || p.enchSeed; }
+      (data.inv || []).forEach((s, i) => { if (s && itemDef(s[0])) this.inv[i] = stackFromSave(s); });
+      (data.armor || []).forEach((s, i) => { if (s && itemDef(s[0])) this.armor[i] = stackFromSave(s); });
       this.selected = data.selected || 0;
       this.dayTime = data.time || 0.03;
       this.dayCount = data.day || 0;
@@ -325,6 +328,145 @@ class Game {
     this.requestLock();
   }
 
+  // ------------------------------------------------------------ Tecrübe
+  // Küre toplandı: önce Onarım büyülü hasarlı eşyalar onarılır (1 XP = 2 dayanıklılık)
+  collectXp(v) {
+    const p = this.player;
+    const mend = [this.inv[this.selected], ...this.armor].filter((s) => s && s.dmg > 0 && enchLvl(s, 'mending'));
+    if (mend.length) {
+      const s = mend[Math.floor(Math.random() * mend.length)], fix = Math.min(s.dmg, v * 2);
+      s.dmg -= fix; v -= Math.ceil(fix / 2);
+      this.ui.hotbarDirty = true;
+    }
+    this.audio.play('orb');
+    if (v > 0) this.addXp(v);
+    p.xpFlash = 0.15;
+  }
+  addXp(v) {
+    const p = this.player;
+    p.xpProg += v;
+    let up = false;
+    while (p.xpProg >= xpToNext(p.xpLevel)) { p.xpProg -= xpToNext(p.xpLevel); p.xpLevel++; up = true; }
+    if (up && (p.xpLevel % 5 === 0)) this.audio.play('levelup');
+    else if (up) this.audio.play('orb', null, 1.6);
+  }
+  spendLevels(n) {
+    const p = this.player;
+    if (p.creative) return;
+    p.xpLevel = Math.max(0, p.xpLevel - n);
+    p.xpProg = Math.min(p.xpProg, xpToNext(p.xpLevel) - 1);
+  }
+
+  // ------------------------------------------------------------ Büyü masası
+  // Masanın 2 blok çevresindeki kitaplıklar (aradaki blok boş olmalı, Minecraft kuralı)
+  countShelves(x, y, z, list) {
+    const w = this.world;
+    let n = 0;
+    for (let dy = 0; dy <= 1; dy++) for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
+      if (Math.abs(dx) !== 2 && Math.abs(dz) !== 2) continue;
+      if (w.getBlock(x + dx, y + dy, z + dz) !== B.BOOKSHELF) continue;
+      if (w.getBlock(x + Math.trunc(dx / 2), y + dy, z + Math.trunc(dz / 2))) continue;
+      n++;
+      if (list) list.push([x + dx, y + dy, z + dz]);
+    }
+    return n;
+  }
+  enchantState() {
+    const S = this.screen, T = S && S.tile;
+    if (!T) return null;
+    const it = T.items[0];
+    if (!it) return null;
+    const shelves = this.countShelves(T.x, T.y, T.z);
+    return { shelves, offers: enchantOffers(it, shelves, this.player.enchSeed) };
+  }
+  doEnchant(i) {
+    const S = this.screen, T = S && S.tile, p = this.player;
+    const st = this.enchantState();
+    if (!st || !st.offers) return;
+    const o = st.offers[i], lap = T.items[1];
+    if (!o.list.length) return;
+    if (!p.creative) {
+      if (p.xpLevel < o.cost || p.xpLevel < i + 1) { this.ui.toast('Yeterli tecrübe seviyen yok', 1.5); return; }
+      if (!lap || lap.count < i + 1) { this.ui.toast('Yeterli lapis lazuli yok', 1.5); return; }
+      lap.count -= i + 1; if (!lap.count) T.items[1] = null;
+      this.spendLevels(i + 1);
+    }
+    const src = T.items[0];
+    T.items[0] = applyEnchants(src, o.list);
+    if (src.count > 1) { src.count--; this.addStack(src); }
+    p.enchSeed = Math.floor(Math.random() * 2147483647);
+    this.audio.play('enchant');
+    this.particles.enchHit(T.x + 0.5, T.y + 1.2, T.z + 0.5);
+    this.ui.render(); this.ui.hotbarDirty = true;
+  }
+
+  // Yakındaki büyü masaları: süzülen kitap animasyonu ve kitaplıklardan uçan rünler
+  tickEnchTables(dt) {
+    const p = this.player, w = this.world;
+    this.enchScanT = (this.enchScanT || 0) - dt;
+    if (this.enchScanT <= 0) {
+      this.enchScanT = 1;
+      const old = this.enchTables || [], list = [];
+      const px = Math.floor(p.pos[0]), py = Math.floor(p.pos[1]), pz = Math.floor(p.pos[2]);
+      for (let y = py - 4; y <= py + 4; y++) for (let z = pz - 10; z <= pz + 10; z++) for (let x = px - 10; x <= px + 10; x++) {
+        if (w.getBlock(x, y, z) !== B.ENCH_TABLE) continue;
+        const prev = old.find((t) => t.x === x && t.y === y && t.z === z);
+        const shelves = [];
+        this.countShelves(x, y, z, shelves);
+        list.push(prev ? Object.assign(prev, { shelves }) : { x, y, z, shelves, open: 0, rot: Math.random() * 6, t: Math.random() * 10, flip: 0 });
+        if (list.length >= 8) break;
+      }
+      this.enchTables = list;
+    }
+    for (const T of this.enchTables || []) {
+      const dx = p.pos[0] - (T.x + 0.5), dz = p.pos[2] - (T.z + 0.5), d = Math.hypot(dx, dz);
+      const near = d < 3 && !p.dead;
+      T.t += dt;
+      T.open += ((near ? 1 : 0) - T.open) * Math.min(1, dt * 4);
+      // Oyuncu yakınsa ona döner, değilse yavaşça dönerek bekler
+      let target = near ? Math.atan2(dx, dz) : T.rot + dt * 0.4;
+      let da = target - T.rot;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      T.rot += da * Math.min(1, dt * 5);
+      if (near) T.flip += dt * (0.6 + Math.sin(T.t * 0.7) * 0.5);
+      if (d < 10) for (const sh of T.shelves) if (Math.random() < dt * 0.35) {
+        this.particles.glyph(sh[0] + 0.5 + (Math.random() - 0.5) * 0.6, sh[1] + 0.6 + Math.random() * 0.6, sh[2] + 0.5 + (Math.random() - 0.5) * 0.6, T.x + 0.5, T.y + 1.25, T.z + 0.5);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ Örs
+  anvilState() {
+    const S = this.screen, T = S && S.tile;
+    if (!T) return null;
+    const r = anvilResult(T.items[0], T.items[1], T.name === null ? undefined : T.name);
+    if (!r) return null;
+    r.tooExpensive = r.cost >= 40 && !this.player.creative;
+    r.afford = this.player.creative || this.player.xpLevel >= r.cost;
+    return r;
+  }
+  // Sonucu al: seviye öde, malzemeleri harca; örs %12 olasılıkla hasar görür
+  takeAnvil() {
+    const S = this.screen, T = S.tile, r = this.anvilState();
+    if (!r || r.tooExpensive || !r.afford) { if (r) this.ui.toast(r.tooExpensive ? 'Çok pahalı!' : 'Yeterli tecrübe seviyen yok', 1.5); return null; }
+    this.spendLevels(r.cost);
+    T.items[0] = null;
+    if (T.items[1]) { T.items[1].count -= r.used; if (T.items[1].count <= 0) T.items[1] = null; }
+    T.name = null;
+    const w = this.world, id = w.getBlock(T.x, T.y, T.z);
+    if (!this.player.creative && isAnvil(id) && Math.random() < 0.12) {
+      if (id >= B.ANVIL + 4) {
+        w.setBlock(T.x, T.y, T.z, 0);
+        this.audio.play('anvilbreak', [T.x + 0.5, T.y + 0.5, T.z + 0.5]);
+        this.ui.toast('Örs parçalandı!', 1.5);
+        setTimeout(() => { if (this.screen && this.screen.tile === T) this.closeInventory(); }, 50);
+      } else w.setBlock(T.x, T.y, T.z, id + 2);
+    }
+    this.audio.play('anvil', [T.x + 0.5, T.y + 0.5, T.z + 0.5]);
+    return r.out;
+  }
+
   // ------------------------------------------------------------ Ticaret
   tradeRecord(m) {
     const ow = this.dims.overworld, key = m.village.key + ':' + m.resIdx;
@@ -338,7 +480,7 @@ class Game {
     m.vel[0] = m.vel[2] = 0;
     m.yaw = Math.atan2(-(this.player.pos[0] - m.pos[0]), -(this.player.pos[2] - m.pos[2]));
     this.audio.play('villager', m.pos);
-    if (!m.trades) m.trades = villagerTrades(m.T.villager);
+    if (!m.trades) m.trades = villagerTrades(m.T.villager, mulberry32(hashStr(m.village.key + ':' + m.resIdx)));
     this.openInventory('trade', m);
   }
   canAfford(T) {
@@ -352,9 +494,11 @@ class Game {
     if ((rec.uses[i] || 0) >= T.max) { this.ui.toast('Bu takasın stoğu bitti, yarın yenilenir', 1.8); this.audio.play('villager', m.pos); return; }
     if (!this.canAfford(T)) { this.ui.toast('Yeterli malzemen yok', 1.5); this.audio.play('villager', m.pos); return; }
     if (!this.player.creative) { this.removeItem(T.cost[0], T.cost[1]); if (T.cost2) this.removeItem(T.cost2[0], T.cost2[1]); }
-    this.addStack({ id: T.out[0], count: T.out[1] });
+    this.addStack(T.out[2] ? { id: T.out[0], count: T.out[1], ench: Object.assign({}, T.out[2]) } : { id: T.out[0], count: T.out[1] });
     rec.uses[i] = (rec.uses[i] || 0) + 1;
     this.audio.play('trade');
+    // Ticaret tecrübesi (Minecraft: 3-6)
+    this.entities.spawnXp(m.pos[0], m.pos[1] + 0.6, m.pos[2], 3 + Math.floor(Math.random() * 4));
     this.ui.render(); this.ui.hotbarDirty = true;
   }
 
@@ -397,6 +541,9 @@ class Game {
   closeInventory() {
     // Üretim ızgarası ve imleçteki eşyalar envantere döner
     for (let i = 0; i < 9; i++) if (this.craft[i]) { this.addStack(this.craft[i]); this.craft[i] = null; }
+    // Büyü masası ve örsteki eşyalar geri gelir
+    const S = this.screen;
+    if (S && (S.kind === 'enchant' || S.kind === 'anvil')) for (let i = 0; i < 2; i++) if (S.tile.items[i]) { this.addStack(S.tile.items[i]); S.tile.items[i] = null; }
     const c = this.ui.cursor;
     if (c && !this.player.creative) this.addStack(c);
     this.ui.cursor = null;
@@ -554,6 +701,9 @@ class Game {
     if (this.player.creative) return;
     const s = this.inv[this.selected], t = toolOf(s);
     if (!t || !t.dur) return;
+    // Kırılmazlık: her aşınma 1/(seviye+1) olasılıkla işler
+    const ub = enchLvl(s, 'unbreaking');
+    if (ub) { let n = 0; for (let k = 0; k < amount; k++) if (Math.random() < 1 / (ub + 1)) n++; amount = n; if (!n) return; }
     s.dmg = (s.dmg || 0) + amount;
     if (s.dmg >= t.dur) { this.inv[this.selected] = null; this.audio.play('dig', null, 'glass'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
     this.ui.hotbarDirty = true;
@@ -600,9 +750,18 @@ class Game {
           t.prog = 0;
           inp.count--; if (inp.count <= 0) t.items[0] = null;
           if (out) out.count++; else t.items[2] = { id: res, count: 1 };
+          t.xp = (t.xp || 0) + smeltXp(res);
         }
       } else t.prog = Math.max(0, t.prog - dt * 2);
     }
+  }
+  // Fırın çıktısı alınınca biriken tecrübe verilir
+  furnaceXp(t) {
+    if (!t || !t.xp) return;
+    const n = Math.floor(t.xp) + (Math.random() < t.xp % 1 ? 1 : 0);
+    t.xp = 0;
+    const p = this.player;
+    if (n > 0 && !p.creative) this.entities.spawnXp(p.pos[0], p.pos[1] + 0.8, p.pos[2], n);
   }
   countItem(id) { let c = 0; for (const s of this.inv) if (s && s.id === id) c += s.count; return c; }
   removeItem(id, n) {
@@ -614,7 +773,12 @@ class Game {
   // Zırh: Minecraft hasar azaltma formülü + parça aşınması
   armorPoints() { let d = 0; for (const s of this.armor) { const a = armorOf(s); if (a) d += a.def; } return d; }
   armorReduce(dmg, type) {
-    if (type === 'fall' || type === 'drown' || type === 'starve' || type === 'void' || type === 'pearl') return dmg;
+    if (type === 'starve' || type === 'void') return dmg;
+    // Büyü koruması (EPF): Koruma seviye başına 1, Tüy Gibi Düşüş düşmede 3; en çok 20 → %80
+    let epf = 0;
+    for (const s of this.armor) epf += enchLvl(s, 'protection') + (type === 'fall' ? enchLvl(s, 'feather_falling') * 3 : 0);
+    if (epf) dmg *= 1 - Math.min(20, epf) / 25;
+    if (type === 'fall' || type === 'drown' || type === 'pearl') return dmg;
     let def = 0, tough = 0;
     for (const s of this.armor) { const a = armorOf(s); if (a) { def += a.def; tough += a.tough; } }
     if (!def) return dmg;
@@ -623,6 +787,8 @@ class Game {
     for (let i = 0; i < 4; i++) {
       const s = this.armor[i], t = toolOf(s);
       if (!t) continue;
+      const ub = enchLvl(s, 'unbreaking');
+      if (ub && Math.random() >= 0.6 + 0.4 / (ub + 1)) continue;
       s.dmg = (s.dmg || 0) + wear;
       if (s.dmg >= t.dur) { this.armor[i] = null; this.audio.play('dig', null, 'glass'); this.ui.toast(itemName(s.id) + ' kırıldı!', 1.5); }
     }
@@ -639,10 +805,18 @@ class Game {
     this.ui.hotbarDirty = true; this.ui.lastArmor = -1;
     return true;
   }
-  mobDrops(m) {
-    if (this.player.creative) return;
+  mobDrops(m, looting = 0) {
+    if (this.player.creative || m.dropped) return;
+    m.dropped = true;
     const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-    for (const [id, n] of MOB_DROPS(r)[m.type] || []) if (n > 0) this.dropAt(id, n, m.pos[0], m.pos[1] + 0.4, m.pos[2]);
+    for (let [id, n] of MOB_DROPS(r)[m.type] || []) {
+      if (n > 0 && looting) n += r(0, looting);           // Ganimet
+      if (m.fireT > 0 && SMELT[id] !== undefined && itemDef(SMELT[id]).food) id = SMELT[id]; // yanarak ölen hayvan pişmiş et düşürür
+      if (n > 0) this.dropAt(id, n, m.pos[0], m.pos[1] + 0.4, m.pos[2]);
+    }
+    // Tecrübe: düşman 5, hayvan 1-3 (Minecraft)
+    const xp = m.T.villager || m.T.boss ? 0 : m.T.hostile || m.T.neutral ? 5 : r(1, 3);
+    if (xp) this.entities.spawnXp(m.pos[0], m.pos[1] + 0.5, m.pos[2], xp);
   }
 
   // Q: bir tane at, Ctrl+Q: tüm yığını at
@@ -672,8 +846,10 @@ class Game {
     }
     if (byPlayer) this.player.exh += 0.005;
     if (byPlayer && !this.player.creative) {
-      const tool = toolOf(this.inv[this.selected]);
-      for (const [d, n] of blockDrops(id, tool)) this.dropAt(d, n, x + 0.5, y + 0.25, z + 0.5);
+      const held = this.inv[this.selected], tool = toolOf(held);
+      for (const [d, n] of blockDrops(id, tool, held && held.ench)) this.dropAt(d, n, x + 0.5, y + 0.25, z + 0.5);
+      // Cevher tecrübesi (İpeksi Dokunuş'la yok)
+      if (canHarvest(id, tool) && !enchLvl(held, 'silk_touch')) { const xp = oreXp(id); if (xp) this.entities.spawnXp(x + 0.5, y + 0.5, z + 0.5, xp); }
       if (tool && tool.dur && BLOCKS[id].hardness > 0) this.damageTool(tool.kind === 'sword' ? 2 : 1);
     }
     // Sandık/fırın içeriği
@@ -731,6 +907,7 @@ class Game {
       if (id === B.CRIMSON_FUNGUS || id === B.WARPED_FUNGUS) return below === B.CRIMSON_NYLIUM || below === B.WARPED_NYLIUM || below === B.SOUL_SOIL;
       if (isWheat(id)) return below === B.FARMLAND || below === B.FARMLAND_WET;
       if (isSapling(id)) return below === B.GRASS || below === B.DIRT || below === B.SNOWY_GRASS || below === B.FARMLAND || below === B.FARMLAND_WET;
+      if (id === B.SUGAR_CANE) return this.caneSupported(x, y, z);
       return below === B.GRASS || below === B.DIRT || below === B.SNOWY_GRASS;
     }
     if (id === B.CACTUS) {
@@ -754,6 +931,8 @@ class Game {
     // Konteyner blokları
     if (hit && !p.sneaking) {
       if (hit.id === B.CRAFTING) { this.openInventory('crafting'); return true; }
+      if (hit.id === B.ENCH_TABLE) { this.openInventory('enchant', { x: hit.x, y: hit.y, z: hit.z, items: [null, null] }); return true; }
+      if (isAnvil(hit.id)) { this.audio.play('click'); this.openInventory('anvil', { x: hit.x, y: hit.y, z: hit.z, items: [null, null], name: null }); return true; }
       if (hit.id === B.FURNACE || hit.id === B.CHEST) {
         const tile = this.getTile(hit.x, hit.y, hit.z, hit.id === B.FURNACE ? 'furnace' : 'chest');
         this.openTile = tile;
@@ -895,6 +1074,14 @@ class Game {
     return true;
   }
 
+  // Şeker kamışı: altında kamış ya da yanında su olan kum/çimen/toprak
+  caneSupported(x, y, z) {
+    const w = this.world, below = w.getBlock(x, y - 1, z);
+    if (below === B.SUGAR_CANE) return true;
+    if (below !== B.GRASS && below !== B.DIRT && below !== B.SAND && below !== B.SNOWY_GRASS) return false;
+    return DIR4.some(([dx, dz]) => isWater(w.getBlock(x + dx, y - 1, z + dz)));
+  }
+
   // Ekin büyümesi, fidanlar ve tarla nemi (saniyede bir)
   tickPlants(dt) {
     this.plantT += dt;
@@ -921,6 +1108,11 @@ class Game {
           const below = w.getBlock(x, y - 1, z);
           if (below !== B.FARMLAND && below !== B.FARMLAND_WET) { this.breakBlock(x, y, z, false); continue; }
           if (id < B.WHEAT_7 && chance(below === B.FARMLAND_WET ? 1 / 20 : 1 / 55)) w.setBlock(x, y, z, id + 1);
+        } else if (id === B.SUGAR_CANE) {
+          if (!this.caneSupported(x, y, z)) { this.breakBlock(x, y, z, false); continue; }
+          let h = 1;
+          while (h < 3 && w.getBlock(x, y - h, z) === B.SUGAR_CANE) h++;
+          if (h < 3 && !w.getBlock(x, y + 1, z) && chance(1 / 50)) w.setBlock(x, y + 1, z, B.SUGAR_CANE);
         } else if (isSapling(id)) {
           const below = w.getBlock(x, y - 1, z);
           if (below !== B.GRASS && below !== B.DIRT && below !== B.SNOWY_GRASS && below !== B.FARMLAND && below !== B.FARMLAND_WET) { this.breakBlock(x, y, z, false); continue; }
@@ -1021,10 +1213,13 @@ class Game {
     f = Math.min(1, (f * f + 2 * f) / 3);
     if (f < 0.1) return;
     const d = p.lookDir(), e = p.eye(), V = 60 * f;
-    let dmg = Math.ceil(6 * f);
+    const bow = this.inv[this.selected], pw = enchLvl(bow, 'power'), inf = enchLvl(bow, 'infinity');
+    let dmg = Math.ceil(6 * f * (pw ? 1 + 0.25 * (pw + 1) : 1));
     if (f >= 1) dmg += Math.floor(Math.random() * (dmg / 2 + 2));
-    this.entities.shoot([e[0] + d[0] * 0.4, e[1] + d[1] * 0.4 - 0.1, e[2] + d[2] * 0.4], [d[0] * V, d[1] * V, d[2] * V], 'player', dmg);
-    if (!p.creative) this.removeItem(I.ARROW, 1);
+    const a = this.entities.shoot([e[0] + d[0] * 0.4, e[1] + d[1] * 0.4 - 0.1, e[2] + d[2] * 0.4], [d[0] * V, d[1] * V, d[2] * V], 'player', dmg);
+    if (enchLvl(bow, 'flame')) a.fire = true;
+    if (inf || p.creative) a.noPick = true;
+    if (!p.creative && !inf) this.removeItem(I.ARROW, 1);
     this.damageTool();
     this.audio.play('bow');
     this.ui.hotbarDirty = true;
@@ -1061,6 +1256,7 @@ class Game {
     }
     let bid = id;
     if (k === 3) bid = id + f;
+    else if (k === 10) bid = id - (id - B.ANVIL) % 2 + ((f & 1) ^ 1); // örsün uzun kenarı bakışa dik
     else if (k === 7) bid = B.GATE + (f === 1 || f === 3 ? 2 : 0);
     else if (k === 9) {
       if (hit.ny !== 0 || !OPAQUE[hit.id]) return false;
@@ -1288,13 +1484,22 @@ class Game {
   }
 
   attackMob(m) {
-    const d = this.player.lookDir();
-    const tool = toolOf(this.inv[this.selected]);
-    m.hit(tool && tool.dmg ? tool.dmg : 2, d[0], d[2]);
+    const d = this.player.lookDir(), held = this.inv[this.selected];
+    const tool = toolOf(held), E = (k) => enchLvl(held, k);
+    let dmg = tool && tool.dmg ? tool.dmg : 2;
+    // Keskinlik / Kutsal Darbe (ölümsüzlere)
+    if (E('sharpness')) dmg += 0.5 * E('sharpness') + 0.5;
+    if (E('smite') && UNDEAD.has(m.type)) dmg += 2.5 * E('smite');
+    const ench = E('sharpness') || (E('smite') && UNDEAD.has(m.type));
+    // Alev darbeden önce tutuşturur (vurulup ölen hayvan pişmiş et düşürür)
+    if (E('fire_aspect') && m.type !== 'zpiglin') m.fireT = Math.max(m.fireT || 0, 4 * E('fire_aspect'));
+    m.hit(dmg, d[0], d[2], 1 + E('knockback') * 0.9);
+    m.lastPlayerHit = performance.now();
+    if (ench) this.particles.enchHit(m.pos[0], m.pos[1] + m.h * 0.6, m.pos[2]);
     if (tool && tool.dur && tool.kind !== 'armor' && tool.kind !== 'bow') this.damageTool(tool.kind === 'sword' ? 1 : 2);
     this.audio.play('mobhurt', m.pos);
     this.player.exh += 0.1;
-    if (m.dead) this.mobDrops(m);
+    if (m.dead) this.mobDrops(m, E('looting'));
   }
 
   pickBlock(hit) {
@@ -1348,7 +1553,7 @@ class Game {
       } else {
         const same = this.mining && this.mining[0] === t.x && this.mining[1] === t.y && this.mining[2] === t.z;
         if (!same) { this.mining = [t.x, t.y, t.z]; this.mineProgress = 0; }
-        const time = mineTime(t.id, toolOf(this.inv[this.selected]));
+        const time = mineTime(t.id, toolOf(this.inv[this.selected]), enchLvl(this.inv[this.selected], 'efficiency'));
         this.mineTimeCur = time;
         if (time < Infinity && this.breakCd <= 0) {
           this.mineProgress += dt;
@@ -1373,7 +1578,7 @@ class Game {
     // Yemek: sağ tıkı basılı tut (açken ya da altın elma / koro meyvesi)
     const held = this.inv[this.selected], food = held && itemDef(held.id) && itemDef(held.id).food;
     const wantsUse = this.rightPressed || this.tapPlace || (placeDown && this.placeCd <= 0);
-    const onContainer = this.target && !p.sneaking && (this.target.id === B.CRAFTING || this.target.id === B.FURNACE || this.target.id === B.CHEST || isBed(this.target.id));
+    const onContainer = this.target && !p.sneaking && (this.target.id === B.CRAFTING || this.target.id === B.FURNACE || this.target.id === B.CHEST || isBed(this.target.id) || this.target.id === B.ENCH_TABLE || isAnvil(this.target.id));
     const isBow = held && held.id === I.BOW;
     if (!isBow) this.bowT = 0;
     if (isBow && !onContainer) {
@@ -1414,7 +1619,13 @@ class Game {
     $('inventory').classList.add('hidden');
     this.state = 'dead';
     if (document.pointerLockElement) document.exitPointerLock();
-    $('deathInfo').textContent = 'Envanterin korundu. Doğma noktanda yeniden başlayabilirsin.';
+    const p = this.player;
+    $('deathInfo').textContent = 'Envanterin korundu' + (p.xpLevel > 0 && !p.creative ? ', tecrüben ise yere saçıldı' : '') + '. Doğma noktanda yeniden başlayabilirsin.';
+    // Minecraft: seviye×7 (en çok 100) XP yere düşer, gerisi kaybolur
+    if (!p.creative && (p.xpLevel || p.xpProg)) {
+      this.entities.spawnXp(p.pos[0], p.pos[1] + 0.5, p.pos[2], Math.min(100, p.xpLevel * 7));
+      p.xpLevel = 0; p.xpProg = 0;
+    }
     this.ui.show('deathMenu');
   }
 
@@ -1622,6 +1833,7 @@ class Game {
       if (this.dayTime >= 1) { this.dayTime -= 1; this.dayCount = (this.dayCount || 0) + 1; }
       this.entities.update(dt);
       this.tickPlants(dt);
+      this.tickEnchTables(dt);
       this.fluids.tick(dt);
       // Ateşlenmiş TNT
       for (const pr of this.primed) {
@@ -1704,15 +1916,15 @@ class Game {
     S.drops = this.entities.drops.map((d) => {
       let light = 0.7;
       if (this.dim === 'overworld') light = Math.max(0.2, w.skyLightAt(Math.floor(d.pos[0]), Math.floor(d.pos[1] + 0.3), Math.floor(d.pos[2])) ? this.sunLevel : 0.35);
-      return { id: d.stack.id, count: d.stack.count, pos: d.pos, spin: d.spin + d.age * 1.6, bob: Math.sin(d.age * 2.4 + d.spin) * 0.06, light };
+      return { id: d.stack.id, count: d.stack.count, pos: d.pos, spin: d.spin + d.age * 1.6, bob: Math.sin(d.age * 2.4 + d.spin) * 0.06, light, glint: isEnchanted(d.stack) };
     });
     S.heldTP = null;
     if (tp && this.inv[this.selected]) {
       const pm = this.playerModel, sw2 = Math.sin(pm.walk) * 0.75 * pm.walkAmt;
-      S.heldTP = { id: this.inv[this.selected].id, pos: p.pos, yaw: pm.yaw, arm: -sw2 * 0.9 - (pm.swing > 0 ? Math.sin(pm.swing * Math.PI) * 1.4 : 0) - 0.3, light: 0.8 };
+      S.heldTP = { id: this.inv[this.selected].id, glint: isEnchanted(this.inv[this.selected]), pos: p.pos, yaw: pm.yaw, arm: -sw2 * 0.9 - (pm.swing > 0 ? Math.sin(pm.swing * Math.PI) * 1.4 : 0) - 0.3, light: 0.8 };
       S.heldTP.light = this.dim === 'overworld' ? Math.max(0.2, w.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1), Math.floor(p.pos[2])) ? this.sunLevel : 0.35) : 0.7;
     }
-    S.particleCount = this.particles.fill(cam, this.sunLevel);
+    S.particleCount = this.particles.fill(cam, this.sunLevel, this.entities.orbs);
     S.particleData = this.particles.data;
     const held = this.inv[this.selected];
     const sky = this.dim === 'overworld' ? w.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1.6), Math.floor(p.pos[2])) : 0;
@@ -1731,7 +1943,7 @@ class Game {
       bobY: -Math.abs(Math.cos(p.walkDist * Math.PI * 0.62)) * 0.035 * hb,
       lower: this.equipT / 0.2,
       swayYaw: clamp((p.yaw - this.armYaw) * 0.35, -0.3, 0.3), swayPitch: clamp((p.pitch - this.armPitch) * 0.35, -0.3, 0.3),
-      eat: this.eatT, bow: held && held.id === I.BOW ? this.bowT : 0, time: performance.now() / 1000,
+      eat: this.eatT, bow: held && held.id === I.BOW ? this.bowT : 0, time: performance.now() / 1000, glint: isEnchanted(held),
     };
     this.renderer.render(S);
     if (this.screenshotNext) { this.screenshotNext = false; this.screenshot(); }

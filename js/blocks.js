@@ -25,6 +25,7 @@ const B = {
   WATER_1: 116, WATER_FALL: 123, LAVA_1: 124, LAVA_FALL: 131,
   SLAB: 132, SLAB_TOP: 137, STAIRS: 142, DOOR: 158, TRAPDOOR: 174, TRAPDOOR_OPEN: 175,
   FENCE: 179, GATE: 180, GLASS_PANE: 184, LADDER: 185, DIRT_PATH: 189, HAY: 190,
+  SUGAR_CANE: 191, ENCH_TABLE: 192, ANVIL: 193, // örs: 193 + hasar*2 + eksen (6 blok)
 };
 // Sıvılar: kaynak (seviye 0), akan 1-7, düşen (8)
 const isWater = (id) => id === B.WATER || (id >= B.WATER_1 && id <= B.WATER_FALL);
@@ -38,6 +39,7 @@ const sameLiquid = (a, b) => (isWater(a) && isWater(b)) || (isLava(a) && isLava(
 const SLAB_MATS = ['PLANKS', 'COBBLE', 'STONE', 'STONE_BRICKS', 'BRICKS'];
 const STAIR_MATS = ['PLANKS', 'COBBLE', 'STONE_BRICKS', 'BRICKS'];
 const isDoor = (id) => id >= B.DOOR && id < B.DOOR + 16;
+const isAnvil = (id) => id >= B.ANVIL && id < B.ANVIL + 6;
 const isLadder = (id) => id >= B.LADDER && id < B.LADDER + 4;
 // WHEAT_0..WHEAT_7 ardışık 8 büyüme evresidir
 const isWheat = (id) => id >= B.WHEAT_0 && id <= B.WHEAT_7;
@@ -851,6 +853,57 @@ function buildTexturesFarm() {
       px(d, x, y, RED[0] * f, RED[1] * f, RED[2] * f);
     }
   });
+
+  // Şeker kamışı: boğumlu açık yeşil saplar ve yapraklar
+  makeTex('sugar_cane', (d, r) => {
+    clearTile(d);
+    for (const sx of [2, 7, 12]) {
+      const off = Math.floor(r() * 4);
+      for (let y = 0; y < 16; y++) {
+        const node = (y + off) % 6 === 0;
+        for (let k = 0; k < 2; k++) {
+          const f = (k ? 0.82 : 1.05) * (0.92 + r() * 0.12) * (node ? 0.78 : 1);
+          px(d, sx + k, y, 150 * f, 200 * f, 95 * f);
+        }
+        if (node && r() < 0.6) { const dx = r() < 0.5 ? -1 : 2; px(d, sx + dx, y + 1, 110, 170, 70); px(d, sx + dx + Math.sign(dx), y + 2, 100, 160, 64); }
+      }
+    }
+  });
+  // Büyü masası: obsidyen gövde, kırmızı örtü, elmas köşeler
+  const ENCH_RED = [168, 36, 40];
+  makeTex('ench_top', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const edge = x === 0 || y === 0 || x === 15 || y === 15, rim = x === 1 || y === 1 || x === 14 || y === 14;
+      const f = 0.86 + r() * 0.2;
+      if (edge) px(d, x, y, 24 * f, 18 * f, 36 * f);
+      else if (rim) px(d, x, y, ENCH_RED[0] * 0.7 * f, ENCH_RED[1] * 0.7 * f, ENCH_RED[2] * 0.7 * f);
+      else px(d, x, y, ENCH_RED[0] * f, ENCH_RED[1] * f, ENCH_RED[2] * f);
+    }
+    for (const [x, y] of [[0, 0], [14, 0], [0, 14], [14, 14]]) {
+      px(d, x, y, 90, 230, 220); px(d, x + 1, y, 60, 190, 190); px(d, x, y + 1, 60, 190, 190); px(d, x + 1, y + 1, 150, 250, 245);
+    }
+    // Ortada kitap gölgesi
+    for (let y = 6; y < 10; y++) for (let x = 5; x < 11; x++) mulPx(d, x, y, 0.82);
+  });
+  makeTex('ench_side', (d, r) => {
+    copyTex(d, 'obsidian');
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 16; x++) {
+      const f = (0.86 + r() * 0.2) * (y === 4 ? 0.65 : 1);
+      // Örtünün sarkan saçakları
+      if (y === 4 && (x % 4 === 1 || x % 4 === 2)) continue;
+      px(d, x, y, ENCH_RED[0] * f, ENCH_RED[1] * f, ENCH_RED[2] * f);
+    }
+    for (const x of [0, 14]) { px(d, x, 0, 90, 230, 220); px(d, x + 1, 0, 150, 250, 245); px(d, x, 1, 60, 190, 190); px(d, x + 1, 1, 90, 230, 220); }
+  });
+  // Örs: koyu dövme demir
+  makeTex('anvil', (d, r) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const f = 0.82 + r() * 0.16 + (Math.floor(r() * 9) === 0 ? 0.12 : 0);
+      px(d, x, y, 68 * f, 68 * f, 72 * f);
+    }
+    for (let k = 0; k < 4; k++) { const x = 1 + Math.floor(r() * 13), y = 1 + Math.floor(r() * 13); px(d, x, y, 96, 96, 102); px(d, x + 1, y, 88, 88, 94); }
+    for (let x = 0; x < 16; x++) { mulPx(d, x, 0, 1.25); mulPx(d, x, 15, 0.7); }
+  });
 }
 
 // --- Blok tanımları -------------------------------------------------------
@@ -1014,6 +1067,13 @@ function defineBlocks() {
   def(B.DIRT_PATH, 'Toprak Yol', { top: 'path_top', bottom: 'dirt', side: 'path_side' }, SH({ hardness: 0.65, drop: B.DIRT, sound: 'gravel', opaque: false, height: 15 }));
   def(B.HAY, 'Saman Balyası', { top: 'hay_top', bottom: 'hay_top', side: 'hay_side' }, { hardness: 0.5, sound: 'grass' });
 
+  // Büyü ve örs
+  def(B.SUGAR_CANE, 'Şeker Kamışı', 'sugar_cane', Object.assign({}, plant));
+  def(B.ENCH_TABLE, 'Büyü Masası', { top: 'ench_top', bottom: 'obsidian', side: 'ench_side' }, P(1, { hardness: 5, opaque: false, height: 12, emit: 7 }));
+  ['Örs', 'Çatlak Örs', 'Hasarlı Örs'].forEach((nm, k) => {
+    for (let a = 0; a < 2; a++) def(B.ANVIL + k * 2 + a, nm, 'anvil', shapeO(P(1, { hardness: 5, sound: 'metal' }), { shape: 10, sf: a, drop: B.ANVIL + k * 2, creative: a === 0 }));
+  });
+
   BLOCKS[0] = { id: 0, name: 'Hava', solid: false, opaque: false, render: R_NONE, emit: 0, filter: 0, pass: 0, cullSame: false, creative: false };
 
   for (let id = 0; id < BLOCKS.length; id++) {
@@ -1067,6 +1127,15 @@ function buildIcons() {
     const T = (i) => tiles[TEXF[i * 6 + 2]];
     if (b.render === R_CROSS) {
       ctx.drawImage(tiles[TEXF[id * 6 + 2]], 4, 4, S - 8, S - 8);
+    } else if (b.shape === 10) {
+      // Örs: yandan görünüş
+      const t = tiles[TEXF[id * 6 + 0]];
+      for (const [x, y, w, h, f] of [[2, 8, 44, 12, 1.15], [16, 20, 16, 12, 0.9], [10, 32, 28, 4, 0.95], [6, 36, 36, 8, 1]]) {
+        ctx.drawImage(t, 0, 0, 16, 16, x, y, w, h);
+        ctx.fillStyle = f > 1 ? 'rgba(255,255,255,0.12)' : `rgba(0,0,0,${1 - f})`;
+        ctx.fillRect(x, y, w, h);
+      }
+      if (id >= B.ANVIL + 2) { ctx.fillStyle = 'rgba(20,20,22,0.9)'; ctx.fillRect(14, 10, 2, 6); ctx.fillRect(16, 14, 3, 2); if (id >= B.ANVIL + 4) { ctx.fillRect(30, 9, 2, 8); ctx.fillRect(28, 12, 2, 2); } }
     } else if (b.flat) {
       // Düz simgeler: kapı, çit, panel, merdiven
       const t = T(id);

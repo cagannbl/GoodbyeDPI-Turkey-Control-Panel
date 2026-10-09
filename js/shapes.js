@@ -1,7 +1,7 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // Tam küp olmayan blokların kutu modelleri (1/16 birim): yarım blok, basamak,
-// kapı, tuzak kapı, çit, çit kapısı, cam panel, tırmanma merdiveni.
+// kapı, tuzak kapı, çit, çit kapısı, cam panel, tırmanma merdiveni, örs.
 // Aynı kutular hem çizimde hem çarpışmada kullanılır (çitler 1.5 blok yüksek çarpışır).
 // Yönler: 0 -z, 1 +x, 2 +z, 3 -x
 // ---------------------------------------------------------------------------
@@ -43,6 +43,9 @@ function buildShape(kind, f) {
       break;
     }
     case 9: draw.push(rotBox([0, 0, 0, 16, 16, 1], f)); break;
+    case 10: // örs (Minecraft modeli): taban, boyun, gövde, üst
+      for (const b of [[2, 0, 2, 14, 4, 14], [4, 4, 3, 12, 5, 13], [6, 5, 4, 10, 10, 12], [3, 10, 0, 13, 16, 16]]) both(rotBox(b, f));
+      break;
   }
   return { draw, coll };
 }

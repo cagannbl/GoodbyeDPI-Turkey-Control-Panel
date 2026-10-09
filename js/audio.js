@@ -104,6 +104,7 @@ class GameAudio {
       case 'sand': this.noiseBurst(dest, 'lowpass', 1600 * r, 0.5, 0.22 * dur, 0.45 * scale); break;
       case 'snow': this.noiseBurst(dest, 'lowpass', 1300 * r, 0.6, 0.2 * dur, 0.4 * scale); break;
       case 'wood': this.noiseBurst(dest, 'bandpass', 650 * r, 3, 0.14 * dur, 0.6 * scale); this.tone(dest, 'triangle', 190 * r, 130, 0.12 * dur, 0.35 * scale); break;
+      case 'metal': this.tone(dest, 'square', 900 * r, 820 * r, 0.1 * dur, 0.12 * scale); this.noiseBurst(dest, 'bandpass', 2600 * r, 4, 0.08 * dur, 0.4 * scale); break;
       case 'glass': this.noiseBurst(dest, 'highpass', 3500, 1, 0.25 * dur, 0.5 * scale);
         for (let i = 0; i < 4; i++) this.tone(dest, 'sine', 1800 + Math.random() * 2200, 0, 0.3, 0.12 * scale, i * 0.03); break;
       case 'cloth': this.noiseBurst(dest, 'lowpass', 650 * r, 0.6, 0.18 * dur, 0.55 * scale); break;
@@ -163,6 +164,18 @@ class GameAudio {
       case 'equip': this.tone(d, 'square', 700, 500, 0.06, 0.12); this.tone(d, 'triangle', 1200, 900, 0.1, 0.1, 0.05); break;
       case 'chicken': for (let i = 0; i < 2; i++) this.tone(d, 'square', 1100 + Math.random() * 200, 800, 0.07, 0.08, i * 0.12); break;
       case 'skeleton': for (let i = 0; i < 4; i++) this.noiseBurst(d, 'bandpass', 2200 + Math.random() * 800, 4, 0.04, 0.3, i * 0.07); break;
+      case 'orb': { // tecrübe küresi: rastgele perdeli "tın"
+        const f = (arg || 1) * (900 + Math.random() * 500);
+        this.tone(d, 'sine', f, f * 1.01, 0.18, 0.13); this.tone(d, 'triangle', f * 2, f * 2, 0.08, 0.04);
+        break;
+      }
+      case 'levelup': [523, 659, 784, 1047].forEach((f, i) => this.tone(d, 'triangle', f, f, 0.35, 0.16, i * 0.09)); break;
+      case 'enchant':
+        for (let i = 0; i < 6; i++) this.tone(d, 'sine', 600 + Math.random() * 900, 1400 + Math.random() * 600, 0.4, 0.07, i * 0.06);
+        this.noiseBurst(d, 'highpass', 5000, 0.7, 0.6, 0.12, 0, 9000);
+        break;
+      case 'anvil': this.tone(d, 'square', 1250, 1180, 0.25, 0.12); this.tone(d, 'sine', 2600, 2500, 0.5, 0.1); this.noiseBurst(d, 'bandpass', 3200, 6, 0.08, 0.4); break;
+      case 'anvilbreak': this.noiseBurst(d, 'bandpass', 1500, 1, 0.5, 0.7); this.tone(d, 'square', 300, 90, 0.4, 0.2); break;
       case 'spider': this.noiseBurst(d, 'highpass', 3000, 0.6, 0.5, 0.25, 0, 1500); this.tone(d, 'sawtooth', 90, 60, 0.4, 0.08); break;
     }
   }

@@ -328,6 +328,26 @@ function defineItems() {
       });
     });
   }
+  // Yeni eşyalar sona eklenir (kayıtlı dünyalardaki eşya kimlikleri değişmesin)
+  item('PAPER', 'Kağıt', (d, r) => {
+    clearTile(d);
+    for (let y = 3; y < 14; y++) for (let x = 2; x < 14; x++) {
+      const sx = x + (y > 8 ? 1 : 0), f = 0.92 + r() * 0.08;
+      px(d, sx, y, 238 * f, 238 * f, 228 * f);
+    }
+    for (const y of [5, 7, 9, 11]) for (let x = 4; x < 12; x++) if (r() < 0.8) px(d, x + (y > 8 ? 1 : 0), y, 200, 200, 190);
+    outlineTile(d, [120, 120, 110]);
+  });
+  item('BOOK', 'Kitap', (d, r) => {
+    pattern(d, ['', '', '...aaaaaaaaaa', '..abbbbbbbbbba', '..abbbbbbbbbpa', '..abbbbbbbbbpa', '..abbggggbbbpa', '..abbbbbbbbbpa',
+      '..abbbbbbbbbpa', '..abbbbbbbbbpa', '..abbbbbbbbbpa', '..abbbbbbbbbpa', '..acccccccccpa', '..aawwwwwwwwwa', '...aaaaaaaaaa'],
+    { a: [52, 26, 14], b: [126, 64, 34], c: [96, 46, 24], g: [214, 170, 70], p: [235, 230, 215], w: [235, 230, 215] });
+    for (let y = 3; y < 13; y++) for (let x = 3; x < 12; x++) if (r() < 0.25) mulPx(d, x, y, 0.9);
+  });
+  // Büyülü kitap: kitabın dokusunu paylaşır (doku katmanı sınırı), parıltıyla ayrılır
+  I.ENCHANTED_BOOK = nextItemId++;
+  ITEM_LAYER[I.ENCHANTED_BOOK] = ITEM_LAYER[I.BOOK];
+  ITEMS[I.ENCHANTED_BOOK] = { id: I.ENCHANTED_BOOK, key: 'ENCHANTED_BOOK', name: 'Büyülü Kitap', stack: 1 };
 }
 
 // --- Ortak eşya bilgileri ----------------------------------------------------
@@ -347,29 +367,35 @@ function canHarvest(blockId, tool) {
 }
 
 // Saniye cinsinden kazma süresi (Minecraft formülü)
-function mineTime(blockId, tool) {
+function mineTime(blockId, tool, eff = 0) {
   const b = BLOCKS[blockId];
   if (!b || b.hardness < 0) return Infinity;
   if (b.hardness === 0) return 0.05;
   let speed = tool && tool.block && tool.block === b.tool ? tool.speed : 1;
   if (tool && tool.kind === 'sword' && (blockId === B.LEAVES || blockId === B.BIRCH_LEAVES || blockId === B.SPRUCE_LEAVES)) speed = 1.5;
+  if (eff && speed > 1) speed += eff * eff + 1; // Verimlilik
   return b.hardness * (canHarvest(blockId, tool) ? 1.5 : 5) / speed;
 }
 
-function blockDrops(blockId, tool) {
+// ench: eldeki eşyanın büyüleri (İpeksi Dokunuş, Servet)
+function blockDrops(blockId, tool, ench) {
   if (!canHarvest(blockId, tool)) return [];
-  const r = Math.random();
+  const r = Math.random(), silk = ench && ench.silk_touch, fort = (ench && ench.fortune) || 0;
+  if (silk && BLOCKS[blockId].creative !== false && !isLiquid(blockId) && !BLOCKS[blockId].portalSurface) return [[blockId, 1]];
+  // Servet: cevher ganimeti 1..(seviye+1) katı (Minecraft dağılımı)
+  const F = (n) => n * Math.max(1, Math.floor(Math.random() * (fort + 2))), sap = [0.06, 0.08, 0.1, 0.14][Math.min(3, fort)];
   switch (blockId) {
-    case B.COAL: return [[I.COAL, 1]];
-    case B.DIAMOND: return [[I.DIAMOND, 1]];
-    case B.EMERALD: return [[I.EMERALD, 1]];
-    case B.REDSTONE: return [[I.REDSTONE_DUST, 4 + (r < 0.5 ? 1 : 0)]];
-    case B.LAPIS_ORE: return [[I.LAPIS, 4 + Math.floor(r * 5)]];
-    case B.QUARTZ_ORE: return [[I.QUARTZ, 1]];
-    case B.GRAVEL: return [[r < 0.1 ? I.FLINT : B.GRAVEL, 1]];
-    case B.LEAVES: return r < 0.06 ? [[B.OAK_SAPLING, 1]] : r < 0.075 ? [[I.APPLE, 1]] : [];
-    case B.BIRCH_LEAVES: return r < 0.06 ? [[B.BIRCH_SAPLING, 1]] : [];
-    case B.SPRUCE_LEAVES: return r < 0.06 ? [[B.SPRUCE_SAPLING, 1]] : [];
+    case B.COAL: return [[I.COAL, F(1)]];
+    case B.DIAMOND: return [[I.DIAMOND, F(1)]];
+    case B.EMERALD: return [[I.EMERALD, F(1)]];
+    case B.REDSTONE: return [[I.REDSTONE_DUST, 4 + (r < 0.5 ? 1 : 0) + Math.floor(Math.random() * (fort + 1))]];
+    case B.LAPIS_ORE: return [[I.LAPIS, F(4 + Math.floor(r * 5))]];
+    case B.QUARTZ_ORE: return [[I.QUARTZ, F(1)]];
+    case B.BOOKSHELF: return [[I.BOOK, 3]];
+    case B.GRAVEL: return [[r < [0.1, 0.14, 0.25, 1][Math.min(3, fort)] ? I.FLINT : B.GRAVEL, 1]];
+    case B.LEAVES: return r < sap ? [[B.OAK_SAPLING, 1]] : r < sap + 0.015 ? [[I.APPLE, 1]] : [];
+    case B.BIRCH_LEAVES: return r < sap ? [[B.BIRCH_SAPLING, 1]] : [];
+    case B.SPRUCE_LEAVES: return r < sap ? [[B.SPRUCE_SAPLING, 1]] : [];
     case B.CHORUS_PLANT: return r < 0.5 ? [[I.CHORUS_FRUIT, 1]] : [];
     case B.TALL_GRASS: return r < 0.125 ? [[I.WHEAT_SEEDS, 1]] : [];
     case B.BED_FOOT: case B.BED_HEAD: return [[I.BED, 1]];
@@ -465,7 +491,11 @@ function defineRecipes() {
   shaped(['##', '##'], { '#': B.END_STONE }, B.END_STONE_BRICKS, 4);
   shaped(['##', '##'], { '#': I.POPPED_CHORUS }, B.PURPUR, 4);
   shaped(['#', '#'], { '#': B.PURPUR }, B.PURPUR_PILLAR, 2);
-  shaped(['###', 'SSS', '###'], { '#': '#planks', S: I.STICK }, B.BOOKSHELF);
+  shaped(['###', 'KKK', '###'], { '#': '#planks', K: I.BOOK }, B.BOOKSHELF);
+  shaped(['SSS'], { S: B.SUGAR_CANE }, I.PAPER, 3);
+  shapeless([I.PAPER, I.PAPER, I.PAPER, I.LEATHER], I.BOOK);
+  shaped([' K ', 'DOD', 'OOO'], { K: I.BOOK, D: I.DIAMOND, O: B.OBSIDIAN }, B.ENCH_TABLE);
+  shaped(['BBB', ' i ', 'iii'], { B: B.IRON_BLOCK, i: I.IRON_INGOT }, B.ANVIL);
   shaped(['P', 'T'], { P: B.PUMPKIN, T: B.TORCH }, B.JACK);
   shaped(['I I', ' I '], { I: I.IRON_INGOT }, I.BUCKET);
   shapeless([I.IRON_INGOT, I.FLINT], I.FLINT_STEEL);
@@ -557,8 +587,8 @@ function defineCreativeTabs() {
     B.SPRUCE_LEAVES, B.POPPY, B.DANDELION, B.BLUE_FLOWER, B.TALL_GRASS, B.DEAD_BUSH, B.COAL, B.IRON, B.LAPIS_ORE, B.GOLD, B.REDSTONE,
     B.DIAMOND, B.EMERALD, B.WATER, B.LAVA, B.NETHERRACK, B.CRIMSON_NYLIUM, B.WARPED_NYLIUM, B.SOUL_SAND, B.SOUL_SOIL, B.QUARTZ_ORE,
     B.NETHER_GOLD_ORE, B.ANCIENT_DEBRIS, B.MAGMA, B.NETHER_WART_BLOCK, B.WARPED_WART_BLOCK, B.SHROOMLIGHT, B.CRIMSON_FUNGUS,
-    B.WARPED_FUNGUS, B.END_STONE, B.CHORUS_PLANT, B.CHORUS_FLOWER, B.DRAGON_EGG, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.FARMLAND, B.DIRT_PATH, B.HAY];
-  const func = [B.CRAFTING, B.FURNACE, B.CHEST, I.BED, B.DOOR, B.TRAPDOOR, B.LADDER, B.TORCH, B.END_ROD, B.GLOWSTONE, B.JACK, B.BOOKSHELF, B.TNT, B.END_FRAME];
+    B.WARPED_FUNGUS, B.END_STONE, B.CHORUS_PLANT, B.CHORUS_FLOWER, B.DRAGON_EGG, B.OAK_SAPLING, B.BIRCH_SAPLING, B.SPRUCE_SAPLING, B.FARMLAND, B.DIRT_PATH, B.HAY, B.SUGAR_CANE];
+  const func = [B.CRAFTING, B.FURNACE, B.CHEST, I.BED, B.DOOR, B.TRAPDOOR, B.LADDER, B.TORCH, B.END_ROD, B.GLOWSTONE, B.JACK, B.BOOKSHELF, B.ENCH_TABLE, B.ANVIL, B.ANVIL + 2, B.ANVIL + 4, B.TNT, B.END_FRAME];
   const tools = [];
   for (const t in TIERS) for (const k in TOOL_KINDS) tools.push(I[t.toUpperCase() + '_' + k.toUpperCase()]);
   tools.push(I.BOW, I.ARROW);
@@ -567,13 +597,15 @@ function defineCreativeTabs() {
   const mats = [I.STICK, I.COAL, I.CHARCOAL, I.IRON_INGOT, I.GOLD_INGOT, I.DIAMOND, I.EMERALD, I.LAPIS, I.REDSTONE_DUST, I.QUARTZ,
     I.NETHERITE_SCRAP, I.NETHERITE_INGOT, I.FLINT, I.GUNPOWDER, I.NETHER_BRICK, I.CHORUS_FRUIT, I.POPPED_CHORUS, I.APPLE,
     I.GOLDEN_APPLE, I.PORKCHOP, I.COOKED_PORKCHOP, I.BEEF, I.STEAK, I.CHICKEN, I.COOKED_CHICKEN, I.BREAD, I.ROTTEN_FLESH,
-    I.WHEAT_SEEDS, I.WHEAT, I.BONE, I.LEATHER, I.STRING, I.FEATHER];
+    I.WHEAT_SEEDS, I.WHEAT, I.BONE, I.LEATHER, I.STRING, I.FEATHER, I.PAPER, I.BOOK];
   CREATIVE_TABS.push(
     { name: 'Yapı Blokları', icon: B.BRICKS, items: build },
     { name: 'Doğal Bloklar', icon: B.GRASS, items: nature },
     { name: 'İşlevsel Bloklar', icon: B.CRAFTING, items: func },
     { name: 'Aletler, Silahlar ve Zırh', icon: I.DIAMOND_PICKAXE, items: tools },
     { name: 'Yiyecek ve Malzemeler', icon: I.APPLE, items: mats },
+    // 'e:<büyü>' girdileri en yüksek seviyeli büyülü kitaptır
+    { name: 'Büyülü Kitaplar', icon: I.ENCHANTED_BOOK, items: Object.keys(ENCH).map((k) => 'e:' + k) },
     { name: 'Ara', icon: I.ENDER_EYE, items: null },
   );
 }
@@ -586,6 +618,12 @@ function buildItemIcons() {
     const ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(tileCanvas(ITEM_LAYER[it.id]), 0, 0, S, S);
+    if (it.id === I.ENCHANTED_BOOK) {
+      // Mor kapak
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.fillStyle = 'rgba(120,40,190,0.45)'; ctx.fillRect(0, 0, S, S);
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ICONS[it.id] = c.toDataURL();
   }
 }

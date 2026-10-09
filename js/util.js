@@ -201,3 +201,6 @@ function boxInFrustum(pl, x0, y0, z0, x1, y1, z1) {
   }
   return true;
 }
+
+// HTML'e güvenli metin (oyuncunun verdiği adlar)
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

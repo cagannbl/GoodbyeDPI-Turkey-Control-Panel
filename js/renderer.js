@@ -41,6 +41,7 @@ uniform vec3 u_tint;
 uniform vec3 u_ambient;
 uniform float u_portal;
 uniform float u_endPortal;
+uniform float u_glint;
 in vec3 v_uv;
 in vec2 v_light;
 in float v_shade;
@@ -65,6 +66,14 @@ void main() {
   vec3 light = max(sky * u_sunTint, bl * vec3(1.08, 0.94, 0.74));
   light = max(light, u_ambient);
   vec3 col = c.rgb * light * v_shade * u_tint;
+  // Büyü parıltısı: kayan mor çizgiler (Minecraft "glint")
+  if (u_glint > 0.5) {
+    vec2 g = gl_FragCoord.xy / 72.0;
+    float s1 = fract(g.x * 0.62 + g.y * 0.38 - u_time * 0.34);
+    float s2 = fract(-g.x * 0.33 + g.y * 0.57 - u_time * 0.23 + 0.5);
+    float b = smoothstep(0.0, 0.22, s1) * smoothstep(0.46, 0.22, s1) + 0.7 * smoothstep(0.0, 0.18, s2) * smoothstep(0.36, 0.18, s2);
+    col = col * 0.9 + vec3(0.5, 0.22, 0.95) * (0.08 + b * 0.5);
+  }
   float f = clamp((v_dist - u_fog.x) / (u_fog.y - u_fog.x), 0.0, 1.0);
   o = vec4(mix(col, u_fogColor, f), c.a);
 }`;
@@ -201,6 +210,27 @@ in vec3 v_info;
 in float v_light;
 out vec4 o;
 void main() {
+  // Özel parçacıklar: -4 piksel küre (XP), -3 büyü rünü, -2 renkli disk; renk = (u, v, ışık)
+  if (v_info.x < -3.5) {
+    vec2 q = floor(gl_PointCoord * 8.0) - 3.5;
+    float r = length(q);
+    if (r > 3.7) discard;
+    float k = (q.x < -0.5 && q.y < -0.5 && r < 2.6) ? 1.3 : r > 2.6 ? 0.6 : 1.0;
+    o = vec4(vec3(v_info.y, v_info.z, v_light) * k, 1.0);
+    return;
+  }
+  if (v_info.x < -2.5) {
+    vec2 q = floor(gl_PointCoord * 5.0);
+    float h = fract(sin(dot(q, vec2(12.9898, 78.233)) + v_info.y * 37.0) * 43758.5453);
+    if (h < 0.5) discard;
+    o = vec4(0.82, 0.78, 1.0, 1.0);
+    return;
+  }
+  if (v_info.x < -1.5) {
+    if (length(gl_PointCoord - 0.5) > 0.5) discard;
+    o = vec4(v_info.y, v_info.z, v_light, 1.0);
+    return;
+  }
   vec2 uv = v_info.yz + gl_PointCoord * 0.25;
   vec4 c = texture(u_tex, vec3(uv, v_info.x));
   if (v_info.x < 0.0) c = vec4(1.0, 1.0, 1.0, 1.0 - length(gl_PointCoord - 0.5) * 2.0);
@@ -433,6 +463,7 @@ class Renderer {
     gl.uniform3fv(u.u_ambient, S.ambient || [0.05, 0.05, 0.05]);
     gl.uniform1f(u.u_portal, TEX.nether_portal);
     gl.uniform1f(u.u_endPortal, TEX.end_portal);
+    gl.uniform1f(u.u_glint, 0);
     gl.uniform1i(u.u_tex, 0);
   }
 
@@ -621,12 +652,13 @@ class Renderer {
   }
 
   // Önbellekli eşya modelini verilen matrisle çiz (chunk shader'ı)
-  drawItemModel(id, mvp, light) {
+  drawItemModel(id, mvp, light, glint = false) {
     const gl = this.gl, M = itemModel(id);
     if (!M.gpu) { M.gpu = this.makeMeshVAO(M.data); M.count = (M.n / 4) * 6; }
     const u = this.progChunk.u;
     gl.uniformMatrix4fv(u.u_vp, false, mvp);
     gl.uniform1f(u.u_sun, light);
+    gl.uniform1f(u.u_glint, glint ? 1 : 0);
     gl.bindVertexArray(M.gpu.vao);
     gl.drawElements(gl.TRIANGLES, M.count, gl.UNSIGNED_INT, 0);
   }
@@ -667,7 +699,7 @@ class Renderer {
         M4.scale(t, sc, sc, sc); M4.mul(m, m, t);
         this.centerModel(m, d.id);
         M4.mul(mvp, this.vp, m);
-        this.drawItemModel(d.id, mvp, d.light);
+        this.drawItemModel(d.id, mvp, d.light, d.glint);
       }
     }
     gl.enable(gl.CULL_FACE);
@@ -699,7 +731,7 @@ class Renderer {
     M4.mul(mvp, this.vp, m);
     this.itemUniforms(S);
     gl.enable(gl.DEPTH_TEST);
-    this.drawItemModel(T.id, mvp, T.light);
+    this.drawItemModel(T.id, mvp, T.light, T.glint);
     gl.enable(gl.CULL_FACE);
   }
 
@@ -778,6 +810,6 @@ class Renderer {
     M4.mul(m, handProj, m);
     this.itemUniforms(S);
     gl.enable(gl.DEPTH_TEST);
-    this.drawItemModel(H.id, m, Math.max(0.15, H.light));
+    this.drawItemModel(H.id, m, Math.max(0.15, H.light), H.glint);
   }
 }

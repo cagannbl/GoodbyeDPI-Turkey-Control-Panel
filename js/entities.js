@@ -306,12 +306,12 @@ class Mob {
     this.anim = Math.random() * 10; this.lookT = 0; this.eatGrass = 0;
   }
 
-  hit(dmg, fx, fz) {
+  hit(dmg, fx, fz, kb = 1) {
     if (this.dead) return;
     this.health -= dmg;
     this.hurtTime = 0.4;
     const l = Math.hypot(fx, fz) || 1;
-    this.vel[0] += (fx / l) * 7; this.vel[2] += (fz / l) * 7; this.vel[1] = 5.5;
+    this.vel[0] += (fx / l) * 7 * kb; this.vel[2] += (fz / l) * 7 * kb; this.vel[1] = 5.5;
     if (this.T.neutral || this.type === 'spider') this.angry = true;
     else if (!this.T.hostile) { this.panic = 4; this.aiTimer = 0; }
     if (this.health <= 0) { this.dead = true; this.deathTime = 0; }
@@ -454,6 +454,17 @@ class Mob {
         if (this.burnTimer > 1) { this.burnTimer = 0; this.health -= 2; this.hurtTime = 0.3; if (this.health <= 0) { this.dead = true; } }
       }
     }
+    // Alev büyüsü / alevli ok: saniyede 1 hasar
+    if (this.fireT > 0) {
+      this.fireT -= dt;
+      if (inWater) this.fireT = 0;
+      if (Math.random() < dt * 14) game.particles.flame(p[0] + (Math.random() - 0.5) * this.hw * 2, p[1] + Math.random() * this.h, p[2] + (Math.random() - 0.5) * this.hw * 2);
+      this.fireTick = (this.fireTick || 0) + dt;
+      if (this.fireTick > 1) {
+        this.fireTick = 0; this.health -= 1; this.hurtTime = 0.3;
+        if (this.health <= 0 && !this.dead) { this.dead = true; this.deathTime = 0; if (performance.now() - (this.lastPlayerHit || -1e9) < 6000) game.mobDrops(this); }
+      }
+    }
     // Baş: yakındaki oyuncuya bakar (Minecraft'taki gibi), koyun ot yer
     this.anim += dt;
     let ty = 0, tp = 0;
@@ -570,10 +581,60 @@ class EntityManager {
     this.mobs = [];
     this.arrows = [];
     this.drops = [];
+    this.orbs = [];
     this.spawnTimer = 2;
     this.verts = new Float32Array(9 * 24 * 12 * 40);
   }
-  clear() { this.mobs.length = 0; this.arrows.length = 0; this.drops.length = 0; }
+  clear() { this.mobs.length = 0; this.arrows.length = 0; this.drops.length = 0; this.orbs.length = 0; }
+
+  // Tecrübe küreleri (Minecraft boyutlarına bölünür)
+  spawnXp(x, y, z, amount, spread = 1) {
+    if (amount <= 0 || this.game.player.creative) return;
+    for (const v of splitXp(amount)) {
+      const a = Math.random() * Math.PI * 2, sp = (0.6 + Math.random() * 1.6) * spread;
+      this.orbs.push({ pos: [x, y, z], vel: [Math.cos(a) * sp, 2.5 + Math.random() * 2 * spread, Math.sin(a) * sp], hw: 0.125, h: 0.25, value: v, age: 0, onGround: false, seed: Math.random() * 10 });
+    }
+  }
+  updateOrbs(dt) {
+    const g = this.game, w = g.world, pl = g.player;
+    pl.xpCd = Math.max(0, (pl.xpCd || 0) - dt);
+    for (const o of this.orbs) {
+      o.age += dt;
+      if (!w.isLoadedAt(o.pos[0], o.pos[2])) continue;
+      const v = o.vel;
+      const dx = pl.pos[0] - o.pos[0], dy = pl.pos[1] + 0.9 - o.pos[1], dz = pl.pos[2] - o.pos[2], d = Math.hypot(dx, dy, dz);
+      // Oyuncu 8 blok içindeyse ona doğru süzülür
+      const pull = !pl.dead && d < 8 && d > 0.01 && !pl.creative && o.age > 0.3;
+      if (pull) {
+        const f = (0.25 + (1 - d / 8) ** 2) * 90 * dt;
+        v[0] += (dx / d) * f; v[1] += (dy / d) * f; v[2] += (dz / d) * f;
+        const k = Math.pow(0.08, dt);
+        v[0] *= k; v[1] *= k; v[2] *= k;
+      } else {
+        const inWater = isWater(w.getBlock(Math.floor(o.pos[0]), Math.floor(o.pos[1]), Math.floor(o.pos[2])));
+        if (inWater) v[1] += (1 - v[1]) * Math.min(1, dt * 3);
+        else v[1] -= 11 * dt;
+        const k = Math.pow(o.onGround ? 0.05 : 0.4, dt);
+        v[0] *= k; v[2] *= k;
+      }
+      if (boxHitsSolid(w, o.pos[0] - o.hw, o.pos[1] + 0.01, o.pos[2] - o.hw, o.pos[0] + o.hw, o.pos[1] + o.h, o.pos[2] + o.hw)) o.pos[1] += dt * 4;
+      o.onGround = moveEntity(w, o, dt, false).ground;
+      // Toplama: aynı anda tek küre (Minecraft gibi peş peşe "tın" sesi)
+      if (!pl.dead && d < 1.25 && o.age > 0.3 && pl.xpCd <= 0) { pl.xpCd = 0.05; g.collectXp(o.value); o.age = 1e9; }
+    }
+    // Yakın küreleri birleştir
+    if (this.orbs.length > 60) {
+      for (let i = 0; i < this.orbs.length; i++) {
+        const a = this.orbs[i];
+        if (a.age > 300) continue;
+        for (let j = i + 1; j < this.orbs.length; j++) {
+          const b = this.orbs[j];
+          if (b.age <= 300 && Math.abs(a.pos[0] - b.pos[0]) < 1 && Math.abs(a.pos[1] - b.pos[1]) < 1 && Math.abs(a.pos[2] - b.pos[2]) < 1) { a.value += b.value; b.age = 1e9; }
+        }
+      }
+    }
+    this.orbs = this.orbs.filter((o) => o.age < 300);
+  }
 
   // Yere düşen eşya (Minecraft'taki gibi döner, toplanır, birleşir, 5 dakikada kaybolur)
   spawnDrop(stack, x, y, z, vx, vy, vz, delay = 0.5) {
@@ -621,7 +682,9 @@ class EntityManager {
 
   // Ok fırlat (Minecraft: yerçekimi 20 b/s², tik başına %1 sürtünme)
   shoot(pos, vel, owner, dmg) {
-    this.arrows.push({ pos: pos.slice(), vel: vel.slice(), dir: vel.slice(), owner, dmg, stuck: false, life: 60, age: 0 });
+    const a = { pos: pos.slice(), vel: vel.slice(), dir: vel.slice(), owner, dmg, stuck: false, life: 60, age: 0 };
+    this.arrows.push(a);
+    return a;
   }
   // İskelet: hedefe balistik nişan al
   shootAt(from, to, dmg) {
@@ -641,7 +704,8 @@ class EntityManager {
       if (a.stuck) {
         a.life -= dt;
         if (a.owner === 'player' && !pl.creative && a.age > 0.4 && Math.hypot(pl.pos[0] - a.pos[0], pl.pos[1] + 0.9 - a.pos[1], pl.pos[2] - a.pos[2]) < 1.6) {
-          if (g.pickup({ id: I.ARROW, count: 1 })) a.life = 0;
+          if (a.noPick) a.life = 0;
+          else if (g.pickup({ id: I.ARROW, count: 1 })) a.life = 0;
         }
         // Takıldığı blok kırıldıysa düş
         if (!pointInSolid(w, a.pos[0] + a.dir[0] * 0.08, a.pos[1] + a.dir[1] * 0.08, a.pos[2] + a.dir[2] * 0.08)) { a.stuck = false; a.vel = [0, 0, 0]; }
@@ -661,6 +725,8 @@ class EntityManager {
             if (m.dead) continue;
             if (Math.abs(x - m.pos[0]) < m.hw + 0.15 && Math.abs(z - m.pos[2]) < m.hw + 0.15 && y > m.pos[1] - 0.1 && y < m.pos[1] + m.h + 0.1) {
               m.hit(a.dmg, a.vel[0], a.vel[2]);
+              m.lastPlayerHit = performance.now();
+              if (a.fire && !m.dead && m.type !== 'zpiglin') m.fireT = Math.max(m.fireT || 0, 5);
               g.audio.play('mobhurt', m.pos);
               if (m.dead) g.mobDrops(m);
               a.life = 0; break;
@@ -706,6 +772,7 @@ class EntityManager {
     this.mobs = this.mobs.filter((m) => !m.remove);
     this.updateArrows(dt);
     this.updateDrops(dt);
+    this.updateOrbs(dt);
     // Mob'lar birbirini itsin
     for (let i = 0; i < this.mobs.length; i++) for (let j = i + 1; j < this.mobs.length; j++) {
       const a = this.mobs[i], b = this.mobs[j];
@@ -812,7 +879,7 @@ class EntityManager {
   buildMesh(cam) {
     const g = this.game;
     let n = 0;
-    let boxes = this.arrows.length * 3 + 2 + 12;
+    let boxes = this.arrows.length * 3 + 2 + 12 + (g.enchTables ? g.enchTables.length * 8 : 0);
     for (const m of this.mobs) boxes += m.T.boxes || 16;
     const need = boxes * 24 * 9;
     if (this.verts.length < need) this.verts = new Float32Array(need * 2);
@@ -833,6 +900,7 @@ class EntityManager {
       const sky = g.world.dim === 'overworld' ? g.world.skyLightAt(Math.floor(p.pos[0]), Math.floor(p.pos[1] + 1), Math.floor(p.pos[2])) : 0;
       n = g.playerModel.buildMesh(this.verts, n, cam, g.world.dim === 'overworld' ? Math.max(0.15, sky ? g.sunLevel : 0.3) : 0.7);
     }
+    if (g.enchTables) for (const T of g.enchTables) n = bookMesh(this.verts, n, T, cam, g);
     const dr = this.dragon;
     if (dr && dr.healFrom && !dr.dead) n = beamMesh(this.verts, n, [dr.healFrom.pos[0], dr.healFrom.pos[1] + 0.9, dr.healFrom.pos[2]], [dr.pos[0], dr.pos[1] + 1.2, dr.pos[2]], cam);
     for (const a of this.arrows) {
@@ -842,6 +910,36 @@ class EntityManager {
     }
     return n;
   }
+}
+
+// Büyü masasındaki süzülen kitap: iki kapak omurga etrafında açılır, sayfalar çevrilir
+const _bkM = M4.create(), _bkT = M4.create(), _bkC = M4.create();
+function bookMesh(out, n, T, cam, g) {
+  const light = Math.max(0.6, g.world.dim === 'overworld' && g.world.skyLightAt(T.x, T.y + 1, T.z) ? g.sunLevel : 0.6);
+  M4.translate(_bkM, T.x + 0.5 - cam[0], T.y + 1.05 + Math.sin(T.t * 1.6) * 0.04 - cam[1], T.z + 0.5 - cam[2]);
+  M4.rotY(_bkT, T.rot); M4.mul(_bkM, _bkM, _bkT);
+  M4.rotX(_bkT, -0.35 * T.open); M4.mul(_bkM, _bkM, _bkT);
+  const spread = 0.12 + T.open * 2.0, L = 0.3, H = 0.21;
+  const COVER = [0.42, 0.2, 0.1], PAGE = [0.93, 0.9, 0.8], SPINE = [0.36, 0.17, 0.08];
+  n = addBox(out, n, _bkM, -0.025, -H, -0.03, 0.025, H, 0.0, SPINE, light);
+  // Kapaklar: sağ -π/2 + s/2, sol -π/2 - s/2 (izleyici +z tarafında)
+  for (const side of [1, -1]) {
+    const th = -Math.PI / 2 + side * spread / 2;
+    _bkC.set(_bkM);
+    M4.rotY(_bkT, -th); M4.mul(_bkC, _bkC, _bkT);
+    n = addBox(out, n, _bkC, 0, -H, -0.012, L, H, 0.012, COVER, light);
+    // Sayfa destesi kapağın iç yüzünde
+    const z0 = side > 0 ? 0.012 : -0.05, z1 = side > 0 ? 0.05 : -0.012;
+    n = addBox(out, n, _bkC, 0.01, -H + 0.02, z0, L - 0.025, H - 0.02, z1, PAGE, light);
+  }
+  // Çevrilen sayfa
+  if (T.open > 0.3) {
+    const f = (T.flip % 1), th = -Math.PI / 2 + spread / 2 - f * spread;
+    _bkC.set(_bkM);
+    M4.rotY(_bkT, -th); M4.mul(_bkC, _bkC, _bkT);
+    n = addBox(out, n, _bkC, 0.005, -H + 0.03, -0.004, L - 0.03, H - 0.03, 0.004, PAGE, light);
+  }
+  return n;
 }
 
 // --- Parçacıklar ----------------------------------------------------------
@@ -899,6 +997,17 @@ class Particles {
   flame(x, y, z) {
     this.list.push({ x, y, z, vx: 0, vy: 1.2, vz: 0, life: 0.4, layer: TEX.lava, u: 0.3, v: 0.3, size: 0.12, light: 1.4, g: -1 });
   }
+  // Keskinlik vuruşu: mavi kıvılcımlar
+  enchHit(x, y, z) {
+    for (let i = 0; i < 14; i++) {
+      this.list.push({ x, y, z, vx: (Math.random() - 0.5) * 5, vy: Math.random() * 4, vz: (Math.random() - 0.5) * 5, life: 0.4 + Math.random() * 0.3, layer: -2, u: 0.45, v: 0.85, light: 1, size: 0.06, g: 6 });
+    }
+  }
+  // Büyü masasına kitaplıktan uçan rün
+  glyph(fx, fy, fz, tx, ty, tz) {
+    const T = 1.4 + Math.random() * 0.6;
+    this.list.push({ x: fx, y: fy, z: fz, vx: (tx - fx) / T, vy: (ty - fy) / T + 0.6, vz: (tz - fz) / T, life: T, layer: -3, u: Math.random() * 10, v: 0, light: 1, size: 0.09, g: 0.85 });
+  }
   bubble(x, y, z) {
     this.list.push({ x, y, z, vx: (Math.random() - 0.5) * 0.4, vy: 1.5, vz: (Math.random() - 0.5) * 0.4, life: 0.8, layer: -1, u: 0, v: 0, size: 0.08, light: 0.9, g: -2 });
   }
@@ -919,9 +1028,19 @@ class Particles {
     if (L.length > 3500) L.splice(0, L.length - 3500);
   }
 
-  fill(cam, sun) {
-    const d = this.data;
+  fill(cam, sun, orbs) {
+    let d = this.data;
+    const need = (this.list.length + (orbs ? orbs.length : 0)) * 8;
+    if (d.length < need) d = this.data = new Float32Array(need * 2);
     let n = 0;
+    // Tecrübe küreleri: yeşil-sarı arası yanıp söner (Minecraft renk döngüsü)
+    if (orbs) for (const b of orbs) {
+      const o = n * 8, t = b.age * 9 + b.seed;
+      d[o] = b.pos[0] - cam[0]; d[o + 1] = b.pos[1] + 0.12 - cam[1]; d[o + 2] = b.pos[2] - cam[2];
+      d[o + 3] = -4; d[o + 4] = (Math.sin(t) + 1) * 0.5; d[o + 5] = 1; d[o + 6] = (Math.sin(t + 4.19) + 1) * 0.1;
+      d[o + 7] = 0.12 + Math.min(0.14, Math.log2(b.value + 1) * 0.022);
+      n++;
+    }
     for (const p of this.list) {
       const o = n * 8;
       d[o] = p.x - cam[0]; d[o + 1] = p.y - cam[1]; d[o + 2] = p.z - cam[2];

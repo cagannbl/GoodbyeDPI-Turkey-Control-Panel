@@ -48,6 +48,13 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
   sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
 - **Köylüler ve ticaret**: 8 meslek (çiftçi, çoban, okçu, kasap, rahip, kütüphaneci, zırhçı, alet ustası), zümrütle
   ticaret, günlük yenilenen stok; köylüler gündüz köyde dolaşır, gece evlerine döner
+- **Tecrübe (XP)**: canavarlardan, hayvanlardan, cevherlerden, fırından, ticaretten ve Ender Ejderhası'ndan tecrübe
+  küreleri; Minecraft seviye formülü, ölünce tecrübe yere saçılır
+- **Büyüler**: büyü masası (kitaplık sayısına göre 3 seçenek, lapis + seviye bedeli, süzülen kitap ve uçan rünler),
+  örs (onarım, büyü birleştirme, büyülü kitap, yeniden adlandırma, "Çok Pahalı!" sınırı, hasar gören örs);
+  Koruma, Tüy Gibi Düşüş, Keskinlik, Kutsal Darbe, Geri Tepme, Alev, Ganimet, Verimlilik, İpeksi Dokunuş, Servet,
+  Güç, Alev Oku, Sonsuzluk, Kırılmazlık ve Onarım; büyülü eşyalarda mor parıltı; kütüphaneciden büyülü kitap
+- Şeker kamışı, kağıt ve kitap; kitaplıklar kırılınca kitap düşürür
 - **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
   yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
   yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
@@ -61,7 +68,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | Shift | Eğil / alçal |
 | R, Ctrl veya W W | Koş |
 | Sol tık | Kır / saldır |
-| Sağ tık | Koy / kullan / masa, fırın, sandık, yatak |
+| Sağ tık | Koy / kullan / masa, fırın, sandık, yatak, büyü masası, örs |
 | Sağ tık (basılı) | Yemek ye / yayı ger |
 | Orta tık | Bloğu seç |
 | 1-9, tekerlek | Eşya seç |
@@ -82,6 +89,7 @@ Hiçbir kütüphane, derleme adımı veya harici görsel/ses dosyası yoktur —
 | `js/fluids.js` | Su ve lav akış simülasyonu |
 | `js/dragon.js` | Ender Ejderhası ve End kristalleri |
 | `js/villages.js` | Köy üretimi, köylüler, ticaret, sandık ganimeti |
+| `js/enchant.js` | Tecrübe formülleri, büyüler, büyü masası ve örs hesapları |
 | `js/world.js` | Parçalar, arazi/biyom/mağara/ağaç üretimi |
 | `js/mesher.js` | Işık yayılımı ve mesh üretimi |
 | `js/renderer.js` | WebGL2 çizici ve shader'lar |

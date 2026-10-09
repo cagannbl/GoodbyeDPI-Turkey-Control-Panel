@@ -19,15 +19,23 @@ const PROFESSIONS = {
 };
 
 // Ticaretler: [verilen, (ikinci verilen), alınan], max kullanım
-function villagerTrades(prof) {
+// rng: köylüye özgü (büyülü kitap teklifleri her köylüde farklı ama hep aynı)
+function villagerTrades(prof, rng = Math.random) {
   const E = I.EMERALD, t = (cost, out, cost2, max = 12) => ({ cost, cost2: cost2 || null, out, max });
+  // Büyülü kitap: fiyat 2 + 3×seviye (+ rastgele), hazine büyüleri iki katı (Minecraft)
+  const book = () => {
+    const b = randomBook(rng), k = Object.keys(b.ench)[0], l = b.ench[k];
+    let price = 2 + Math.floor(rng() * (5 + l * 10)) + 3 * l;
+    if (ENCH[k].treasure) price *= 2;
+    return t([E, Math.min(64, price)], [I.ENCHANTED_BOOK, 1, b.ench], [I.BOOK, 1], 3);
+  };
   switch (prof) {
     case 'farmer': return [t([I.WHEAT, 20], [E, 1]), t([B.PUMPKIN, 6], [E, 1]), t([E, 1], [I.BREAD, 6]), t([E, 1], [I.APPLE, 4]), t([E, 3], [I.GOLDEN_APPLE, 1], [I.APPLE, 1], 4), t([E, 1], [I.WHEAT_SEEDS, 12])];
     case 'shepherd': return [t([B.WOOL_WHITE, 18], [E, 1]), t([E, 1], [B.WOOL_RED, 1]), t([E, 1], [B.WOOL_BLUE, 1]), t([E, 1], [B.WOOL_YELLOW, 1]), t([E, 2], [I.BED, 1])];
     case 'fletcher': return [t([I.STICK, 32], [E, 1]), t([I.STRING, 14], [E, 1]), t([E, 1], [I.ARROW, 16]), t([E, 2], [I.BOW, 1]), t([I.FEATHER, 24], [E, 1])];
     case 'butcher': return [t([I.CHICKEN, 14], [E, 1]), t([I.PORKCHOP, 7], [E, 1]), t([I.BEEF, 10], [E, 1]), t([E, 1], [I.COOKED_PORKCHOP, 5]), t([E, 1], [I.STEAK, 4])];
     case 'cleric': return [t([I.ROTTEN_FLESH, 32], [E, 1]), t([E, 1], [I.REDSTONE_DUST, 2]), t([E, 1], [I.LAPIS, 2]), t([E, 4], [B.GLOWSTONE, 1]), t([E, 5], [I.ENDER_PEARL, 1], null, 6), t([I.GOLD_INGOT, 3], [E, 1])];
-    case 'librarian': return [t([E, 3], [B.BOOKSHELF, 1]), t([E, 1], [B.GLASS, 4]), t([E, 1], [B.TORCH, 8]), t([B.WOOL_WHITE, 4], [E, 1]), t([E, 5], [B.END_ROD, 4], null, 6)];
+    case 'librarian': return [t([I.PAPER, 24], [E, 1]), t([E, 9], [B.BOOKSHELF, 1]), book(), t([I.BOOK, 4], [E, 1]), book(), t([E, 1], [B.GLASS, 4]), t([E, 1], [B.TORCH, 8]), book()];
     case 'armorer': return [t([I.COAL, 15], [E, 1]), t([I.IRON_INGOT, 4], [E, 1]), t([E, 5], [I.IRON_HELMET, 1]), t([E, 9], [I.IRON_CHESTPLATE, 1]), t([E, 7], [I.IRON_LEGGINGS, 1]), t([E, 4], [I.IRON_BOOTS, 1]), t([E, 21], [I.DIAMOND_CHESTPLATE, 1], null, 3)];
     case 'toolsmith': return [t([I.COAL, 15], [E, 1]), t([E, 1], [I.STONE_PICKAXE, 1]), t([E, 1], [I.STONE_AXE, 1]), t([E, 3], [I.IRON_PICKAXE, 1]), t([E, 2], [I.IRON_SHOVEL, 1]), t([E, 17], [I.DIAMOND_PICKAXE, 1], null, 3), t([I.FLINT, 30], [E, 1])];
   }
@@ -264,6 +272,7 @@ function villageLoot(kind, rng) {
     add(I.IRON_INGOT, 1, 5); add(I.BREAD, 1, 3, 0.7); add(I.APPLE, 1, 3, 0.6); add(B.OBSIDIAN, 1, 4, 0.4);
     add(I.IRON_PICKAXE, 1, 1, 0.3); add(I.IRON_SWORD, 1, 1, 0.3); add(I.IRON_CHESTPLATE, 1, 1, 0.15); add(I.DIAMOND, 1, 3, 0.15);
     add(B.OAK_SAPLING, 3, 7, 0.5); add(I.GOLD_INGOT, 1, 3, 0.4);
+    if (rng() < 0.3) out.push(randomBook(rng, false));
   } else {
     add(I.BREAD, 1, 4); add(I.WHEAT, 2, 8, 0.6); add(I.APPLE, 1, 4, 0.5); add(I.EMERALD, 1, 3, 0.35); add(B.TORCH, 2, 6, 0.4); add(I.WHEAT_SEEDS, 3, 10, 0.5);
   }

@@ -65,6 +65,10 @@ const ARMOR_ROWS9 = [
 ];
 const half = (rows, from, to, re, ch) => rows.map((r) => r.slice(0, from) + r.slice(from, to).replace(re, ch) + r.slice(to));
 
+// Yaratıcı paleti girdisi: eşya kimliği ya da 'e:<büyü>' (en yüksek seviyeli büyülü kitap)
+const palStack = (id) => (typeof id === 'string' ? { id: I.ENCHANTED_BOOK, count: 1, ench: { [id.slice(2)]: ENCH[id.slice(2)].max } } : { id, count: 1 });
+const palName = (id) => (typeof id === 'string' ? itemName(I.ENCHANTED_BOOK) + ' ' + enchLabel(id.slice(2), ENCH[id.slice(2)].max) : itemName(id));
+
 class UI {
   constructor(game) {
     this.g = game;
@@ -240,7 +244,8 @@ class UI {
 
   showItemName() {
     const s = this.g.inv[this.g.selected];
-    $('itemName').textContent = s ? itemName(s.id) : '';
+    $('itemName').textContent = s ? stackName(s) : '';
+    $('itemName').classList.toggle('ench', isEnchanted(s));
     $('itemName').style.opacity = 1;
     this.nameTimer = 2;
   }
@@ -254,7 +259,7 @@ class UI {
     for (let i = 0; i < 9; i++) {
       const el = hb.children[i], s = g.inv[i];
       el.classList.toggle('sel', i === g.selected);
-      const key = s ? s.id + ':' + s.count + ':' + (s.dmg || 0) : '';
+      const key = s ? s.id + ':' + s.count + ':' + (s.dmg || 0) + (s.ench ? ':e' : '') : '';
       if (el.dataset.k === key) continue;
       el.dataset.k = key;
       el.innerHTML = this.slotInner(s);
@@ -301,6 +306,16 @@ class UI {
       }
       $('armorBar').innerHTML = html;
     }
+    // Tecrübe çubuğu ve seviye
+    $('xpBar').style.visibility = surv ? 'visible' : 'hidden';
+    if (surv) {
+      const xk = p.xpLevel + ':' + Math.round(p.xpProg / xpToNext(p.xpLevel) * 182);
+      if (xk !== this.lastXp) {
+        this.lastXp = xk;
+        $('xpFill').style.width = Math.min(100, p.xpProg / xpToNext(p.xpLevel) * 100) + '%';
+        $('xpLvl').textContent = p.xpLevel > 0 ? p.xpLevel : '';
+      }
+    }
     const air = p.eyeInWater && surv ? Math.ceil(Math.max(0, p.air)) : -1;
     if (air !== this.lastAir) {
       this.lastAir = air;
@@ -328,6 +343,7 @@ class UI {
   slotInner(s) {
     if (!s) return '';
     let h = `<img src="${ICONS[s.id]}" draggable="false">`;
+    if (isEnchanted(s)) h += `<span class="glint" style="-webkit-mask-image:url(${ICONS[s.id]});mask-image:url(${ICONS[s.id]})"></span>`;
     if (s.count > 1) h += `<span class="cnt">${s.count}</span>`;
     const t = toolOf(s);
     if (t && s.dmg > 0) {
@@ -349,6 +365,7 @@ class UI {
     if (c === 'tile') return g.screen.tile.items[i];
     if (c === 'result') return this.result;
     if (c === 'armor') return g.armor[i];
+    if (c === 'ares') { const r = g.anvilState(); return r ? r.out : null; }
     return null;
   }
   setSlot(c, i, v) {
@@ -360,7 +377,8 @@ class UI {
     else if (c === 'armor') { g.armor[i] = v; this.lastArmor = -1; }
   }
   canPut(c, i, s) {
-    if (c === 'result' || c === 'pal') return false;
+    if (c === 'result' || c === 'pal' || c === 'ares') return false;
+    if (c === 'tile' && this.g.screen.kind === 'enchant') return i === 1 ? s.id === I.LAPIS : true;
     if (c === 'armor') { const a = armorOf(s); return !!a && a.slot === i; }
     if (c === 'tile' && this.g.screen.kind === 'furnace') {
       if (i === 2) return false;
@@ -412,6 +430,14 @@ class UI {
 
   shiftClick(c, i) {
     const g = this.g, k = g.screen.kind;
+    if (c === 'ares') {
+      const r = g.anvilState();
+      if (!r || !this.hasRoom(r.out)) return;
+      const out = g.takeAnvil();
+      if (out) this.moveInto(out, [['inv', 9, 36], ['inv', 0, 9]]);
+      return;
+    }
+    if (c === 'tile' && k === 'furnace' && i === 2) g.furnaceXp(g.screen.tile);
     if (c === 'result') {
       for (let n = 0; n < 64 && this.result; n++) {
         const st = { id: this.result.id, count: this.result.count };
@@ -428,6 +454,8 @@ class UI {
     if (c === 'inv' && a && k === 'player' && !g.armor[a.slot]) { g.armor[a.slot] = s; this.setSlot(c, i, null); this.lastArmor = -1; g.audio.play('equip'); return; }
     if (c === 'inv') {
       if (k === 'chest') targets = [['tile', 0, 27]];
+      else if (k === 'enchant') targets = s.id === I.LAPIS ? [['tile', 1, 2]] : !g.screen.tile.items[0] ? [['tile', 0, 1]] : null;
+      else if (k === 'anvil') targets = !g.screen.tile.items[0] ? [['tile', 0, 1]] : !g.screen.tile.items[1] ? [['tile', 1, 2]] : null;
       else if (k === 'furnace') targets = SMELT[s.id] !== undefined ? [['tile', 0, 1]] : fuelTime(s.id) ? [['tile', 1, 2]] : null;
       if (!targets) targets = i < 9 ? [['inv', 9, 36]] : [['inv', 0, 9]];
     } else targets = [['inv', 9, 36], ['inv', 0, 9]];
@@ -449,6 +477,11 @@ class UI {
     const g = this.g;
     if (c === 'trash') { this.cursor = null; return; }
     if (c === 'pal') {
+      if (typeof i === 'string' && i.startsWith('e:')) {
+        const k = i.slice(2), st = { id: I.ENCHANTED_BOOK, count: 1, ench: { [k]: ENCH[k].max } };
+        if (shift) this.moveInto(st, [['inv', 0, 9], ['inv', 9, 36]]); else this.cursor = this.cursor ? null : st;
+        return;
+      }
       const id = +i;
       if (shift) { const st = { id, count: maxStack(id) }; this.moveInto(st, [['inv', 0, 9], ['inv', 9, 36]]); return; }
       if (this.cursor && this.cursor.id === id && !right) { this.cursor.count = Math.min(maxStack(id), this.cursor.count + 1); return; }
@@ -456,6 +489,12 @@ class UI {
       return;
     }
     if (shift) { this.shiftClick(c, i); return; }
+    if (c === 'ares') {
+      if (this.cursor) return;
+      const out = g.takeAnvil();
+      if (out) this.cursor = out;
+      return;
+    }
     if (c === 'result') {
       const r = this.result;
       if (!r) return;
@@ -466,8 +505,9 @@ class UI {
     }
     const s = this.getSlot(c, i), cur = this.cursor;
     if (c === 'tile' && g.screen.kind === 'furnace' && i === 2) {
-      // Çıktı yuvası: sadece al
+      // Çıktı yuvası: sadece al (biriken tecrübe verilir)
       if (!s) return;
+      g.furnaceXp(g.screen.tile);
       if (!cur) { this.cursor = s; this.setSlot(c, i, null); }
       else if (cur.id === s.id && cur.count + s.count <= maxStack(s.id)) { cur.count += s.count; this.setSlot(c, i, null); }
       return;
@@ -497,6 +537,7 @@ class UI {
     const k = this.g.screen.kind;
     const areas = [['inv', 0, 36]];
     if (k === 'chest') areas.push(['tile', 0, 27]);
+    if (k === 'enchant' || k === 'anvil') areas.push(['tile', 0, 2]);
     if (k === 'player' || k === 'crafting') areas.push(['craft', 0, 9]);
     for (const [c, a, b] of areas) for (let i = a; i < b && cur.count < maxStack(cur.id); i++) {
       const s = this.getSlot(c, i);
@@ -513,7 +554,7 @@ class UI {
       if (!this.drag) return;
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const s = el && el.closest('.slot');
-      if (!s || s.dataset.c === 'pal' || s.dataset.c === 'result' || s.dataset.c === 'trash') return;
+      if (!s || s.dataset.c === 'pal' || s.dataset.c === 'result' || s.dataset.c === 'ares' || s.dataset.c === 'trash') return;
       const key = s.dataset.c + ':' + s.dataset.i;
       if (!this.drag.slots.some((d) => d.key === key)) {
         const t = this.getSlot(s.dataset.c, +s.dataset.i);
@@ -531,6 +572,9 @@ class UI {
       if (e.target.closest('#bookBtn')) { this.bookOpen = !this.bookOpen; g.audio.play('click'); this.render(); return; }
       const tr = e.target.closest('.trade');
       if (tr) { g.doTrade(+tr.dataset.t); return; }
+      const eo = e.target.closest('.eopt');
+      if (eo) { if (!eo.classList.contains('off')) g.doEnchant(+eo.dataset.o); else g.audio.play('click'); return; }
+      if (e.target.closest('#anvilName')) return;
       const rec = e.target.closest('.rbook');
       if (rec) { this.fillRecipe(+rec.dataset.r); return; }
       const slot = e.target.closest('.slot');
@@ -551,7 +595,7 @@ class UI {
       }
       this.lastClick = { t: now, key: c + ':' + i };
       // İmleçte eşya varken sürükleyerek dağıt
-      if (this.cursor && !e.shiftKey && c !== 'pal' && c !== 'result' && c !== 'trash') {
+      if (this.cursor && !e.shiftKey && c !== 'pal' && c !== 'result' && c !== 'ares' && c !== 'trash') {
         this.drag = { right: rightBtn, slots: [], start: { c, i } };
         const t = this.getSlot(c, i);
         if ((!t || (t.id === this.cursor.id && !toolOf(t))) && this.canPut(c, i, this.cursor)) { this.drag.slots.push({ key: c + ':' + i, c, i }); slot.classList.add('dragsel'); }
@@ -587,6 +631,18 @@ class UI {
       this.afterChange();
     });
     $('invClose').addEventListener('pointerdown', (e) => { e.stopPropagation(); this.g.closeInventory(); });
+    // Örs ad kutusu: yazarken tüm ekranı yeniden çizme (odak kaybolmasın)
+    const ca = $('containerArea');
+    ca.addEventListener('input', (e) => {
+      if (e.target.id !== 'anvilName' || !this.g.screen || this.g.screen.kind !== 'anvil') return;
+      this.g.screen.tile.name = e.target.value;
+      this.updateAnvil();
+    });
+    ca.addEventListener('keydown', (e) => {
+      if (e.target.id !== 'anvilName') return;
+      e.stopPropagation();
+      if (e.key === 'Enter' || e.key === 'Escape') e.target.blur();
+    });
     window.addEventListener('resize', () => this.fitInventory());
     this.fitInventory();
     $('invSearch').addEventListener('input', () => this.render());
@@ -599,8 +655,22 @@ class UI {
       if (tr && this.g.screen && this.g.screen.kind === 'trade') {
         const T = this.g.screen.tile.trades[+tr.dataset.t], tt = $('tooltip');
         const nm = (st) => `${st[1]}× ${itemName(st[0])}`;
-        tt.innerHTML = `<b>${nm(T.out)}</b><br><span class="tt2">Bedel: ${nm(T.cost)}${T.cost2 ? ' + ' + nm(T.cost2) : ''}</span>`;
+        tt.innerHTML = `<b>${nm(T.out)}</b>${T.out[2] ? this.enchLines(T.out[2]) : ''}<br><span class="tt2">Bedel: ${nm(T.cost)}${T.cost2 ? ' + ' + nm(T.cost2) : ''}</span>`;
         tt.style.display = 'block';
+        return;
+      }
+      const eo = e.target.closest('.eopt');
+      if (eo && this.g.screen && this.g.screen.kind === 'enchant') {
+        const st = this.g.enchantState(), o = st && st.offers && st.offers[+eo.dataset.o], tt = $('tooltip');
+        if (!o || !o.list.length) { tt.style.display = 'none'; return; }
+        const i = +eo.dataset.o, p = this.g.player;
+        let h = `<b class="ench">${enchLabel(o.list[0].k, o.list[0].l)} . . . ?</b>`;
+        if (!p.creative) {
+          h += `<br><span class="${(this.g.screen.tile.items[1] || { count: 0 }).count >= i + 1 ? 'tt2' : 'bad'}">${i + 1} Lapis Lazuli</span>`;
+          h += `<br><span class="${p.xpLevel >= i + 1 ? 'tt2' : 'bad'}">${i + 1} Tecrübe Seviyesi</span>`;
+          if (p.xpLevel < o.cost) h += `<br><span class="bad">Gereken seviye: ${o.cost}</span>`;
+        }
+        tt.innerHTML = h; tt.style.display = 'block';
         return;
       }
       const s = e.target.closest('.slot, .rbook');
@@ -608,10 +678,11 @@ class UI {
       if (!s) { tt.style.display = 'none'; return; }
       let st = null;
       if (s.classList.contains('rbook')) { const r = this.bookList[+s.dataset.r]; st = r ? { id: r.out, count: r.n } : null; }
-      else if (s.dataset.c === 'pal') st = { id: +s.dataset.i, count: 1 };
+      else if (s.dataset.c === 'pal') st = palStack(s.dataset.i.startsWith('e:') ? s.dataset.i : +s.dataset.i);
       else st = this.getSlot(s.dataset.c, +s.dataset.i);
       if (!st) { tt.style.display = 'none'; return; }
-      let html = `<b>${itemName(st.id)}</b>`;
+      let html = `<b class="${isEnchanted(st) ? 'ench' : ''}">${st.name ? '<i>' + esc(st.name) + '</i>' : itemName(st.id)}</b>`;
+      if (st.ench) html += this.enchLines(st.ench);
       const t = toolOf(st), def = itemDef(st.id);
       if (t && t.dmg) html += `<br><span class="tt2">Saldırı hasarı: ${t.dmg}</span>`;
       if (t && t.dur) html += `<br><span class="tt2">Dayanıklılık: ${t.dur - (st.dmg || 0)} / ${t.dur}</span>`;
@@ -628,7 +699,23 @@ class UI {
     });
   }
 
+  enchLines(ench) {
+    return Object.keys(ench).map((k) => `<br><span class="tt2">${enchLabel(k, ench[k])}</span>`).join('');
+  }
+
+  updateAnvil() {
+    const g = this.g, r = g.anvilState();
+    const res = document.querySelector('#containerArea .slot[data-c=ares]');
+    if (res) res.innerHTML = this.slotInner(r ? r.out : null);
+    const ar = document.querySelector('#containerArea .anvil .arrow');
+    if (ar) ar.classList.toggle('x', !(r && !r.tooExpensive && r.afford));
+    $('anvilCost').innerHTML = !r ? '' : r.tooExpensive ? '<span class="bad">Çok Pahalı!</span>' : `<span class="${r.afford ? 'good' : 'bad'}">Büyü Bedeli: ${r.cost}</span>`;
+  }
+
   afterChange() {
+    const S = this.g.screen;
+    // Örse yeni eşya konunca ad kutusu o eşyanın adıyla başlar
+    if (S && S.kind === 'anvil' && S.tile.items[0] !== this.anvilLeft) { this.anvilLeft = S.tile.items[0]; S.tile.name = null; }
     this.updateResult();
     this.render();
     this.hotbarDirty = true;
@@ -759,10 +846,10 @@ class UI {
         if (search) {
           const q = $('invSearch').value.trim().toLocaleLowerCase('tr');
           items = [];
-          for (const t of CREATIVE_TABS) if (t.items) for (const id of t.items) if (!q || itemName(id).toLocaleLowerCase('tr').includes(q)) items.push(id);
+          for (const t of CREATIVE_TABS) if (t.items) for (const id of t.items) if (!q || palName(id).toLocaleLowerCase('tr').includes(q)) items.push(id);
         }
         $('invSearch').classList.toggle('hidden', !search);
-        top += `<div class="grid pal">${items.map((id) => this.slot('pal', id, { id, count: 1 })).join('')}</div>`;
+        top += `<div class="grid pal">${items.map((id) => this.slot('pal', id, palStack(id))).join('')}</div>`;
       } else $('invSearch').classList.add('hidden');
     } else {
       $('invSearch').classList.add('hidden');
@@ -781,7 +868,7 @@ class UI {
           <div class="arrow prog"><i style="width:${Math.min(22, pr * 0.22)}px"></i></div>${this.slot('tile', 2, t.items[2], 'big')}</div>`;
       } else if (kind === 'trade') {
         const m = S.tile, rec = g.tradeRecord(m);
-        const box = (st) => `<span class="tslot">${this.slotInner({ id: st[0], count: st[1] })}</span>`;
+        const box = (st) => `<span class="tslot">${this.slotInner({ id: st[0], count: st[1], ench: st[2] })}</span>`;
         const rows = m.trades.map((T, i) => {
           const left = T.max - (rec.uses[i] || 0), ok = left > 0 && g.canAfford(T);
           return `<div class="trade ${ok ? '' : 'no'} ${left <= 0 ? 'out' : ''}" data-t="${i}">${box(T.cost)}${T.cost2 ? '<span class="tplus">+</span>' + box(T.cost2) : '<span class="tplus"></span><span class="tslot ghost"></span>'}<span class="tarr">➜</span>${box(T.out)}<span class="tleft">${left > 0 ? left : '✕'}</span></div>`;
@@ -789,6 +876,10 @@ class UI {
         top = `<div class="invTitle">${m.T.name} · Zümrüt: ${g.player.creative ? '∞' : g.countItem(I.EMERALD)}</div><div class="trades">${rows}</div>`;
       } else if (kind === 'chest') {
         top = `<div class="invTitle">Sandık</div><div class="grid">${S.tile.items.map((s, i) => this.slot('tile', i, s)).join('')}</div>`;
+      } else if (kind === 'enchant') {
+        top = this.renderEnchant(S.tile);
+      } else if (kind === 'anvil') {
+        top = this.renderAnvil(S.tile);
       }
     }
     $('containerArea').innerHTML = top;
@@ -810,6 +901,35 @@ class UI {
     const cur = this.cursor;
     $('cursorItem').innerHTML = cur ? this.slotInner(cur) : '';
     this.furnaceKey = kind === 'furnace' ? this.furnaceState() : null;
+  }
+
+  // Büyü masası: solda eşya + lapis, sağda üç seçenek (rünler, bedel)
+  renderEnchant(T) {
+    const g = this.g, p = g.player, st = g.enchantState(), lap = T.items[1] ? T.items[1].count : 0;
+    let opts = '';
+    for (let i = 0; i < 3; i++) {
+      const o = st && st.offers && st.offers[i];
+      if (!o || !o.list.length) { opts += `<div class="eopt off empty" data-o="${i}"></div>`; continue; }
+      const ok = p.creative || (p.xpLevel >= o.cost && lap >= i + 1);
+      const rng = mulberry32(o.cost * 977 + i * 31 + (p.enchSeed & 0xffff));
+      let runes = '';
+      for (let k = 0, n = 10 + Math.floor(rng() * 8); k < n; k++) runes += RUNES[Math.floor(rng() * RUNES.length)];
+      opts += `<div class="eopt ${ok ? '' : 'off'}" data-o="${i}"><span class="elap"><i>${i + 1}</i></span><span class="erunes">${runes}</span><span class="ecost">${o.cost}</span></div>`;
+    }
+    const shelves = T.items[0] ? (st ? st.shelves : 0) : g.countShelves(T.x, T.y, T.z);
+    return `<div class="invTitle">Büyüle <span class="ehint">· Kitaplık: ${Math.min(15, shelves)}/15</span></div>
+      <div class="encht"><div class="ecol"><div class="ebook"></div><div class="erow">${this.slot('tile', 0, T.items[0])}${this.slot('tile', 1, T.items[1], 'lapis')}</div></div><div class="eopts">${opts}</div></div>`;
+  }
+  // Örs: ad kutusu, iki giriş, sonuç ve seviye bedeli
+  renderAnvil(T) {
+    const g = this.g, r = g.anvilState(), left = T.items[0];
+    const nm = T.name !== null ? T.name : left ? stackName(left) : '';
+    let cost = '';
+    if (r) cost = r.tooExpensive ? '<span class="bad">Çok Pahalı!</span>' : `<span class="${r.afford ? 'good' : 'bad'}">Büyü Bedeli: ${r.cost}</span>`;
+    return `<div class="invTitle">Onar ve Adlandır</div>
+      <div class="anvil"><input id="anvilName" maxlength="35" placeholder="${left ? '' : 'Eşya koy'}" value="${esc(nm)}" ${left ? '' : 'disabled'} autocomplete="off" spellcheck="false">
+      <div class="arow">${this.slot('tile', 0, T.items[0])}<span class="aplus">+</span>${this.slot('tile', 1, T.items[1])}<div class="arrow ${r && !r.tooExpensive && r.afford ? '' : 'x'}"></div>${this.slot('ares', 0, r ? r.out : null, 'big')}</div>
+      <div class="acost" id="anvilCost">${cost}</div></div>`;
   }
 
   furnaceState() {
