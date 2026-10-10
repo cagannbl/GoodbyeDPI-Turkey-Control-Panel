@@ -308,10 +308,26 @@ class Game {
   // ------------------------------------------------------------ Girişler
   requestLock() {
     if (this.isTouch) return;
+    // unadjustedMovement: işletim sisteminin fare ivmesini atla (Chrome'daki ani bakış sıçramalarını da azaltır).
+    // Desteklemeyen tarayıcıda normal kilide geri dön.
+    const plain = () => { try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* yok say */ } };
     try {
-      const r = this.canvas.requestPointerLock();
-      if (r && r.catch) r.catch(() => {});
-    } catch (e) { /* yok say */ }
+      const r = this.canvas.requestPointerLock({ unadjustedMovement: true });
+      if (r && r.catch) r.catch(() => plain());
+    } catch (e) { plain(); }
+  }
+
+  // Bazı tarayıcılar (özellikle Windows'ta Chrome) fare kilitliyken arada bir tek olayda
+  // yüzlerce piksellik sahte hareket gönderir; karakter bir anda başka yere bakar.
+  // Son hareketlerin ortalamasına göre aşırı büyük tekil sıçramaları yok say.
+  lookSane(dx, dy) {
+    const now = performance.now(), m = Math.hypot(dx, dy);
+    if (now - (this.lockT || 0) < 120) return false; // kilit yeni alındı: ilk olaylar güvenilmez
+    const avg = this.lookAvg || 0, idle = now - (this.lookLastT || 0) > 80;
+    this.lookLastT = now;
+    if (m > 120 && (idle || m > avg * 6 + 40)) { this.lookAvg = avg * 0.5; return false; }
+    this.lookAvg = avg * 0.7 + m * 0.3;
+    return true;
   }
 
   look(dx, dy, mult = 1) {
@@ -578,6 +594,7 @@ class Game {
     for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, () => this.audio.init(), { capture: true, passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === cv;
+      if (this.locked) { this.lockT = performance.now(); this.lookAvg = 0; }
       if (this.locked) $('clickToPlay').classList.add('hidden');
       else if (this.state === 'playing') {
         if (this.ignoreUnlock) this.ignoreUnlock = false;
@@ -609,7 +626,7 @@ class Game {
       if (e.button === 2) this.mouse.right = false;
     });
     document.addEventListener('mousemove', (e) => {
-      if (this.locked && this.state === 'playing') this.look(e.movementX, e.movementY);
+      if (this.locked && this.state === 'playing') { if (this.lookSane(e.movementX, e.movementY)) this.look(e.movementX, e.movementY); }
       else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
