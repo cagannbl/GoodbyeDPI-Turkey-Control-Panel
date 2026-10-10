@@ -638,6 +638,9 @@ class Game {
     window.addEventListener('keydown', (e) => {
       const k = e.code;
       if (['F1', 'F2', 'F3', 'Space', 'Tab', 'F5'].includes(k) || (this.state === 'playing' && k.startsWith('Arrow'))) e.preventDefault();
+      // Ctrl ile koşarken tarayıcı kısayolları tetiklenmesin (Ctrl+D yer işareti, Ctrl+S kaydet, Ctrl+A...).
+      // Ctrl+W / Ctrl+T gibi bazıları engellenemez; onlar için aşağıdaki çıkış onayı var.
+      if ((e.ctrlKey || e.metaKey) && this.world && this.meta && this.state !== 'menu' && /^(Key|Digit)/.test(k)) e.preventDefault();
       if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') return;
       this.audio.init();
       if (this.state === 'inventory') {
@@ -688,7 +691,11 @@ class Game {
     });
     window.addEventListener('blur', () => { this.keys = {}; this.mouse.left = this.mouse.right = false; this.pause(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.pause(); this.saveWorld(); } });
-    window.addEventListener('beforeunload', () => this.saveWorld());
+    window.addEventListener('beforeunload', (e) => {
+      this.saveWorld();
+      // Oyun açıkken sekme kazara kapanmasın (ör. Ctrl ile koşarken W'ye basınca Ctrl+W): tarayıcı onay sorar
+      if (this.meta && this.state !== 'menu' && !this.ctxLost && $('fatal').classList.contains('hidden')) { e.preventDefault(); e.returnValue = ''; }
+    });
   }
 
   // ------------------------------------------------------------ Envanter
