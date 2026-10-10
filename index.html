@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1b1b">
+  <meta name="description" content="WebCraft - tarayıcıda çalışan, tamamen HTML5/WebGL2 ile yazılmış Minecraft tarzı blok oyunu.">
+  <title>WebCraft</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- Oyun içi arayüz -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"></div>
+    <div id="debug" class="hidden"></div>
+    <div id="vignette"></div>
+    <div id="hurtFlash"></div>
+    <div id="liquidOverlay"></div>
+    <div id="portalOverlay"></div>
+    <div id="sleepOverlay"></div>
+    <div id="bossBar" class="hidden"><div id="bossName">Ender Ejderhası</div><div class="bbar"><i id="bossFill"></i></div></div>
+    <div id="toast"></div>
+    <div id="bottom">
+      <div id="itemName"></div>
+      <div id="bars">
+        <div class="bcol"><div id="armorBar"></div><div id="hearts"></div></div>
+        <div class="bcol r"><div id="bubbles"></div><div id="foodBar"></div></div>
+      </div>
+      <div id="xpBar"><i id="xpFill"></i><span id="xpLvl"></span></div>
+      <div id="hotbar"></div>
+    </div>
+    <div id="modeTag"></div>
+  </div>
+
+  <div id="clickToPlay" class="overlay hidden">
+    <div class="panel small">
+      <div class="big">Oynamak için tıkla</div>
+      <div class="hint">WASD: yürü · Boşluk: zıpla · Fare: bak · Sol tık: kır · Sağ tık: koy · E: envanter · Esc: duraklat</div>
+    </div>
+  </div>
+
+  <!-- Ana menü -->
+  <div id="mainMenu" class="screen">
+    <div class="logoWrap">
+      <h1 class="logo">WEBCRAFT</h1>
+      <div class="splash" id="splash">HTML5 ile!</div>
+    </div>
+    <div class="menuButtons">
+      <button class="btn" data-action="worlds">Tek Oyuncu</button>
+      <button class="btn" data-action="settings">Ayarlar</button>
+      <button class="btn" data-action="help">Nasıl Oynanır?</button>
+      <button class="btn touchOnly" data-action="fullscreen">Tam Ekran</button>
+    </div>
+    <div class="footer"><span>WebCraft v1.0</span><span>Tarayıcıda çalışan blok oyunu · Kurulum gerekmez</span></div>
+  </div>
+
+  <!-- Dünya seçimi -->
+  <div id="worldsMenu" class="screen hidden dim">
+    <h2>Dünya Seç</h2>
+    <div id="worldList" class="list"></div>
+    <div class="row">
+      <button class="btn" data-action="create">Yeni Dünya Oluştur</button>
+      <button class="btn" data-action="back">Geri</button>
+    </div>
+  </div>
+
+  <!-- Dünya oluştur -->
+  <div id="createMenu" class="screen hidden dim">
+    <h2>Yeni Dünya Oluştur</h2>
+    <div class="form">
+      <label>Dünya Adı<input id="worldName" type="text" maxlength="32" value="Yeni Dünya"></label>
+      <label>Dünya Tohumu (boş bırakırsan rastgele)<input id="worldSeed" type="text" maxlength="40" placeholder="ör. 12345 veya istanbul"></label>
+      <div class="lbl">Oyun Modu</div>
+      <div class="toggleRow" id="modeToggle">
+        <button class="btn sel" data-mode="survival">Hayatta Kalma</button>
+        <button class="btn" data-mode="creative">Yaratıcı</button>
+      </div>
+      <div class="hint" id="modeHint">Blok topla, canavarlardan korun, sağlığına dikkat et.</div>
+      <div class="lbl">Zorluk</div>
+      <div class="toggleRow" id="diffToggle">
+        <button class="btn" data-diff="0">Kolay</button>
+        <button class="btn sel" data-diff="1">Normal</button>
+        <button class="btn" data-diff="2">Zor</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" data-action="doCreate">Dünyayı Oluştur</button>
+      <button class="btn" data-action="worlds">İptal</button>
+    </div>
+  </div>
+
+  <!-- Ayarlar -->
+  <div id="settingsMenu" class="screen hidden dim">
+    <h2>Ayarlar</h2>
+    <div class="form settings">
+      <label>Görüş Mesafesi: <b id="rdVal"></b><input type="range" id="setRD" min="2" max="14" step="1"></label>
+      <label>Görüş Açısı (FOV): <b id="fovVal"></b><input type="range" id="setFOV" min="50" max="110" step="1"></label>
+      <label>Fare Hassasiyeti: <b id="sensVal"></b><input type="range" id="setSens" min="0.2" max="3" step="0.05"></label>
+      <label>Parlaklık: <b id="gammaVal"></b><input type="range" id="setGamma" min="0" max="0.7" step="0.05"></label>
+      <label>Ses: <b id="volVal"></b><input type="range" id="setVol" min="0" max="1" step="0.05"></label>
+      <label>Müzik: <b id="musVal"></b><input type="range" id="setMus" min="0" max="1" step="0.05"></label>
+      <label>Çözünürlük Ölçeği: <b id="resVal"></b><input type="range" id="setRes" min="0.4" max="1" step="0.05"></label>
+      <div class="checks">
+        <label class="chk"><input type="checkbox" id="setClouds"> Bulutlar</label>
+        <label class="chk"><input type="checkbox" id="setBob"> Kamera sallanması</label>
+        <label class="chk"><input type="checkbox" id="setMobs"> Canlılar</label>
+        <label class="chk"><input type="checkbox" id="setInvert"> Fareyi ters çevir</label>
+        <label class="chk"><input type="checkbox" id="setAutoRes"> Otomatik çözünürlük (FPS düşünce)</label>
+      </div>
+    </div>
+    <div class="row"><button class="btn" data-action="settingsBack">Bitti</button></div>
+  </div>
+
+  <!-- Yardım -->
+  <div id="helpMenu" class="screen hidden dim">
+    <h2>Nasıl Oynanır?</h2>
+    <div class="helpGrid touchOnly">
+      <div><b>Sol alt</b> Parmağını sürükle: yürü (kenara it: koş)</div>
+      <div><b>Ekrana dokun</b> Blok koy / kullan / vur</div>
+      <div><b>Basılı tut</b> Kır (yemek ve yayda: ye / ger)</div>
+      <div><b>Sürükle</b> Etrafa bak</div>
+      <div><b>⤒ ⤓</b> Zıpla / eğil (engele yürüyünce kendiliğinden zıplar)</div>
+      <div><b>Eşya çubuğu</b> Dokun: seç, basılı tut: at</div>
+      <div><b>Envanter ⇅ ½</b> Hızlı aktarma / tek tek koyma modu</div>
+      <div><b>◉</b> Kamera görünümü</div>
+    </div>
+    <div class="helpGrid desktopOnly">
+      <div><kbd>W A S D</kbd> Hareket</div>
+      <div><kbd>Boşluk</kbd> Zıpla / Yüz</div>
+      <div><kbd>Shift</kbd> Eğil (kenardan düşmezsin)</div>
+      <div><kbd>R</kbd> / <kbd>Ctrl</kbd> / <kbd>W W</kbd> Koş</div>
+      <div><kbd>Sol Tık</kbd> Blok kır / Saldır</div>
+      <div><kbd>Sağ Tık</kbd> Koy / ye / kullan / masa, fırın, sandık aç</div>
+      <div><kbd>Sağ Tık basılı</kbd> Yemek ye / yayı ger (bırakınca atar)</div>
+      <div><kbd>Orta Tık</kbd> Bloğu seç</div>
+      <div><kbd>1-9</kbd> / <kbd>Tekerlek</kbd> Eşya seç</div>
+      <div><kbd>E</kbd> Envanter (2x2 üretim)</div>
+      <div><kbd>Boşluk Boşluk</kbd> Uç (Yaratıcı)</div>
+      <div><kbd>F3</kbd> Hata ayıklama ekranı</div>
+      <div><kbd>F1</kbd> Arayüzü gizle</div>
+      <div><kbd>F2</kbd> Ekran görüntüsü</div>
+      <div><kbd>F5</kbd> Üçüncü şahıs kamera (arkadan / önden)</div>
+      <div><kbd>Q</kbd> / <kbd>Ctrl+Q</kbd> Eşya at / yığını at</div>
+      <div><kbd>Esc</kbd> Duraklat</div>
+    </div>
+    <p class="hint">Ağaç kır → kalas → çalışma masası → tahta kazma ile başla. Taş, demir ve elmas aletlerle daha sert cevherleri kazabilirsin.
+      Cevherleri fırında eritip külçe yap. Envanterdeki kitap düğmesi tarif kitabını açar.
+      Nether: obsidyenden en az 4x5 çerçeve kur, çakmakla yak. Netherit için Nether'da kadim kalıntı ara.
+      End: 12 End çerçevesini 3x3 boşluk etrafında halka yap ve hepsine Sonveren Gözü koy.<br>
+      Açlık barı koştukça ve zıpladıkça azalır; tokken canın yenilenir. Çapayla toprağı sür, tohum ek (uzun çimenden düşer),
+      suya yakın tarlada buğday daha hızlı büyür; 3 buğday = ekmek. Kemik tozu ekini ve fidanı hızla büyütür.
+      Zırhı envanterdeki zırh yuvalarına koy ya da elindeyken sağ tıkla. Yatakta gece uyursan sabah olur ve doğma noktan ayarlanır
+      (Nether ve End'de yatak patlar!). Yay için ip (örümcek), ok için tüy (tavuk) gerekir.<br>
+      Su ve lav akar: kaynak bloğu kovayla alınır, iki kaynak arasına yeni kaynak oluşur. Kapı, tuzak kapı ve çit kapısı sağ tıkla açılır;
+      merdivene doğru yürüyerek tırman. End'de Ender Ejderhası seni bekliyor: önce sütunlardaki kristalleri ok ile patlat,
+      ejderhayı yenince çıkış geçidi açılır.<br>
+      Köyleri bul: köylülere sağ tıkla (telefonda dokun) ve zümrütle ticaret yap. Stoklar her gün yenilenir.
+      Demircinin sandığında ganimet olabilir. Kürekle çimene sağ tıklayınca yol yaparsın.<br>
+      Canavar öldürünce, cevher kazınca ve fırından ürün alınca tecrübe küreleri toplarsın. Büyü masası (kitap + 2 elmas + 4 obsidyen)
+      lapis lazuli ve tecrübe seviyesiyle eşyaları büyüler; etrafına 1 blok boşlukla 15 kitaplık koyarsan en güçlü büyüler çıkar.
+      Örs (3 demir bloğu + 4 külçe) ile eşya onarır, büyülü kitap uygular ve eşyalara ad verirsin. Kitap için suyun yanındaki
+      şeker kamışından kağıt yap. Kütüphaneci köylüler büyülü kitap satar.<br>
+      Kızıltaş: tozu bloğun üstüne koy; şalter, düğme, basınç plakası ya da kızıltaş meşalesiyle güç ver. Güç 15 blok gider,
+      yineleyici (sağ tıkla gecikmeyi değiştir) yeniler. Lamba, piston, kapı ve TNT güç alınca çalışır.<br>
+      Ses kayıtları: Minetest Game, VoxeLibre ve Kenney katkıcıları (CC0 / CC BY / CC BY-SA / MIT); ayrıntılar sounds/CREDITS.md.</p>
+    <div class="row"><button class="btn" data-action="back">Geri</button></div>
+  </div>
+
+  <!-- Duraklatma -->
+  <div id="pauseMenu" class="screen hidden dim">
+    <h2>Oyun Duraklatıldı</h2>
+    <div class="menuButtons">
+      <button class="btn" data-action="resume">Oyuna Dön</button>
+      <button class="btn touchOnly" data-action="fullscreen">Tam Ekran</button>
+      <button class="btn" data-action="settings">Ayarlar</button>
+      <button class="btn" data-action="help">Nasıl Oynanır?</button>
+      <button class="btn" data-action="quit">Kaydet ve Ana Menüye Dön</button>
+    </div>
+  </div>
+
+  <!-- Ölüm -->
+  <div id="deathMenu" class="screen hidden death">
+    <h2 class="red">Öldün!</h2>
+    <div id="deathInfo" class="hint"></div>
+    <div class="menuButtons">
+      <button class="btn" data-action="respawn">Yeniden Doğ</button>
+      <button class="btn" data-action="quit">Ana Menü</button>
+    </div>
+  </div>
+
+  <!-- Yükleniyor -->
+  <div id="loading" class="screen hidden dirt">
+    <h2>Dünya oluşturuluyor…</h2>
+    <div class="progress"><div id="loadBar"></div></div>
+    <div id="loadText" class="hint"></div>
+  </div>
+
+  <!-- Envanter -->
+  <div id="inventory" class="overlay hidden">
+    <div class="invWrap">
+      <div class="invTools">
+        <button class="invBtn" id="invClose" aria-label="Kapat">✕</button>
+        <button class="invBtn touchOnly" id="invQuick" title="Dokununca eşyayı diğer bölüme aktar (Shift+tık)">⇅</button>
+        <button class="invBtn touchOnly" id="invOne" title="Dokununca tek tek koy / yarısını al (sağ tık)">½</button>
+      </div>
+      <div class="panel book hidden" id="recipePanel">
+        <div class="invTitle">Tarif Kitabı</div>
+        <input id="bookSearch" type="text" placeholder="Tarif ara…">
+        <label class="bookOk"><input type="checkbox" id="bookOk"> Sadece yapılabilenler</label>
+        <div id="recipeList" class="bookGrid"></div>
+      </div>
+      <div class="panel mc" id="invPanel">
+        <input id="invSearch" class="hidden" type="text" placeholder="Eşya ara…">
+        <div id="containerArea"></div>
+        <div class="invTitle" id="invLabel">Envanter</div>
+        <div id="invMain" class="grid"></div>
+        <div id="invHotbar" class="grid hb"></div>
+      </div>
+    </div>
+    <div id="cursorItem"></div>
+    <div id="tooltip"></div>
+  </div>
+
+  <!-- Dokunmatik kontroller -->
+  <div id="touch" class="hidden">
+    <div id="lookArea"></div>
+    <div id="joyZone"></div>
+    <div id="joy"><div id="joyKnob"></div></div>
+    <div class="tbtns">
+      <button class="tb" id="tbSneak" aria-label="Eğil">⤓</button>
+      <button class="tb big" id="tbJump" aria-label="Zıpla">⤒</button>
+    </div>
+    <div class="ttop">
+      <button class="tb small" id="tbFly" aria-label="Uç">✈</button>
+      <button class="tb small" id="tbCam" aria-label="Kamera">◉</button>
+      <button class="tb small" id="tbInv" aria-label="Envanter">▦</button>
+      <button class="tb small" id="tbPause" aria-label="Duraklat">❚❚</button>
+    </div>
+  </div>
+  <div id="rotateHint" class="hidden">↻ Daha rahat oynamak için telefonu yan çevir</div>
+
+  <div id="fatal" class="screen hidden dim">
+    <h2>Bir sorun oluştu</h2>
+    <p id="fatalText" class="hint"></p>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/blocks.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/shapes.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/mesher.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/dragon.js"></script>
+  <script src="js/villages.js"></script>
+  <script src="js/enchant.js"></script>
+  <script src="js/fluids.js"></script>
+  <script src="js/redstone.js"></script>
+  <script src="js/sounds-data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

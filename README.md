@@ -1,198 +1,226 @@
-# GoodbyeDPI Turkey Control Panel v5.0
-> **A Security and Performance Oriented Modern WPF GUI & Network Tunneling Engine Optimized for Turkish ISPs**
+<div align="center">
 
-[English](#english) | [Türkçe](#türkçe)
+<img src="docs/screenshots/banner.jpg" alt="WebCraft ana menüsü" width="100%">
 
----
+# ⛏️ WebCraft
 
-<a name="english"></a>
-# English Description
+**Tarayıcıda çalışan, sıfırdan yazılmış Minecraft tarzı blok oyunu.**
+Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazmaya başla.
 
-[![GitHub Actions Build](https://img.shields.io/github/actions/workflow/status/cagannbl/GoodbyeDPI-Turkey-Control-Panel/build.yml?branch=main&style=flat-square&logo=github&label=Build%20%26%20CI)](https://github.com/cagannbl/GoodbyeDPI-Turkey-Control-Panel/actions)
-[![Platform](https://img.shields.io/badge/Platform-Windows%207%20%2F%208%20%2F%2010%20%2F%2011-0078d7.svg?style=flat-square&logo=windows)](https://dotnet.microsoft.com/)
-[![Framework](https://img.shields.io/badge/.NET%20Framework-4.5%20%2F%204.8-512bd4.svg?style=flat-square&logo=.net)](https://dotnet.microsoft.com/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![WebGL2](https://img.shields.io/badge/WebGL2-990000?style=for-the-badge&logo=webgl&logoColor=white)
+![JavaScript](https://img.shields.io/badge/Saf_JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Mobil](https://img.shields.io/badge/Telefonda_da_çalışır-5B8A4A?style=for-the-badge&logo=googlechrome&logoColor=white)
+![Dil](https://img.shields.io/badge/Dil-Türkçe-C8102E?style=for-the-badge)
 
-GoodbyeDPI Turkey Control Panel is an enterprise-grade GUI and network tunneling wrapper designed to circumvent Deep Packet Inspection (DPI) blocks and DNS censorship applied by Turkish ISPs (Turk Telekom, Superonline, Vodafone, etc.). Built on a high-stability v5.0 architecture, it provides a seamless and robust anti-censorship experience on Windows.
+[Özellikler](#-özellikler) · [Ekran görüntüleri](#-ekran-görüntüleri) · [Nasıl oynanır](#-nasıl-oynanır) · [Kontroller](#-kontroller) · [Kod yapısı](#-kod-yapısı)
 
-> [!NOTE]
-> This application is **not a VPN**. It will not cause any slowdown in your general internet speed or gaming performance. It works by bypassing DPI inspection, not by routing your traffic through a remote server.
-
-> [!IMPORTANT]
-> The application must be run as **Administrator** on Windows 7, 8, 8.1, 10, and 11. The embedded UAC manifest handles this automatically — simply double-click `GoodbyeDPIGUI.exe`.
+</div>
 
 ---
 
-## Advanced Features
+## 🧱 Bir bakışta
 
-### 1. Modern Flat Dark UI & Visual Feedback
-*   **Flat Dark Theme**: Custom programmatically loaded WPF `ControlTemplate` styles resolving all dark-mode ComboBox contrast and white text visibility issues.
-*   **GPU-Accelerated breathing LED**: Fluid, zero-leak visual LED reflecting real-time bypass status (Active/Passive) rendered entirely on the GPU.
-*   **Dynamic Administrative Privilege Badge**: Real-time sidebar indicator showing the current privilege status (`[Administrator]` in turquoise or `[Limited User]` in red).
+| | |
+| --- | --- |
+| 🌍 **Sonsuz dünya** | Tohumla üretilen kıtalar, dağlar, nehirler, mağaralar ve 9 biyom |
+| 🔥 **Üç boyut** | Overworld, Nether ve Ender Ejderhası'nın beklediği End |
+| 🏘️ **Köyler** | 8 meslekten köylü ve zümrütle ticaret |
+| ✨ **Büyü ve örs** | Tecrübe seviyesi, büyü masası, büyülü kitaplar |
+| 🔴 **Kızıltaş** | Toz, meşale, yineleyici, piston, lamba, kapılar ve TNT |
+| 🔊 **Gerçek sesler** | Açık lisanslı kayıtlar sayfaya gömülü, internetsiz de çalar |
+| 📱 **Her cihazda** | Bilgisayarda klavye ve fare, telefonda dokunmatik kontroller |
 
-### 2. High-Performance Bypass & Heuristic Auto-Tune
-*   **ISP-Specific Presets**: Finely tuned bypass profiles pre-configured for Superonline, Turk Telekom, Vodafone, and more (Alternative 1-6).
-*   **Heuristic Auto-Tune (Connection Analyzer)**: Automatically probes latency and connection stability for critical hosts (Discord, YouTube, Wikipedia, etc.), choosing the most optimal bypass profile for your network in seconds.
+## 📸 Ekran görüntüleri
 
-### 3. Mobile Hotspot, Dynamic PAC & SOCKS5 Proxy
-*   **Local SOCKS5 / HTTP Proxy (Port 8085)**: Full RFC 1928 compliance. Features a bidirectional asynchronous `CopyStreamAsync` / `Task.WhenAny` pipeline supporting SOCKS5 UDP Associate tunneling for Discord voice channels and YouTube QUIC protocols.
-*   **Dynamic PAC (Proxy Auto-Config) Server**: Dynamically reads `custom_blacklist.txt` and updates the PAC script array on the fly. Allows mobile devices (iOS/Android) or other applications to bypass DPI using your computer as a proxy.
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/manzara.jpg" alt="Karlı tayga ve dağ"><br><sub>Karlı tayga ve dağlar</sub></td>
+    <td width="50%"><img src="docs/screenshots/nehir.jpg" alt="Nehir kıyısı"><br><sub>Kıvrılan nehirler ve kumsallar</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/koy.jpg" alt="Köy"><br><sub>Karlı bir köy</sub></td>
+    <td><img src="docs/screenshots/ticaret.jpg" alt="Ticaret ekranı"><br><sub>Köylüyle zümrüt ticareti</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/buyu.jpg" alt="Büyü masası"><br><sub>Kitaplıklarla çevrili büyü masası</sub></td>
+    <td><img src="docs/screenshots/kiziltas.jpg" alt="Kızıltaş devresi"><br><sub>Kızıltaş devresi: şalter, tozlar, lamba ve piston</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/nether.jpg" alt="Nether"><br><sub>Nether'ın kızıl ormanları</sub></td>
+    <td><img src="docs/screenshots/end.jpg" alt="Ender Ejderhası"><br><sub>End'de Ender Ejderhası</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/moblar.jpg" alt="Canlılar"><br><sub>İskelet, zombi, örümcek ve diğer canlılar</sub></td>
+  </tr>
+</table>
 
-### 4. Robust Security & Leak Protection
-*   **IPv6 DNS Leak Protection**: Automatically locks IPv6 DNS addresses on active network adapters to loopback `::1`, preventing ISP-level DNS leakage and tracking.
-*   **DoH (DNS over HTTPS) Fallback Resolver**: Securely resolves DNS queries using sharded, fallback-enabled DoH protocols over Cloudflare, Google, AdGuard, and Quad9.
-*   **Local DNS Server (Port 53)**: Local UDP DNS server enabling mobile hotspot devices to bypass censorship simply by changing their DNS settings.
+## 🎮 Nasıl oynanır
 
-### 5. OS Integration & Build Stability
-*   **Native UAC Manifest Integration**: Embedded `app.manifest` requesting administrative privileges on click — no need to manually right-click and select "Run as Administrator".
-*   **Process Lock Prevention**: Compilation script `compile_gui.ps1` forcefully stops running instances before recompiling to prevent file lock errors (`CS0016`).
+1. Depoyu indir: **Code → Download ZIP** (ya da `git clone`).
+2. Klasördeki `index.html` dosyasına çift tıkla. Chrome, Edge, Firefox ve Safari'de çalışır.
+3. **Tek Oyuncu → Yeni Dünya Oluştur** ile dünyanı kur. Dünyalar tarayıcına otomatik kaydedilir.
+
+İstersen yerel sunucuyla da açabilirsin: `python3 -m http.server`, ardından `http://localhost:8000`.
+
+> **İlk adımlar:** Ağaç kır → kalas yap → çalışma masası kur → tahta kazma ile taşa geç. Geceleri canavarlar çıkar;
+> ilk gece için bir barınak ya da yatak hazırla!
+
+## ✨ Özellikler
+
+<details>
+<summary><b>🌍 Dünya ve arazi</b></summary>
+
+- Sonsuz, tohum tabanlı prosedürel dünya: ova, orman, tayga, çöl, karlı tundra, dağlar, nehir, sahil ve okyanus biyomları
+- Mağaralar, yer altı lav gölleri, kömür / demir / altın / kızıltaş / elmas / zümrüt cevherleri
+- Meşe, huş ve ladin ağaçları, kaktüsler, çiçekler, uzun çimen, balkabakları
+- **Arazi (yeni dünyalar)**: bükülmüş gürültüyle doğal kıyılar, kıtalar ve okyanuslar, sırt şeklinde sarp ve karlı
+  dağlar, yumuşak eğimli vadilerde kıvrılan nehirler (soğukta donar), tayga (ladin ormanı) ve sıcaklık kuşaklarına
+  göre yumuşak biyom geçişleri. Eski dünyalar bozulmasın diye kendi arazileriyle devam eder
+- **Akan su ve lav**: kaynak/akan/düşen sıvı, en yakın çukura yönelen akış, sonsuz su kaynağı, akıntının itmesi,
+  su + lav = obsidyen / kırıktaş / taş
+- Güneş ışığı + blok ışığı (meşale, ışıktaşı, lav, fener balkabağı) yayılımı, yumuşak aydınlatma ve ambient occlusion
+- Gece-gündüz döngüsü, kare güneş ve ay, yıldızlar, gün batımı, hareketli bulutlar, sis, animasyonlu su ve lav
+- Şeker kamışı, kağıt ve kitap; kitaplıklar kırılınca kitap düşürür
+- Ateşlenebilir TNT ve zincirleme patlamalar, düşen kum/çakıl
+
+</details>
+
+<details>
+<summary><b>🔥 Nether, End ve Ender Ejderhası</b></summary>
+
+- **Nether**: kızıl ve çarpık ormanlar, ruh kumu vadileri, lav denizi, ışıktaşı, kuvars, kadim kalıntı (netherit)
+- **End**: End adası, obsidyen sütunlar, çıkış geçidi, ejderha yumurtası, koro bitkili dış adalar
+- **Ender Ejderhası**: uçan, dalış yapan, çıkış geçidine konan boss; sütunlardaki End kristalleri onu iyileştirir,
+  yenilince çıkış geçidi açılır ve ejderha yumurtası belirir
+- Obsidyen çerçeve + çakmak ile Nether geçidi; 12 gözlü çerçeve ile End geçidi
+
+</details>
+
+<details>
+<summary><b>⚔️ Hayatta kalma ve yaratıcı mod</b></summary>
+
+- **Hayatta Kalma** modu: sağlık, düşme hasarı, boğulma, lav, kırma süresi, envanter ve tarifler (üretim)
+- **Yaratıcı** mod: sınırsız blok, anında kırma, uçma (Boşluk tuşuna iki kez bas)
+- **Açlık barı**: yemek, doygunluk ve yorgunluk (koşmak, zıplamak, savaşmak); tokken can yenilenir, açken can azalır
+- **Tarım**: çapa ile tarla, tohum, 8 evreli buğday, suya yakın ıslak tarla, ekmek, kemik tozu, fidan dikip ağaç büyütme
+- **Zırh**: deri, altın, demir, elmas ve netherit miğfer/göğüslük/pantolon/botlar (Minecraft koruma formülü, dayanıklılık)
+- **Yatak**: gece uyuyup sabaha geç, doğma noktası ayarla (Nether ve End'de patlar)
+- **Yay ve ok**: gerdikçe güçlenen atış, yerdeki okları geri toplama
+- Tahta, taş, demir, altın, elmas ve netherit kazma/balta/kürek/kılıç (dayanıklılık, kazma hızı, hasar)
+- Kovalar (su + lav = obsidyen), ender incisi, yiyecekler, canlı ganimetleri
+- Minecraft tarzı envanter: 2x2 üretim, çalışma masasında 3x3 üretim, tarif kitabı, fırın, sandık, sekmeli yaratıcı envanter
+- Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
+
+</details>
+
+<details>
+<summary><b>🐑 Canlılar, köyler, tecrübe ve büyüler</b></summary>
+
+- Canlılar: domuz, inek, koyun, tavuk, zombi ve ok atan iskelet (gün ışığında yanarlar), duvara tırmanan örümcek,
+  patlayan creeper, Enderman ve zombi piglin
+- **Köyler**: ova (meşe), karlı (ladin) ve çöl (kumtaşı) köyleri; yollar, kuyu, eğimli çatılı evler, demirci (ganimet
+  sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
+- **Köylüler ve ticaret**: 8 meslek (çiftçi, çoban, okçu, kasap, rahip, kütüphaneci, zırhçı, alet ustası), zümrütle
+  ticaret, günlük yenilenen stok; köylüler gündüz köyde dolaşır, gece evlerine döner
+- **Tecrübe (XP)**: canavarlardan, hayvanlardan, cevherlerden, fırından, ticaretten ve Ender Ejderhası'ndan tecrübe
+  küreleri; Minecraft seviye formülü, ölünce tecrübe yere saçılır
+- **Büyüler**: büyü masası (kitaplık sayısına göre 3 seçenek, lapis + seviye bedeli, süzülen kitap ve uçan rünler),
+  örs (onarım, büyü birleştirme, büyülü kitap, yeniden adlandırma, "Çok Pahalı!" sınırı, hasar gören örs);
+  Koruma, Tüy Gibi Düşüş, Keskinlik, Kutsal Darbe, Geri Tepme, Alev, Ganimet, Verimlilik, İpeksi Dokunuş, Servet,
+  Güç, Alev Oku, Sonsuzluk, Kırılmazlık ve Onarım; büyülü eşyalarda mor parıltı; kütüphaneciden büyülü kitap
+
+</details>
+
+<details>
+<summary><b>🔴 Kızıltaş ve şekilli bloklar</b></summary>
+
+- **Kızıltaş**: toz (güç 15'ten blok blok azalır, basamak çıkıp iner), kızıltaş meşalesi (ters çevirici), şalter,
+  taş düğme, basınç plakası, kızıltaş lambası, yineleyici (1-4 tik gecikme), piston (12 bloğa kadar iter, 6 yön);
+  kapılar, tuzak kapılar, çit kapıları ve TNT güçle çalışır. Güçlü/zayıf güç kuralları Minecraft'a göre sadeleştirildi
+- **Şekilli bloklar**: yarım bloklar (birleşince tam blok), basamaklar, açılır kapı, tuzak kapı, çit ve çit kapısı,
+  cam panel, tırmanma merdiveni; alçak bloklara kendiliğinden çıkma
+
+</details>
+
+<details>
+<summary><b>🎨 Grafik, ses ve telefon desteği</b></summary>
+
+- 185 blok türü (durumlar dahil) + 100'den fazla eşya, kodla üretilmiş keskin piksel-art dokular
+- **Minecraft tarzı grafik**: sınırlı paletli kümelenmiş piksel dokular; dokulu moblar (yüzleri, desenleri), oyuncuya
+  bakan başlar, örümcek bacak ve tavuk kanat animasyonları, ot yiyen koyunlar
+- **Elde tutulan eşya**: Minecraft'ın el dönüşümleriyle 3D kabartma eşyalar, blok, çıplak kol; sallama, yeme, yay germe,
+  eşya değiştirme ve kamera ataleti animasyonları
+- **Yere düşen eşyalar**: dönen/zıplayan ganimetler, toplama, birleşme, Q ile atma; **F5** ile üçüncü şahıs kamera
+- **Gerçek ses efektleri**: Minetest Game, VoxeLibre ve Kenney'den açık lisanslı kayıtlar (adım, kazma, kırma, koyma,
+  hayvanlar, canavarlar, kapı, sandık, TNT, yay, büyü); her çalışta rastgele varyasyon ve perde. Kaydı olmayan sesler
+  sentezlenir; müzik üretken piyano. Emeği geçenler ve lisanslar: [`sounds/CREDITS.md`](sounds/CREDITS.md).
+  Sesler `js/sounds-data.js` içine gömülüdür; oyun dosyaya çift tıklanarak açıldığında da çalar. Ses ekleyip
+  çıkardıktan sonra `python3 tools/build_sounds_data.py` ile yeniden üret.
+- **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
+  yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
+  yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
+
+</details>
+
+## ⌨️ Kontroller
+
+
+| Tuş | İşlev |
+| --- | --- |
+| W A S D | Hareket |
+| Boşluk | Zıpla / yüz (Yaratıcı'da iki kez: uç) |
+| Shift | Eğil / alçal |
+| R, Ctrl veya W W | Koş |
+| Sol tık | Kır / saldır |
+| Sağ tık | Koy / kullan / masa, fırın, sandık, yatak, büyü masası, örs |
+| Sağ tık (basılı) | Yemek ye / yayı ger |
+| Orta tık | Bloğu seç |
+| 1-9, tekerlek | Eşya seç |
+| E | Envanter ve tarifler |
+| F1 / F2 / F3 | Arayüzü gizle / ekran görüntüsü / hata ayıklama |
+| F5 | Üçüncü şahıs kamera |
+| Q / Ctrl+Q | Eşya at / yığını at |
+| Esc | Duraklat |
+
+
+Telefonda: sol alttaki joystick ile yürü, ekrana dokunarak blok koy, basılı tutarak kır, sürükleyerek etrafa bak.
+
+## 🛠️ Kod yapısı
+
+
+| Dosya | İçerik |
+| --- | --- |
+| `js/util.js` | Gürültü (simplex), rastgele sayı, matris yardımcıları |
+| `js/blocks.js` | Blok tanımları, prosedürel dokular, ikonlar |
+| `js/items.js` | Eşyalar, aletler, tarifler, fırın tarifleri, kazma kuralları |
+| `js/shapes.js` | Yarım blok, basamak, kapı, çit vb. kutu modelleri (çizim + çarpışma) |
+| `js/fluids.js` | Su ve lav akış simülasyonu |
+| `js/redstone.js` | Kızıltaş devreleri: güç hesabı, toz ağları, meşale, yineleyici, lamba, kapı, piston |
+| `js/dragon.js` | Ender Ejderhası ve End kristalleri |
+| `js/villages.js` | Köy üretimi, köylüler, ticaret, sandık ganimeti |
+| `js/enchant.js` | Tecrübe formülleri, büyüler, büyü masası ve örs hesapları |
+| `js/world.js` | Parçalar, arazi/biyom/mağara/ağaç üretimi |
+| `js/mesher.js` | Işık yayılımı ve mesh üretimi |
+| `js/renderer.js` | WebGL2 çizici ve shader'lar |
+| `js/player.js` | Fizik, çarpışma, ışın izleme, oyuncu |
+| `js/entities.js` | Canlılar, yapay zekâ, parçacıklar |
+| `js/audio.js` | Ses kayıtlarını yükleme/çalma, sentez yedekleri ve müzik |
+| `sounds/` | Ses kayıtları (OGG) ve `CREDITS.md` |
+| `js/sounds-data.js` | Sayfaya gömülü ses verisi (otomatik üretilir) |
+| `js/ui.js` | Menüler, HUD, envanter, dokunmatik kontroller |
+| `js/main.js` | Oyun döngüsü, etkileşim, kayıt |
+
+## 🔊 Sesler ve lisanslar
+
+Ses kayıtları Minetest Game, VoxeLibre ve Kenney projelerinden alınmıştır (CC0, CC BY, CC BY-SA ve MIT).
+Yazarlar ve lisanslar [`sounds/CREDITS.md`](sounds/CREDITS.md) dosyasında listelenir. Dokular, modeller ve müzik
+tamamen kodla üretilir.
+
+<div align="center">
 
 ---
 
-## Safety & Antivirus
+*WebCraft, Minecraft'tan esinlenmiş bağımsız bir hayran projesidir. Mojang Studios veya Microsoft ile bağlantısı yoktur.*
 
-### WinDivert False Positives
-
-> [!WARNING]
-> Some antivirus programs may flag `WinDivert.dll` or `WinDivert64.sys` as suspicious. This is a **false positive**. WinDivert is a well-known, open-source Windows packet capture library. The source code is fully public and auditable. If you encounter this, add the application folder to your antivirus exclusions.
-
-### Kaspersky Antivirus
-
-> [!CAUTION]
-> **Kaspersky Antivirus blocks WinDivert's kernel-level drivers** due to its agreement with the Russian government. If Kaspersky is installed on your system — even if disabled — the bypass will most likely **not work**. Adding the folder to exclusions or disabling Kaspersky temporarily is **not sufficient**. You must completely remove Kaspersky from your system and use an alternative such as Windows Defender. As of 2025, Windows Defender provides excellent protection against malware and malicious websites.
-
----
-
-## Quick Start
-
-### Running
-Double-click `GoodbyeDPIGUI.exe` to run.
-
-1.  Select a pre-configured **Bypass Preset** matching your ISP.
-2.  If you are unsure, click **Auto-Tune (Connection Analysis)** to automatically select the most optimal bypass profile.
-3.  Click **Start Bypass** to activate the bypass engine.
-
-### Compiling from Source
-To compile the launcher from scratch, open Windows PowerShell in the project directory and run:
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
-```
-
-> [!NOTE]
-> The compile script automatically terminates any running instances before recompiling to prevent file lock errors, and embeds the UAC manifest into the final executable.
-
----
-
-## File Structure
-
-*   `src/` - Core C# source files (`MainWindow.cs`, `ProcessManager.cs`, `ProxyServer.cs`, etc.).
-*   `GoodbyeDPI.Core/` - v5.0 enterprise network and security library.
-*   `x86/` & `x86_64/` - Architecture-optimized native `goodbyedpi.exe` and `WinDivert` libraries.
-*   `compile_gui.ps1` - Automated process cleanup and compilation script.
-*   `custom_blacklist.txt` - Custom blacklist containing blocked domains for the proxy.
-
----
-
-## Legal Notice
-
-> [!IMPORTANT]
-> All legal responsibility arising from the use of this application belongs to the user. This application has been written and edited solely for educational and research purposes. Whether to use this application under these terms is entirely the user's own choice.
-
----
-
-<a name="türkçe"></a>
-# Türkçe Açıklama
-
-GoodbyeDPI Türkiye Kontrol Paneli, Türkiye'deki internet servis sağlayıcılarının (Türk Telekom, Superonline, Vodafone vb.) uyguladığı DPI (Derin Paket İnceleme) engellemelerini ve DNS sansürlerini aşmak amacıyla tasarlanmış, kurumsal kalitede **v5.0 stabilite ve güvenlik mimarisine sahip** modern bir arayüz ve ağ tünelleme uygulamasıdır.
-
-> [!NOTE]
-> Bu uygulama kesinlikle **bir VPN değildir** ve oyunlarda/genel internet kullanımında herhangi bir hız değişikliğine sebep olmayacaktır. Trafiğinizi uzak bir sunucuya yönlendirmek yerine DPI denetimini atlatarak çalışır.
-
-> [!IMPORTANT]
-> Uygulama, Windows 7, 8, 8.1, 10 ve 11 işletim sistemlerinde **yönetici olarak çalıştırılmalıdır.** Gömülü UAC manifestosu bunu otomatik olarak yönetir — `GoodbyeDPIGUI.exe` dosyasına çift tıklamanız yeterlidir.
-
----
-
-## Öne Çıkan Gelişmiş Özellikler
-
-### 1. Modern Flat Dark Arayüz & Görsel Geri Bildirim
-*   **Flat Dark Teması**: WPF standart ComboBox kontrast ve beyaz metin çakışması hatalarını tamamen çözen programatik XAML ControlTemplate yaması.
-*   **GPU Tabanlı Animasyonlu LED**: Gerçek zamanlı bypass durumunu gösteren, GPU render gücünü kullanan ve sızıntısız breathing (nefes alma) animasyonuna sahip durum göstergesi.
-*   **Dinamik Yönetici Ayrıcalığı Sidebar Göstergesi**: Uygulamanın yetkisini anlık olarak sol menüde (`[Yönetici]` turkuaz veya `[Sınırlı Yetki]` kırmızı) gösteren görsel bildirim sistemi.
-
-### 2. Gelişmiş Bypass & Sezgisel Auto-Tune Motoru
-*   **Türkiye İSS Özel Presetleri**: Superonline, Türk Telekom, Vodafone ve diğer servis sağlayıcılar için ince ayarlanmış bypass profilleri (Alternatif 1-6).
-*   **Heuristic Auto-Tune (Bağlantı Analizi)**: Discord, YouTube ve Wikipedia gibi kritik adreslere yönelik gecikme (latency) ve erişilebilirlik testlerini otomatik gerçekleştirerek ağınız için en stabil ve hızlı bypass yöntemini saniyeler içinde belirleyen sezgisel arama motoru.
-
-### 3. Mobil Paylaşım, Dinamik PAC & SOCKS5 Proxy
-*   **Yerel SOCKS5 / HTTP Proxy (Port 8085)**: Sunucu, RFC 1928 SOCKS5 standardına ve Discord ses kanalları ile YouTube QUIC protokolü için çift yönlü asenkron `CopyStreamAsync` / `Task.WhenAny` UDP Associate tünelleme yeteneklerine sahiptir.
-*   **Dinamik PAC (Proxy Auto-Config) Sunucusu**: `custom_blacklist.txt` dosyasındaki yasaklı siteleri satır satır dinamik olarak okuyup tarayıcılara sunulan `proxy.pac` dosyasına enjekte eder. Mobil cihazlar (iOS/Android) veya diğer uygulamalar, bilgisayarı proxy olarak kullanarak sansürleri zahmetsizce aşabilir.
-
-### 4. Ağ Güvenliği & Sızıntı Koruması
-*   **IPv6 DNS Sızıntı Koruması**: Aktif ağ adaptörlerindeki IPv6 DNS adreslerini loopback `::1` adresine bağlayarak İSS düzeyindeki DNS sızıntılarını ve takibini engeller.
-*   **DoH (DNS over HTTPS) Fallback Resolver**: DNS sorgularını Cloudflare, Google, AdGuard ve Quad9 üzerinden DoH protokolü ile yedekli (fallback) olarak şifreli çözen motor.
-*   **Yerel DNS Sunucusu (Port 53)**: Mobil cihazların proxy kurmadan sadece DNS değiştirerek yararlanabilmesi için Cloudflare/Google DoH destekli hafif UDP DNS sunucusu.
-
-### 5. Yüksek Kararlılık & İşletim Sistemi Entegrasyonu
-*   **Native UAC (Yönetici) Manifest**: Derlenen EXE içerisine gömülü `app.manifest` sayesinde sağ tıklamaya gerek kalmadan çift tıklamayla doğrudan yönetici ayrıcalıkları (UAC yetkisi) ile açılma.
-*   **Dosya Kilitlenme Koruması**: Geliştirme ve derleme sırasında arka planda çalışan ve kilitlenme hatasına (`CS0016`) sebep olan zombi süreçleri otomatik temizleyen `compile_gui.ps1` entegrasyonu.
-
----
-
-## Güvenlik & Antivirüs
-
-### WinDivert Hatalı Virüs Uyarısı (False-Positive)
-
-> [!WARNING]
-> Bazı antivirüs programları `WinDivert.dll` veya `WinDivert64.sys` dosyalarını şüpheli olarak işaretleyebilir. Bu **hatalı bir uyarıdır (false-positive)**. WinDivert, iyi bilinen ve açık kaynak kodlu bir Windows paket yakalama kütüphanesidir. Tüm kaynak kodu herkese açık ve incelenebilirdir. Bu sorunla karşılaşırsanız uygulama klasörünü antivirüs dışlamalarına ekleyin.
-
-### Kaspersky Antivirüs Engeli
-
-> [!CAUTION]
-> **Kaspersky antivirüs yazılımı, Rus hükümetiyle olan anlaşması nedeniyle WinDivert'in çekirdek (kernel) seviyesi sürücülerini engeller.** Kaspersky bilgisayarınızda yüklüyse — pasif olsa dahi — bypass büyük ihtimalle **çalışmayacaktır.** Klasörü dışlamalara eklemek veya Kaspersky'yi geçici olarak devre dışı bırakmak **yeterli değildir.** Kaspersky'yi sisteminizden tamamen kaldırmanız ve Windows Defender gibi alternatif bir antivirüs kullanmanız gerekmektedir. 2025 yılı itibarıyla Windows Defender, kötü amaçlı yazılım ve sitelere karşı son derece yeterli koruma sağlamaktadır.
-
----
-
-## Hızlı Başlangıç
-
-### Çalıştırma
-Oluşturulan `GoodbyeDPIGUI.exe` dosyasına çift tıklayarak uygulamayı başlatabilirsiniz.
-
-1.  Açılan ekranda **Bypass Preseti** menüsünden ağınıza en uygun yöntemi seçin.
-2.  Eğer en iyi yöntemi bilmiyorsanız, **Otomatik Ayarla (Bağlantı Analizi)** butonuna basarak ağınız için en kararlı profili otomatik olarak tespit edebilirsiniz.
-3.  **Bypass'ı Başlat** butonuna basarak bypass motorunu aktif hale getirin.
-
-### Kaynak Koddan Derleme
-Uygulamayı sıfırdan derlemek için Windows PowerShell üzerinde proje ana dizinine gidip aşağıdaki komutu çalıştırmanız yeterlidir:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File compile_gui.ps1
-```
-
-> [!NOTE]
-> Derleme betiği, dosya kilitleme hatalarını önlemek için yeniden derleme öncesinde çalışan tüm örnekleri otomatik olarak sonlandırır ve UAC manifestosunu son yürütülebilir dosyaya gömer.
-
----
-
-## Dosya Yapısı
-
-*   `src/` - Arayüz ve ağ yönetim motorunun asıl C# kaynak kodları (`MainWindow.cs`, `ProcessManager.cs`, `ProxyServer.cs` vb.).
-*   `GoodbyeDPI.Core/` - v5.0 kurumsal ağ ve güvenlik çekirdek kütüphanesi.
-*   `x86/` & `x86_64/` - 32-bit ve 64-bit platformlar için optimize edilmiş native `goodbyedpi.exe` motoru ve `WinDivert` sürücü kütüphaneleri.
-*   `compile_gui.ps1` - Tek tıkla süreç temizliği ve güvenlik manifestosu gömülü derleme otomasyon betiği.
-*   `custom_blacklist.txt` - Bypass işlemlerinin ve dinamik PAC dosyasının temel alacağı kişiselleştirilmiş engelli siteler listesi.
-
----
-
-## Yasal Uyarı
-
-> [!IMPORTANT]
-> Bu uygulamanın kullanımından doğan her türlü yasal sorumluluk kullanan kişiye aittir. Uygulama yalnızca eğitim ve araştırma amaçları ile yazılmış ve düzenlenmiş olup; bu uygulamayı bu şartlar altında kullanmak ya da kullanmamak kullanıcının kendi seçimidir.
-
----
-
-## Teşekkürler & Krediler (Credits)
-Bu proje, açık kaynak dünyasının gücü ve topluluk paylaşımları sayesinde geliştirilmiştir. Projenin temelini oluşturan ve ilham veren orijinal çalışmalara teşekkür ederiz:
-
-*   **[ValdikSS/GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI)** - Sansürleri aşmamızı sağlayan çekirdek bypass motorunun (`goodbyedpi.exe`) asıl mucidi ve geliştiricisi.
-*   **[cagritaskn/GoodbyeDPI-Turkey](https://github.com/cagritaskn/GoodbyeDPI-Turkey)** - Orijinal C# WPF kontrol arayüzünün ilk sürümünü tasarlayan, çekirdek bypass parametrelerini Türkiye internet altyapısına (Türk Telekom, Superonline, Vodafone vb.) göre ince ayarlarla entegre ederek uygulamanın İSS filtrelerine takılmadan çalışmasını sağlayan ve bu projenin temelini atan geliştirici.
+</div>
