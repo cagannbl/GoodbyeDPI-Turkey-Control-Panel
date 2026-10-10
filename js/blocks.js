@@ -667,10 +667,10 @@ function buildTexturesNetherEnd() {
   });
   makeTex('quartz_block', (d, r) => noiseFill(d, r, [236, 230, 222], 0.05));
   makeTex('end_stone', (d, r) => {
-    noiseFill(d, r, [221, 223, 160], 0.12);
+    noiseFill(d, r, [196, 190, 214], 0.12);
     for (let i = 0; i < 12; i++) { const x = Math.floor(r() * 15), y = Math.floor(r() * 15); mulPx(d, x, y, 0.8); mulPx(d, x + 1, y, 0.85); }
   });
-  makeTex('end_stone_bricks', (d, r) => brickTex(d, r, [224, 226, 164], [170, 170, 120], 8, 16));
+  makeTex('end_stone_bricks', (d, r) => brickTex(d, r, [200, 194, 218], [140, 134, 160], 8, 16));
   makeTex('purpur', (d, r) => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       let f = 0.92 + r() * 0.1;
@@ -687,10 +687,10 @@ function buildTexturesNetherEnd() {
   makeTex('purpur_pillar_top', (d, r) => logTop(d, r, [150, 105, 150], [175, 130, 175]));
   makeTex('end_frame_side', (d, r) => {
     noiseFill(d, r, [62, 92, 82], 0.25);
-    for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { const f = 0.9 + r() * 0.15; px(d, x, y, 215 * f, 218 * f, 155 * f); }
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 16; x++) { const f = 0.9 + r() * 0.15; px(d, x, y, 200 * f, 194 * f, 218 * f); }
   });
   makeTex('end_frame_top', (d, r) => {
-    noiseFill(d, r, [210, 214, 150], 0.12);
+    noiseFill(d, r, [192, 186, 210], 0.12);
     for (let y = 4; y < 12; y++) for (let x = 4; x < 12; x++) px(d, x, y, 40, 70, 62);
   });
   makeTex('end_frame_eye', (d, r) => {
@@ -1038,17 +1038,17 @@ function defineBlocks() {
   def(B.IRON, 'Demir Cevheri', 'iron_ore', P(2, { hardness: 3 }));
   def(B.LAPIS_ORE, 'Lapis Lazuli Cevheri', 'lapis_ore', P(2, { hardness: 3 }));
   def(B.GOLD, 'Altın Cevheri', 'gold_ore', P(3, { hardness: 3 }));
-  def(B.REDSTONE, 'Kızıltaş Cevheri', 'redstone_ore', P(3, { hardness: 3 }));
+  def(B.REDSTONE, 'Şimşektaş Cevheri', 'redstone_ore', P(3, { hardness: 3 }));
   def(B.DIAMOND, 'Elmas Cevheri', 'diamond_ore', P(3, { hardness: 3 }));
   def(B.EMERALD, 'Zümrüt Cevheri', 'emerald_ore', P(3, { hardness: 3 }));
   def(B.COAL_BLOCK, 'Kömür Bloğu', 'coal_block', P(1, { hardness: 5 }));
   def(B.IRON_BLOCK, 'Demir Bloğu', 'iron_block', P(2, { hardness: 5 }));
   def(B.LAPIS_BLOCK, 'Lapis Lazuli Bloğu', 'lapis_block', P(2, { hardness: 3 }));
   def(B.GOLD_BLOCK, 'Altın Bloğu', 'gold_block', P(3, { hardness: 3 }));
-  def(B.REDSTONE_BLOCK, 'Kızıltaş Bloğu', 'redstone_block', P(1, { hardness: 5, emit: 7 }));
+  def(B.REDSTONE_BLOCK, 'Şimşektaş Bloğu', 'redstone_block', P(1, { hardness: 5, emit: 7 }));
   def(B.DIAMOND_BLOCK, 'Elmas Bloğu', 'diamond_block', P(3, { hardness: 5 }));
   def(B.EMERALD_BLOCK, 'Zümrüt Bloğu', 'emerald_block', P(3, { hardness: 5 }));
-  def(B.NETHERITE_BLOCK, 'Netherit Bloğu', 'netherite_block', P(4, { hardness: 50 }));
+  def(B.NETHERITE_BLOCK, 'Korçelik Bloğu', 'netherite_block', P(4, { hardness: 50 }));
   def(B.GLOWSTONE, 'Işıktaşı', 'glowstone', { emit: 15, hardness: 0.3, sound: 'glass' });
   def(B.BOOKSHELF, 'Kitaplık', { top: 'planks', bottom: 'planks', side: 'bookshelf' }, AX({ hardness: 1.5 }));
   def(B.CRAFTING, 'Çalışma Masası', { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' }, AX({ hardness: 2.5 }));
@@ -1065,42 +1065,42 @@ function defineBlocks() {
   def(B.TALL_GRASS, 'Uzun Çimen', 'tall_grass', Object.assign({}, plant, { drop: 0 }));
   def(B.DEAD_BUSH, 'Kuru Çalı', 'dead_bush', Object.assign({}, plant, { drop: 0 }));
   def(B.TORCH, 'Meşale', 'torch', Object.assign({}, plant, { emit: 14, sound: 'wood' }));
-  def(B.END_ROD, 'End Çubuğu', 'end_rod', Object.assign({}, plant, { emit: 14, sound: 'glass' }));
+  def(B.END_ROD, 'Boşluk Çubuğu', 'end_rod', Object.assign({}, plant, { emit: 14, sound: 'glass' }));
   def(B.CRIMSON_FUNGUS, 'Kızıl Mantar', 'crimson_fungus', plant);
   def(B.WARPED_FUNGUS, 'Çarpık Mantar', 'warped_fungus', plant);
   const WN = { WHITE: 'Beyaz', RED: 'Kırmızı', ORANGE: 'Turuncu', YELLOW: 'Sarı', LIME: 'Açık Yeşil', BLUE: 'Mavi', PURPLE: 'Mor', BLACK: 'Siyah' };
   for (const k in WN) def(B['WOOL_' + k], WN[k] + ' Yün', 'wool_' + k.toLowerCase(), { hardness: 0.8, sound: 'cloth' });
 
   // Nether
-  def(B.NETHERRACK, 'Nether Taşı', 'netherrack', P(1, { hardness: 0.4 }));
+  def(B.NETHERRACK, 'Cehennem Taşı', 'netherrack', P(1, { hardness: 0.4 }));
   def(B.SOUL_SAND, 'Ruh Kumu', 'soul_sand', SH({ hardness: 0.5, sound: 'sand' }));
   def(B.SOUL_SOIL, 'Ruh Toprağı', 'soul_soil', SH({ hardness: 0.5, sound: 'sand' }));
-  def(B.QUARTZ_ORE, 'Nether Kuvars Cevheri', 'quartz_ore', P(1, { hardness: 3 }));
-  def(B.NETHER_GOLD_ORE, 'Nether Altın Cevheri', 'nether_gold_ore', P(1, { hardness: 3 }));
+  def(B.QUARTZ_ORE, 'Cehennem Kuvars Cevheri', 'quartz_ore', P(1, { hardness: 3 }));
+  def(B.NETHER_GOLD_ORE, 'Cehennem Altın Cevheri', 'nether_gold_ore', P(1, { hardness: 3 }));
   def(B.ANCIENT_DEBRIS, 'Kadim Kalıntı', { top: 'debris_top', bottom: 'debris_top', side: 'debris_side' }, P(4, { hardness: 30 }));
   def(B.MAGMA, 'Magma Bloğu', 'magma', P(1, { hardness: 0.5, emit: 3 }));
-  def(B.NETHER_BRICKS, 'Nether Tuğlası', 'nether_bricks', P(1, { hardness: 2 }));
+  def(B.NETHER_BRICKS, 'Cehennem Tuğlası', 'nether_bricks', P(1, { hardness: 2 }));
   def(B.BASALT, 'Bazalt', { top: 'basalt_top', bottom: 'basalt_top', side: 'basalt_side' }, P(1, { hardness: 1.25 }));
   def(B.BLACKSTONE, 'Karataş', 'blackstone', P(1, { hardness: 1.5 }));
   def(B.CRIMSON_NYLIUM, 'Kızıl Nilyum', { top: 'crimson_nylium', bottom: 'netherrack', side: 'crimson_nylium_side' }, P(1, { hardness: 0.4, drop: B.NETHERRACK }));
   def(B.WARPED_NYLIUM, 'Çarpık Nilyum', { top: 'warped_nylium', bottom: 'netherrack', side: 'warped_nylium_side' }, P(1, { hardness: 0.4, drop: B.NETHERRACK }));
-  def(B.NETHER_WART_BLOCK, 'Nether Siğili Bloğu', 'nether_wart_block', { hardness: 1, sound: 'grass' });
+  def(B.NETHER_WART_BLOCK, 'Cehennem Siğili Bloğu', 'nether_wart_block', { hardness: 1, sound: 'grass' });
   def(B.WARPED_WART_BLOCK, 'Çarpık Siğil Bloğu', 'warped_wart_block', { hardness: 1, sound: 'grass' });
   def(B.SHROOMLIGHT, 'Mantar Işığı', 'shroomlight', { hardness: 1, emit: 15, sound: 'grass' });
   def(B.QUARTZ_BLOCK, 'Kuvars Bloğu', 'quartz_block', P(1, { hardness: 0.8 }));
-  def(B.NETHER_PORTAL, 'Nether Geçidi', 'nether_portal', { solid: false, opaque: false, pass: 1, cullSame: true, emit: 11, hardness: 0, drop: 0, sound: 'glass', creative: false });
+  def(B.NETHER_PORTAL, 'Cehennem Geçidi', 'nether_portal', { solid: false, opaque: false, pass: 1, cullSame: true, emit: 11, hardness: 0, drop: 0, sound: 'glass', creative: false });
 
   // End
-  def(B.END_STONE, 'End Taşı', 'end_stone', P(1, { hardness: 3 }));
-  def(B.END_STONE_BRICKS, 'End Taşı Tuğlası', 'end_stone_bricks', P(1, { hardness: 3 }));
-  def(B.PURPUR, 'Purpur Bloğu', 'purpur', P(1, { hardness: 1.5 }));
-  def(B.PURPUR_PILLAR, 'Purpur Sütunu', { top: 'purpur_pillar_top', bottom: 'purpur_pillar_top', side: 'purpur_pillar' }, P(1, { hardness: 1.5 }));
-  def(B.END_FRAME, 'End Geçidi Çerçevesi', { top: 'end_frame_top', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3 }));
-  def(B.END_FRAME_EYE, 'Gözlü End Çerçevesi', { top: 'end_frame_eye', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3, emit: 1, drop: B.END_FRAME, creative: false }));
-  def(B.END_PORTAL, 'End Geçidi', 'end_portal', { solid: false, opaque: false, render: R_LIQUID, emit: 15, cullSame: true, hardness: -1, drop: 0, creative: false, portalSurface: true });
+  def(B.END_STONE, 'Boşluk Taşı', 'end_stone', P(1, { hardness: 3 }));
+  def(B.END_STONE_BRICKS, 'Boşluk Taşı Tuğlası', 'end_stone_bricks', P(1, { hardness: 3 }));
+  def(B.PURPUR, 'Mor Kaya Bloğu', 'purpur', P(1, { hardness: 1.5 }));
+  def(B.PURPUR_PILLAR, 'Mor Kaya Sütunu', { top: 'purpur_pillar_top', bottom: 'purpur_pillar_top', side: 'purpur_pillar' }, P(1, { hardness: 1.5 }));
+  def(B.END_FRAME, 'Boşluk Geçidi Çerçevesi', { top: 'end_frame_top', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3 }));
+  def(B.END_FRAME_EYE, 'Gözlü Boşluk Çerçevesi', { top: 'end_frame_eye', bottom: 'end_stone', side: 'end_frame_side' }, P(1, { hardness: 3, emit: 1, drop: B.END_FRAME, creative: false }));
+  def(B.END_PORTAL, 'Boşluk Geçidi', 'end_portal', { solid: false, opaque: false, render: R_LIQUID, emit: 15, cullSame: true, hardness: -1, drop: 0, creative: false, portalSurface: true });
   def(B.DRAGON_EGG, 'Ejderha Yumurtası', 'dragon_egg', { hardness: 3, emit: 1 });
-  def(B.CHORUS_PLANT, 'Koro Bitkisi', 'chorus_plant', AX({ hardness: 0.4, opaque: false, drop: 0 }));
-  def(B.CHORUS_FLOWER, 'Koro Çiçeği', 'chorus_flower', AX({ hardness: 0.4, opaque: false }));
+  def(B.CHORUS_PLANT, 'Yankı Bitkisi', 'chorus_plant', AX({ hardness: 0.4, opaque: false, drop: 0 }));
+  def(B.CHORUS_FLOWER, 'Yankı Çiçeği', 'chorus_flower', AX({ hardness: 0.4, opaque: false }));
 
   // Tarım
   def(B.FARMLAND, 'Tarla', { top: 'farmland', bottom: 'dirt', side: 'dirt' }, SH({ hardness: 0.6, drop: B.DIRT, sound: 'gravel', opaque: false, height: 15 }));
@@ -1156,14 +1156,14 @@ function defineBlocks() {
 
   // --- Kızıltaş ---
   const thin = (o) => Object.assign({ solid: false, opaque: false, render: R_SHAPE, hardness: 0, sound: 'stone', flat: true }, o);
-  ['wire0', 'wire1', 'wire2'].forEach((t, k) => def(B.WIRE + k, 'Kızıltaş Tozu', t, thin({ shape: 11, creative: false })));
-  def(B.RTORCH, 'Kızıltaş Meşalesi', 'rtorch_off', Object.assign({}, plant, { sound: 'wood', drop: B.RTORCH_ON, creative: false }));
-  def(B.RTORCH_ON, 'Kızıltaş Meşalesi', 'rtorch_on', Object.assign({}, plant, { sound: 'wood', emit: 7 }));
+  ['wire0', 'wire1', 'wire2'].forEach((t, k) => def(B.WIRE + k, 'Şimşektaş Tozu', t, thin({ shape: 11, creative: false })));
+  def(B.RTORCH, 'Şimşektaş Meşalesi', 'rtorch_off', Object.assign({}, plant, { sound: 'wood', drop: B.RTORCH_ON, creative: false }));
+  def(B.RTORCH_ON, 'Şimşektaş Meşalesi', 'rtorch_on', Object.assign({}, plant, { sound: 'wood', emit: 7 }));
   for (let k = 0; k < 10; k++) def(B.LEVER + k, 'Şalter', 'cobble', thin({ hardness: 0.5, shape: 13, sf: k, drop: B.LEVER + 8, creative: k === 8 }));
   for (let k = 0; k < 8; k++) def(B.BUTTON + k, 'Taş Düğme', 'stone', thin({ hardness: 0.5, shape: 14, sf: k, drop: B.BUTTON, creative: k === 0 }));
-  def(B.LAMP, 'Kızıltaş Lambası', 'lamp_off', { hardness: 0.3, sound: 'glass' });
-  def(B.LAMP_ON, 'Kızıltaş Lambası', 'lamp_on', { hardness: 0.3, sound: 'glass', emit: 15, drop: B.LAMP, creative: false });
-  for (let k = 0; k < 8; k++) def(B.REPEATER + k, 'Kızıltaş Yineleyicisi', { top: k & 4 ? 'repeater_on' : 'repeater_off', bottom: 'stone', side: 'stone' },
+  def(B.LAMP, 'Şimşektaş Lambası', 'lamp_off', { hardness: 0.3, sound: 'glass' });
+  def(B.LAMP_ON, 'Şimşektaş Lambası', 'lamp_on', { hardness: 0.3, sound: 'glass', emit: 15, drop: B.LAMP, creative: false });
+  for (let k = 0; k < 8; k++) def(B.REPEATER + k, 'Şimşektaş Yineleyicisi', { top: k & 4 ? 'repeater_on' : 'repeater_off', bottom: 'stone', side: 'stone' },
     thin({ shape: 12, sf: k, drop: B.REPEATER, creative: k === 0, solid: true }));
   def(B.PLATE, 'Taş Basınç Plakası', 'stone', thin({ hardness: 0.5, shape: 15, sf: 0 }));
   def(B.PLATE_ON, 'Taş Basınç Plakası', 'stone', thin({ hardness: 0.5, shape: 15, sf: 1, drop: B.PLATE, creative: false }));

@@ -175,7 +175,7 @@ class Game {
     this.audio.play('explode');
     const dr = this.entities.dragon, at = dr ? dr.pos : [0, 70, 0];
     this.entities.spawnXp(at[0], at[1], at[2], 12000, 6);
-    this.ui.toast('Ender Ejderhası yenildi! Çıkış geçidi açıldı.', 4);
+    this.ui.toast('Boşluk Ejderhası yenildi! Çıkış geçidi açıldı.', 4);
     this.saveWorld();
   }
 
@@ -252,7 +252,7 @@ class Game {
       this.arrival = null;
       this.ui.show(null);
       $('hud').classList.remove('hidden');
-      this.ui.toast({ nether: 'Nether', end: 'End', overworld: 'Yerüstü' }[this.dim], 2);
+      this.ui.toast({ nether: 'Cehennem', end: 'Boşluk Diyarı', overworld: 'Yerüstü' }[this.dim], 2);
       this.setupEnd();
       this.startPlaying();
       this.saveWorld();
@@ -1394,7 +1394,7 @@ class Game {
       if (!ok) continue;
       for (let i = 0; i < width; i++) for (let j = 0; j < h; j++) w.setBlock(sx + dx * i, by + j, sz + dz * i, B.NETHER_PORTAL);
       this.audio.play('flint', [x, y, z]);
-      this.ui.toast('Nether geçidi açıldı!', 2);
+      this.ui.toast('Cehennem geçidi açıldı!', 2);
       return true;
     }
     return false;
@@ -1424,7 +1424,7 @@ class Game {
       if (!ok) continue;
       for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) w.setBlock(cx + dx, y, cz + dz, B.END_PORTAL);
       this.audio.play('explode', [cx, y, cz]);
-      this.ui.toast('End geçidi açıldı!', 2.5);
+      this.ui.toast('Boşluk geçidi açıldı!', 2.5);
       return true;
     }
     return false;
@@ -1443,7 +1443,7 @@ class Game {
     this.portalT = 0; this.portalCd = 4;
     this.state = 'loading';
     this.ui.show('loading');
-    this.ui.setLoading(0, dim === 'nether' ? "Nether'a gidiliyor…" : dim === 'end' ? "End'e gidiliyor…" : 'Yerüstüne dönülüyor…');
+    this.ui.setLoading(0, dim === 'nether' ? "Cehenneme gidiliyor…" : dim === 'end' ? "Boşluk Diyarı'na gidiliyor…" : 'Yerüstüne dönülüyor…');
     $('hud').classList.add('hidden');
     if (document.pointerLockElement) { this.ignoreUnlock = true; document.exitPointerLock(); }
   }
@@ -2000,15 +2000,15 @@ class Game {
     if (this.showDebug) {
       const f = ['Güney (+Z)', 'Batı (-X)', 'Kuzey (-Z)', 'Doğu (+X)'][Math.round(((-p.yaw / (Math.PI / 2)) % 4 + 6) % 4) % 4];
       let biomeName;
-      if (this.dim === 'nether') biomeName = ['Nether Çorak Toprakları', 'Kızıl Orman', 'Çarpık Orman', 'Ruh Kumu Vadisi'][w.netherBiome(Math.floor(p.pos[0]), Math.floor(p.pos[2]))];
-      else if (this.dim === 'end') biomeName = 'End';
+      if (this.dim === 'nether') biomeName = ['Cehennem Çorakları', 'Kızıl Orman', 'Çarpık Orman', 'Ruh Kumu Vadisi'][w.netherBiome(Math.floor(p.pos[0]), Math.floor(p.pos[2]))];
+      else if (this.dim === 'end') biomeName = 'Boşluk Diyarı';
       else { w.column(Math.floor(p.pos[0]), Math.floor(p.pos[2])); biomeName = BIOME_NAMES[w._b]; }
       const hours = Math.floor(((this.dayTime + 0.25) % 1) * 24), mins = Math.floor((((this.dayTime + 0.25) % 1) * 24 % 1) * 60);
       this.ui.updateDebug([
         `WebCraft 1.0 (${this.fps} fps)`,
         `XYZ: ${p.pos[0].toFixed(2)} / ${p.pos[1].toFixed(2)} / ${p.pos[2].toFixed(2)}`,
         `Parça: ${Math.floor(p.pos[0]) >> 4}, ${Math.floor(p.pos[2]) >> 4}   Yön: ${f}`,
-        `Boyut: ${{ overworld: 'Yerüstü', nether: 'Nether', end: 'End' }[this.dim]}   Biyom: ${biomeName}`,
+        `Boyut: ${{ overworld: 'Yerüstü', nether: 'Cehennem', end: 'Boşluk Diyarı' }[this.dim]}   Biyom: ${biomeName}`,
         `Saat: ${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}   Güneş: ${Math.round(this.sunLevel * 100)}%`,
         `Parçalar: ${this.renderer.stats.chunks} görünür / ${w.chunks.size} yüklü   Yüzey: ${Math.round(this.renderer.stats.faces / 1000)}k`,
         `Canlılar: ${this.entities.mobs.length}   Parçacık: ${this.particles.list.length}`,

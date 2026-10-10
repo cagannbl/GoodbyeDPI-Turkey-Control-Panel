@@ -59,8 +59,8 @@ const FACE_NAMES = ['right', 'left', 'top', 'bottom', 'back', 'front'];
 const K = (r, g, b) => [r / 255, g / 255, b / 255];
 const drawRows = (rows, pal) => (set, w, h) => rows.forEach((r, y) => { for (let x = 0; x < r.length; x++) { const c = pal[r[x]]; if (c) set(x, y, c); } });
 const FACE_ZOMBIE = drawRows(['', '', '', '.kk..kk.', '.ee..ee.', '...nn...', '..m..m..', '..mmmm..'], { k: K(30, 50, 25), e: K(10, 20, 10), n: K(70, 100, 55), m: K(55, 80, 45) });
-const FACE_STEVE = drawRows(['hhhhhhhh', 'hhhhhhhh', 'h......h', '........', '.wb..bw.', '...nn...', '..mmmm..', '..m..m..'], { h: K(55, 38, 20), w: K(255, 255, 255), b: K(80, 60, 170), n: K(140, 95, 70), m: K(105, 65, 45) });
-const FACE_CREEPER = drawRows(['', '', '.kk..kk.', '.kk..kk.', '...kk...', '..kkkk..', '..kkkk..', '..k..k..'], { k: K(12, 12, 12) });
+const FACE_STEVE = drawRows(['hhhhhhhh', 'hhhhhhhh', 'hhh....h', 'h.......', '.bw..wb.', '........', '...mm...', '........'], { h: K(150, 70, 30), w: K(255, 255, 255), b: K(40, 120, 60), m: K(150, 85, 70) });
+const FACE_CREEPER = drawRows(['', '..kkkk..', '.koyyok.', '.koyyok.', '..kkkk..', '', 'k.k.k.k.', '.k.k.k.k'], { k: K(30, 24, 20), o: K(230, 110, 20), y: K(255, 220, 90) });
 const FACE_SKELETON = drawRows(['', '', '', '.kk..kk.', '.kk..kk.', '...kk...', '.ttttt..', '.t.t.t..'], { k: K(30, 30, 30), t: K(90, 90, 88) });
 const FACE_PIG = drawRows(['', '', '', '.wk..kw.', '', '', '', ''], { w: K(255, 255, 255), k: K(20, 20, 20) });
 const FACE_SNOUT = drawRows(['', '.kk..', ''].map((r) => r), { k: K(150, 80, 80) });
@@ -68,16 +68,16 @@ const FACE_COW = drawRows(['', '', 'w......w', 'k......k', '', '', '', ''], { w:
 const FACE_SHEEP = drawRows(['', 'wk..kw', '', '', '', ''], { w: K(240, 240, 240), k: K(20, 20, 20) });
 const FACE_CHICKEN = drawRows(['', 'k..k', '', '', '', ''], { k: K(15, 15, 15) });
 const FACE_SPIDER = drawRows(['', '', '.rr..rr.', '.r....r.', '..r..r..', '', '', ''], { r: K(220, 30, 25) });
-const FACE_ENDER = drawRows(['', '', '', '', 'ppp..ppp', '', '', ''], { p: K(220, 120, 255) });
+const FACE_ENDER = drawRows(['', '', '', '.cc..cc.', '.cc..cc.', '', '', ''], { c: K(90, 230, 255) });
 const FACE_PIGLIN = drawRows(['', '', '', '.wk...kw.', '', '', '..k...k..', ''], { w: K(255, 255, 255), k: K(30, 20, 20) });
 const RIBS = (set, w, h) => { for (let y = 0; y < h; y++) if (y % 3 === 2) for (let x = 1; x < w - 1; x++) set(x, y, K(40, 40, 40)); for (let y = 0; y < h; y++) set(w >> 1, y, K(200, 200, 196)); };
 const SHOE = (set, w, h) => { for (let x = 0; x < w; x++) for (let y = h - 2; y < h; y++) set(x, y, K(70, 70, 70)); };
 
-const SKIN = { c: K(96, 150, 80), pat: 'rot' }, SHIRT = { c: K(0, 140, 150) }, PANTS = { c: K(70, 60, 160), faces: { front: SHOE, back: SHOE, left: SHOE, right: SHOE } };
+const SKIN = { c: K(96, 150, 80), pat: 'rot' }, SHIRT = { c: K(176, 62, 46) }, ZSHIRT = { c: K(118, 106, 88) }, PANTS = { c: K(74, 58, 44), faces: { front: SHOE, back: SHOE, left: SHOE, right: SHOE } };
 const PINK = { c: K(240, 160, 158) };
 const COWC = { c: K(84, 58, 38), pat: 'cow' };
-const CREEP = { c: K(92, 184, 76), pat: 'creeper' }, WOOL = { c: K(236, 236, 232), pat: 'wool' }, SHEEPF = { c: K(200, 170, 145) };
-const ENDER = { c: K(20, 14, 24), n: 0.12 };
+const CREEP = { c: K(88, 130, 104), pat: 'creeper' }, WOOL = { c: K(236, 236, 232), pat: 'wool' }, SHEEPF = { c: K(200, 170, 145) };
+const ENDER = { c: K(30, 36, 58), n: 0.12 }, ROBE = { c: K(46, 40, 70), n: 0.1, faces: { bottom: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(20, 18, 30)); } } };
 const PIGSKIN = { c: K(225, 155, 145) }, ROT = { c: K(115, 160, 100), pat: 'rot' }, PIGPANTS = { c: K(110, 80, 52) };
 const BONEC = { c: K(205, 205, 200), pat: 'bone' };
 const SPID = { c: K(55, 47, 42), pat: 'spider' };
@@ -102,17 +102,19 @@ const MOB_TYPES = {
     parts: [
       part([-4, 24, -4, 4, 32, 4], HEAD({ c: K(198, 150, 115) }, FACE_STEVE, { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, back: (set, w, h) => { for (let y = 0; y < h - 2; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, left: (set, w, h) => { for (let y = 0; y < 3; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); }, right: (set, w, h) => { for (let y = 0; y < 3; y++) for (let x = 0; x < w; x++) set(x, y, K(55, 38, 20)); } }), 'head', [0, 24, 0]),
       part([-4, 12, -2, 4, 24, 2], SHIRT),
-      part([4, 12, -2, 8, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'pArmR', [6, 22, 0]),
-      part([-8, 12, -2, -4, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'pArmL', [-6, 22, 0]),
+      part([4, 12, -2, 8, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(176, 62, 46)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); } } }, 'pArmR', [6, 22, 0]),
+      part([-8, 12, -2, -4, 24, 2], { c: K(198, 150, 115), faces: { top: (set, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) set(x, y, K(176, 62, 46)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(176, 62, 46)); } } }, 'pArmL', [-6, 22, 0]),
       part([-4, 0, -2, 0, 12, 2], PANTS, 'legA', [-2, 12, 0]),
       part([0, 0, -2, 4, 12, 2], PANTS, 'legB', [2, 12, 0]),
     ],
   },
   enderman: {
-    name: 'Enderman', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'enderman',
+    name: 'Gölgeci', hw: 0.3, h: 2.9, health: 40, speed: 3.2, hostile: false, neutral: true, dmg: 7, sound: 'enderman',
     parts: [
       part([-4, 40, -4, 4, 48, 4], HEAD(ENDER, FACE_ENDER), 'head', [0, 40, 0]),
-      part([-4, 28, -2, 4, 40, 2], ENDER),
+      // Kapüşon ve pelerin: yüz açıkta kalır
+      part([-4.6, 41, -3.4, 4.6, 49, 4.8], ROBE, 'head', [0, 40, 0]),
+      part([-5, 14, -3, 5, 40, 3], ROBE),
       part([4, 12, -1, 6, 40, 1], ENDER, 'legB', [5, 39, 0]),
       part([-6, 12, -1, -4, 40, 1], ENDER, 'legA', [-5, 39, 0]),
       part([-3, 0, -1, -1, 28, 1], ENDER, 'legA', [-2, 28, 0]),
@@ -120,7 +122,7 @@ const MOB_TYPES = {
     ],
   },
   zpiglin: {
-    name: 'Zombi Piglin', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'zpiglin',
+    name: 'Zombi Domuzadam', hw: 0.3, h: 1.95, health: 20, speed: 2.3, hostile: false, neutral: true, dmg: 5, sound: 'zpiglin',
     parts: [
       part([-5, 24, -4, 5, 32, 4], HEAD(PIGSKIN, FACE_PIGLIN), 'head', [0, 24, 0]),
       part([-2, 25, -5, 2, 28, -4], HEAD({ c: K(200, 120, 115) }, FACE_SNOUT), 'head', [0, 24, 0]),
@@ -182,17 +184,19 @@ const MOB_TYPES = {
     name: 'Zombi', hw: 0.3, h: 1.95, health: 20, speed: 2.4, hostile: true, sound: 'zombie',
     parts: [
       part([-4, 24, -4, 4, 32, 4], HEAD(SKIN, FACE_ZOMBIE), 'head', [0, 24, 0]),
-      part([-4, 12, -2, 4, 24, 2], SHIRT),
-      part([4, 12, -2, 8, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'armR', [6, 22, 0]),
-      part([-8, 12, -2, -4, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(0, 140, 150)); } } }, 'armL', [-6, 22, 0]),
+      part([-4, 12, -2, 4, 24, 2], ZSHIRT),
+      part([4, 12, -2, 8, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); } } }, 'armR', [6, 22, 0]),
+      part([-8, 12, -2, -4, 24, 2], { c: K(96, 150, 80), pat: 'rot', faces: { top: (s, w, h) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, front: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, back: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, left: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); }, right: (s, w) => { for (let y = 0; y < 4; y++) for (let x = 0; x < w; x++) s(x, y, K(118, 106, 88)); } } }, 'armL', [-6, 22, 0]),
       part([-4, 0, -2, 0, 12, 2], PANTS, 'legA', [-2, 12, 0]),
       part([0, 0, -2, 4, 12, 2], PANTS, 'legB', [2, 12, 0]),
     ],
   },
   creeper: {
-    name: 'Creeper', hw: 0.3, h: 1.7, health: 20, speed: 2.1, hostile: true, sound: 'creeper',
+    name: 'Fitil', hw: 0.3, h: 1.7, health: 20, speed: 2.1, hostile: true, sound: 'creeper',
     parts: [
       part([-4, 18, -4, 4, 26, 4], HEAD(CREEP, FACE_CREEPER), 'head', [0, 18, 0]),
+      part([-0.5, 26, -0.5, 0.5, 29, 0.5], { c: K(70, 50, 34) }, 'head', [0, 18, 0]),
+      part([-0.7, 29, -0.7, 0.7, 30.2, 0.7], { c: K(255, 170, 40) }, 'head', [0, 18, 0]),
       part([-4, 6, -2, 4, 18, 2], CREEP),
       part([-4, 0, -6, 0, 6, -2], CREEP, 'legA', [0, 6, -2]),
       part([0, 0, -6, 4, 6, -2], CREEP, 'legB', [0, 6, -2]),

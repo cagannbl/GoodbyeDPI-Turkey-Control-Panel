@@ -15,7 +15,7 @@ const TIERS = {
   iron: { name: 'Demir', tier: 3, speed: 6, dur: 250, dmg: 2, col: [222, 222, 222] },
   gold: { name: 'Altın', tier: 1, speed: 12, dur: 32, dmg: 0, col: [250, 214, 64] },
   diamond: { name: 'Elmas', tier: 4, speed: 8, dur: 1561, dmg: 3, col: [84, 228, 216] },
-  netherite: { name: 'Netherit', tier: 5, speed: 9, dur: 2031, dmg: 4, col: [76, 66, 72] },
+  netherite: { name: 'Korçelik', tier: 5, speed: 9, dur: 2031, dmg: 4, col: [76, 66, 72] },
 };
 const TOOL_KINDS = {
   pickaxe: { name: 'Kazma', block: 'pick', dmg: 2 },
@@ -30,7 +30,7 @@ const ARMOR_MATS = {
   gold: { name: 'Altın', dur: 7, def: [2, 5, 3, 1], tough: 0, col: [250, 214, 64] },
   iron: { name: 'Demir', dur: 15, def: [2, 6, 5, 2], tough: 0, col: [212, 212, 212] },
   diamond: { name: 'Elmas', dur: 33, def: [3, 8, 6, 3], tough: 2, col: [84, 228, 216] },
-  netherite: { name: 'Netherit', dur: 37, def: [3, 8, 6, 3], tough: 3, col: [86, 74, 80] },
+  netherite: { name: 'Korçelik', dur: 37, def: [3, 8, 6, 3], tough: 3, col: [86, 74, 80] },
 };
 const ARMOR_SLOTS = [
   { key: 'HELMET', name: 'Miğfer', mult: 11 }, { key: 'CHESTPLATE', name: 'Göğüslük', mult: 16 },
@@ -223,26 +223,26 @@ function defineItems() {
   item('CHARCOAL', 'Odun Kömürü', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 5, 4.5, [52, 42, 32], 0.4); outlineTile(d, [16, 12, 8]); }, { fuel: 40 });
   item('IRON_INGOT', 'Demir Külçesi', (d, r) => ingotSprite(d, r, [215, 215, 215]));
   item('GOLD_INGOT', 'Altın Külçesi', (d, r) => ingotSprite(d, r, [250, 210, 50]));
-  item('NETHERITE_SCRAP', 'Netherit Hurdası', (d, r) => { clearTile(d); blob(d, r, 8, 9, 5.5, 4, [100, 74, 66], 0.5); outlineTile(d, [40, 28, 26]); });
-  item('NETHERITE_INGOT', 'Netherit Külçesi', (d, r) => ingotSprite(d, r, [78, 68, 74]));
+  item('NETHERITE_SCRAP', 'Korçelik Hurdası', (d, r) => { clearTile(d); blob(d, r, 8, 9, 5.5, 4, [100, 74, 66], 0.5); outlineTile(d, [40, 28, 26]); });
+  item('NETHERITE_INGOT', 'Korçelik Külçesi', (d, r) => ingotSprite(d, r, [78, 68, 74]));
   item('DIAMOND', 'Elmas', (d, r) => gemSprite(d, r, [90, 230, 220]));
   item('EMERALD', 'Zümrüt', (d, r) => gemSprite(d, r, [40, 210, 100]));
   item('LAPIS', 'Lapis Lazuli', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 4.5, 5, [40, 80, 200], 0.4); outlineTile(d, [14, 26, 70]); });
-  item('REDSTONE_DUST', 'Kızıltaş Tozu', (d, r) => dustSprite(d, r, [210, 20, 15]));
-  item('QUARTZ', 'Nether Kuvarsı', (d, r) => gemSprite(d, r, [236, 228, 220]));
+  item('REDSTONE_DUST', 'Şimşektaş Tozu', (d, r) => dustSprite(d, r, [210, 20, 15]));
+  item('QUARTZ', 'Cehennem Kuvarsı', (d, r) => gemSprite(d, r, [236, 228, 220]));
   item('FLINT', 'Çakmaktaşı', (d, r) => { clearTile(d); blob(d, r, 8, 9, 4, 5, [70, 70, 74], 0.3); outlineTile(d, [20, 20, 22]); });
   item('GUNPOWDER', 'Barut', (d, r) => dustSprite(d, r, [110, 110, 110]));
-  item('NETHER_BRICK', 'Nether Tuğlası (Eşya)', (d, r) => {
+  item('NETHER_BRICK', 'Cehennem Tuğlası (Eşya)', (d, r) => {
     pattern(d, ['', '', '', '', '', '...aaaaaaaaaa...', '..abbbbbbbbbba..', '..abbbbbbbbcca..', '..accccccccdda..', '...aaaaaaaaaa...'], { a: [30, 14, 16], b: [96, 44, 52], c: [74, 34, 40], d: [54, 24, 28] });
   });
-  item('ENDER_PEARL', 'Ender İncisi', (d, r) => { clearTile(d); blob(d, r, 8, 8, 5, 5, [30, 110, 100], 0.05); px(d, 6, 6, 160, 240, 220); px(d, 7, 6, 120, 210, 190); outlineTile(d, [10, 40, 36]); }, { stack: 16 });
-  item('ENDER_EYE', 'Sonveren Gözü', (d, r) => {
+  item('ENDER_PEARL', 'Gölge İncisi', (d, r) => { clearTile(d); blob(d, r, 8, 8, 5, 5, [30, 110, 100], 0.05); px(d, 6, 6, 160, 240, 220); px(d, 7, 6, 120, 210, 190); outlineTile(d, [10, 40, 36]); }, { stack: 16 });
+  item('ENDER_EYE', 'Gölge Gözü', (d, r) => {
     clearTile(d); blob(d, r, 8, 8, 5, 5, [60, 150, 90], 0.05);
     for (let y = 6; y < 11; y++) for (let x = 7; x < 9; x++) px(d, x, y, 20, 40, 25);
     px(d, 6, 6, 200, 240, 200); outlineTile(d, [14, 40, 20]);
   });
-  item('CHORUS_FRUIT', 'Koro Meyvesi', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 5, 5, [140, 90, 140], 0.4); outlineTile(d, [50, 30, 50]); }, { food: { h: 4, s: 2.4, always: true, teleport: true } });
-  item('POPPED_CHORUS', 'Patlamış Koro Meyvesi', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 5, 5, [190, 150, 195], 0.4); outlineTile(d, [70, 50, 75]); });
+  item('CHORUS_FRUIT', 'Yankı Meyvesi', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 5, 5, [140, 90, 140], 0.4); outlineTile(d, [50, 30, 50]); }, { food: { h: 4, s: 2.4, always: true, teleport: true } });
+  item('POPPED_CHORUS', 'Patlamış Yankı Meyvesi', (d, r) => { clearTile(d); blob(d, r, 8, 8.5, 5, 5, [190, 150, 195], 0.4); outlineTile(d, [70, 50, 75]); });
   item('APPLE', 'Elma', (d, r) => appleSprite(d, r, [215, 30, 30], [60, 150, 40]), { food: { h: 4, s: 2.4 } });
   item('GOLDEN_APPLE', 'Altın Elma', (d, r) => appleSprite(d, r, [250, 205, 50], [250, 240, 120]), { food: { h: 4, s: 9.6, always: true, regen: 5 } });
   item('PORKCHOP', 'Çiğ Domuz Eti', (d, r) => meatSprite(d, r, [230, 120, 120], [250, 210, 200]), { food: { h: 3, s: 1.8 } });
@@ -613,7 +613,7 @@ function defineCreativeTabs() {
     { name: 'İşlevsel Bloklar', icon: B.CRAFTING, items: func },
     { name: 'Aletler, Silahlar ve Zırh', icon: I.DIAMOND_PICKAXE, items: tools },
     { name: 'Yiyecek ve Malzemeler', icon: I.APPLE, items: mats },
-    { name: 'Kızıltaş', icon: I.REDSTONE_DUST, items: [I.REDSTONE_DUST, B.REDSTONE_BLOCK, B.RTORCH_ON, B.LEVER + 8, B.BUTTON, B.PLATE,
+    { name: 'Şimşektaş', icon: I.REDSTONE_DUST, items: [I.REDSTONE_DUST, B.REDSTONE_BLOCK, B.RTORCH_ON, B.LEVER + 8, B.BUTTON, B.PLATE,
       B.REPEATER, B.LAMP, B.PISTON + 2, B.TNT, B.DOOR, B.TRAPDOOR, B.GATE, B.GLOWSTONE] },
     // 'e:<büyü>' girdileri en yüksek seviyeli büyülü kitaptır
     { name: 'Büyülü Kitaplar', icon: I.ENCHANTED_BOOK, items: Object.keys(ENCH).map((k) => 'e:' + k) },

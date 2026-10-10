@@ -5,8 +5,8 @@
 
 const $ = (id) => document.getElementById(id);
 
-const SPLASHES = ['HTML5 ile!', '%100 JavaScript!', 'Kurulum yok!', 'Bloklar!', 'Creeper geliyor!', 'Merhaba Türkiye!',
-  'WebGL2 güçlü!', 'Sonsuz dünya!', 'Ssssss...', 'Meşaleni unutma!', 'Elmas bul!', 'Kazmaya devam!', 'Çay molası?'];
+const SPLASHES = ['HTML5 ile!', '%100 JavaScript!', 'Kurulum yok!', 'Bloklar!', 'Fitil geliyor!', 'Merhaba Türkiye!',
+  'WebGL2 güçlü!', 'Sonsuz dünya!', 'Fitil yanıyor...', 'Meşaleni unutma!', 'Elmas bul!', 'Kazmaya devam!', 'Çay molası?'];
 
 function pixelIcon(rows, palette, scale = 1) {
   const c = document.createElement('canvas');
@@ -802,12 +802,12 @@ class UI {
     const c = document.createElement('canvas'); c.width = 16; c.height = 32;
     const x = c.getContext('2d');
     const R = (col, a, b, w, h) => { x.fillStyle = col; x.fillRect(a, b, w, h); };
-    R('#c69c78', 4, 0, 8, 8); R('#3b2716', 4, 0, 8, 2); R('#3b2716', 4, 2, 1, 2); R('#3b2716', 11, 2, 1, 2);
-    R('#fff', 5, 4, 1, 1); R('#4a3aa8', 6, 4, 1, 1); R('#4a3aa8', 9, 4, 1, 1); R('#fff', 10, 4, 1, 1);
-    R('#8a5a3c', 6, 6, 4, 1); R('#9b6b4a', 7, 5, 2, 1);
-    R('#00a8a8', 4, 8, 8, 12); R('#008a8a', 4, 8, 8, 1);
-    R('#00a8a8', 0, 8, 4, 4); R('#00a8a8', 12, 8, 4, 4); R('#c69c78', 0, 12, 4, 8); R('#c69c78', 12, 12, 4, 8);
-    R('#3c3caa', 4, 20, 8, 10); R('#2a2a80', 7, 21, 2, 9); R('#6a6a6a', 4, 30, 8, 2);
+    R('#c69c78', 4, 0, 8, 8); R('#96461e', 4, 0, 8, 2); R('#96461e', 4, 2, 3, 1); R('#96461e', 4, 2, 1, 3); R('#96461e', 11, 2, 1, 2);
+    R('#fff', 6, 4, 1, 1); R('#28783c', 5, 4, 1, 1); R('#28783c', 10, 4, 1, 1); R('#fff', 9, 4, 1, 1);
+    R('#965546', 7, 6, 2, 1);
+    R('#b03e2e', 4, 8, 8, 12); R('#8e3022', 4, 8, 8, 1); R('#8e3022', 7, 9, 2, 11);
+    R('#b03e2e', 0, 8, 4, 4); R('#b03e2e', 12, 8, 4, 4); R('#c69c78', 0, 12, 4, 8); R('#c69c78', 12, 12, 4, 8);
+    R('#4a3a2c', 4, 20, 8, 10); R('#3a2c20', 7, 21, 2, 9); R('#5a5048', 4, 30, 8, 2);
     // Giyilen zırh
     const rects = [
       [[4, 0, 8, 2], [4, 2, 1, 4], [11, 2, 1, 4]],
