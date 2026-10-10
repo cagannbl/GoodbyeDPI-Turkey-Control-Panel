@@ -14,6 +14,8 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 ![Dil](https://img.shields.io/badge/Dil-Türkçe-C8102E?style=for-the-badge)
 ![Lisans](https://img.shields.io/badge/Lisans-MIT-2F6FB0?style=for-the-badge)
 
+<a href="https://cagannbl.github.io/Webcraft/"><img src="https://img.shields.io/badge/▶_Hemen_Oyna-Tarayıcıda_aç-F0961E?style=for-the-badge" alt="Hemen Oyna" height="40"></a>
+
 [Özellikler](#-özellikler) · [Ekran görüntüleri](#-ekran-görüntüleri) · [Nasıl oynanır](#-nasıl-oynanır) · [Kontroller](#-kontroller) · [Kod yapısı](#-kod-yapısı) · [Lisans](#-lisans)
 
 </div>
@@ -58,6 +60,10 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 </table>
 
 ## 🎮 Nasıl oynanır
+
+**En kolayı:** [cagannbl.github.io/Webcraft](https://cagannbl.github.io/Webcraft/) adresini aç ve oyna. Bilgisayarda ve telefonda çalışır.
+
+Çevrimdışı oynamak istersen:
 
 1. Depoyu indir: **Code → Download ZIP** (ya da `git clone`).
 2. Klasördeki `index.html` dosyasına çift tıkla. Chrome, Edge, Firefox ve Safari'de çalışır.
