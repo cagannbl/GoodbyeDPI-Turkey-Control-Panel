@@ -308,26 +308,31 @@ class Game {
   // ------------------------------------------------------------ Girişler
   requestLock() {
     if (this.isTouch) return;
-    // unadjustedMovement: işletim sisteminin fare ivmesini atla (Chrome'daki ani bakış sıçramalarını da azaltır).
-    // Desteklemeyen tarayıcıda normal kilide geri dön.
-    const plain = () => { try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* yok say */ } };
     try {
-      const r = this.canvas.requestPointerLock({ unadjustedMovement: true });
-      if (r && r.catch) r.catch(() => plain());
-    } catch (e) { plain(); }
+      const r = this.canvas.requestPointerLock();
+      if (r && r.catch) r.catch(() => {});
+    } catch (e) { /* yok say */ }
   }
 
-  // Bazı tarayıcılar (özellikle Windows'ta Chrome) fare kilitliyken arada bir tek olayda
-  // yüzlerce piksellik sahte hareket gönderir; karakter bir anda başka yere bakar.
-  // Son hareketlerin ortalamasına göre aşırı büyük tekil sıçramaları yok say.
-  lookSane(dx, dy) {
+  // Windows'ta Chrome fare kilitliyken arada tek bir olayda yüzlerce piksellik sahte hareket
+  // gönderebiliyor; karakter bir anda başka yere bakıyor. Gerçek hızlı hareketi asla yutmamak için:
+  // önceki harekete göre aşırı büyük tekil bir olayı bir sonraki olaya kadar beklet. Hareket sürüyorsa
+  // (gerçek savurma) ikisini de uygula; hemen ardından hareket kesiliyorsa sahte sıçramadır, at.
+  mouseLook(dx, dy) {
     const now = performance.now(), m = Math.hypot(dx, dy);
-    if (now - (this.lockT || 0) < 120) return false; // kilit yeni alındı: ilk olaylar güvenilmez
-    const avg = this.lookAvg || 0, idle = now - (this.lookLastT || 0) > 80;
-    this.lookLastT = now;
-    if (m > 120 && (idle || m > avg * 6 + 40)) { this.lookAvg = avg * 0.5; return false; }
-    this.lookAvg = avg * 0.7 + m * 0.3;
-    return true;
+    if (now - (this.lockT || 0) < 100) return; // kilit yeni alındı: ilk olaylar güvenilmez
+    const h = this.lookHold;
+    if (h) {
+      this.lookHold = null; clearTimeout(h.timer);
+      if (m >= h.m * 0.15) this.look(h.dx, h.dy);
+    }
+    const prev = now - (this.lookLastT || 0) < 100 ? this.lookPrev || 0 : 0;
+    this.lookLastT = now; this.lookPrev = m;
+    if (!h && m > 300 && m > prev * 6 + 150) {
+      this.lookHold = { dx, dy, m, timer: setTimeout(() => { this.lookHold = null; }, 120) };
+      return;
+    }
+    this.look(dx, dy);
   }
 
   look(dx, dy, mult = 1) {
@@ -594,7 +599,7 @@ class Game {
     for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, () => this.audio.init(), { capture: true, passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === cv;
-      if (this.locked) { this.lockT = performance.now(); this.lookAvg = 0; }
+      if (this.locked) { this.lockT = performance.now(); this.lookHold = null; }
       if (this.locked) $('clickToPlay').classList.add('hidden');
       else if (this.state === 'playing') {
         if (this.ignoreUnlock) this.ignoreUnlock = false;
@@ -626,7 +631,7 @@ class Game {
       if (e.button === 2) this.mouse.right = false;
     });
     document.addEventListener('mousemove', (e) => {
-      if (this.locked && this.state === 'playing') { if (this.lookSane(e.movementX, e.movementY)) this.look(e.movementX, e.movementY); }
+      if (this.locked && this.state === 'playing') this.mouseLook(e.movementX, e.movementY);
       else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -638,6 +643,9 @@ class Game {
     window.addEventListener('keydown', (e) => {
       const k = e.code;
       if (['F1', 'F2', 'F3', 'Space', 'Tab', 'F5'].includes(k) || (this.state === 'playing' && k.startsWith('Arrow'))) e.preventDefault();
+      // Ctrl ile koşarken tarayıcı kısayolları tetiklenmesin (Ctrl+D yer işareti, Ctrl+S kaydet, Ctrl+A...).
+      // Ctrl+W / Ctrl+T gibi bazıları engellenemez; onlar için aşağıdaki çıkış onayı var.
+      if ((e.ctrlKey || e.metaKey) && this.world && this.meta && this.state !== 'menu' && /^(Key|Digit)/.test(k)) e.preventDefault();
       if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') return;
       this.audio.init();
       if (this.state === 'inventory') {
@@ -688,7 +696,11 @@ class Game {
     });
     window.addEventListener('blur', () => { this.keys = {}; this.mouse.left = this.mouse.right = false; this.pause(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.pause(); this.saveWorld(); } });
-    window.addEventListener('beforeunload', () => this.saveWorld());
+    window.addEventListener('beforeunload', (e) => {
+      this.saveWorld();
+      // Oyun açıkken sekme kazara kapanmasın (ör. Ctrl ile koşarken W'ye basınca Ctrl+W): tarayıcı onay sorar
+      if (this.meta && this.state !== 'menu' && !this.ctxLost && $('fatal').classList.contains('hidden')) { e.preventDefault(); e.returnValue = ''; }
+    });
   }
 
   // ------------------------------------------------------------ Envanter
@@ -2077,10 +2089,14 @@ class Game {
   adaptQuality() {
     if (!this.settings.autoRes || this.state !== 'playing') return;
     const r = this.renderer, max = this.settings.resScale;
-    this.lowFps = this.fps < 32 ? (this.lowFps || 0) + 1 : 0;
-    this.highFps = this.fps > 55 ? (this.highFps || 0) + 1 : 0;
-    if (this.lowFps >= 4 && r.resScale > 0.5) { r.resScale = Math.max(0.5, Math.round((r.resScale - 0.1) * 10) / 10); this.lowFps = 0; }
-    else if (this.highFps >= 8 && r.resScale < max) { r.resScale = Math.min(max, Math.round((r.resScale + 0.1) * 10) / 10); this.highFps = 0; }
+    // Her çözünürlük değişimi ekran tamponunu yeniden kurar ve kısa bir donmaya yol açar. FPS sınırda
+    // dalgalanınca (ör. fareyle dönerken) sürekli düşür/yükselt yapıp takılmasın: düşürmek için 3 sn
+    // kesintisiz düşük FPS gerekir, düşürdükten sonra 60 sn boyunca tekrar yükseltilmez.
+    const now = performance.now();
+    this.lowFps = this.fps < 30 ? (this.lowFps || 0) + 1 : 0;
+    this.highFps = this.fps > 58 ? (this.highFps || 0) + 1 : 0;
+    if (this.lowFps >= 6 && r.resScale > 0.5) { r.resScale = Math.max(0.5, Math.round((r.resScale - 0.1) * 10) / 10); this.lowFps = 0; this.highFps = 0; this.resHoldUntil = now + 60000; }
+    else if (this.highFps >= 20 && r.resScale < max && now > (this.resHoldUntil || 0)) { r.resScale = Math.min(max, Math.round((r.resScale + 0.1) * 10) / 10); this.highFps = 0; }
   }
 
   // Tam ekran + yatay kilit (telefon); izin verilmezse sessizce geç
