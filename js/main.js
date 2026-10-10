@@ -27,6 +27,17 @@ class Game {
 
     initBlocks();
     this.renderer = new Renderer(this.canvas);
+    // Ekran kartı sürücüsü WebGL'i sıfırlarsa (bellek, sürücü çökmesi, GPU değişimi) oyunu kaybetme:
+    // dünyayı kaydet, sayfayı yenile ve aynı dünyaya geri dön
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      if (this.ctxLost) return;
+      this.ctxLost = true;
+      try { this.saveWorld(); if (this.meta && this.state !== 'menu') sessionStorage.setItem('webcraft_resume', this.meta.id); } catch (err) { /* yok say */ }
+      $('fatalText').textContent = 'Ekran kartı grafikleri sıfırladı. Dünyan kaydedildi, oyun yeniden başlatılıyor...';
+      $('fatal').classList.remove('hidden');
+      setTimeout(() => location.reload(), 1500);
+    });
     // Telefonda %75 ile başla; FPS yeterliyse otomatik çözünürlük ayardaki değere kadar yükseltir
     this.renderer.resScale = this.isTouch ? Math.min(this.settings.resScale, 0.75) : this.settings.resScale;
     this.audio = new GameAudio();
@@ -94,6 +105,9 @@ class Game {
     if (this.isTouch) this.ui.initTouch();
     this.openMenuWorld();
     this.ui.show('mainMenu');
+    let resume = null;
+    try { resume = sessionStorage.getItem('webcraft_resume'); sessionStorage.removeItem('webcraft_resume'); } catch (e) { /* yok say */ }
+    if (resume) this.loadWorld(resume);
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -1801,6 +1815,7 @@ class Game {
 
   // ------------------------------------------------------------ Döngü
   frame(t) {
+    if (this.ctxLost) return;
     const dt = Math.min(0.05, (t - this.last) / 1000);
     this.last = t;
     this.fpsAcc += dt; this.fpsN++;
@@ -1818,6 +1833,7 @@ class Game {
       else if (this.world) this.frameGame(dt);
     } catch (e) {
       console.error(e);
+      try { this.saveWorld(); } catch (err) { /* yok say */ }
       $('fatal').classList.remove('hidden');
       $('fatalText').textContent = String(e && e.stack || e);
       return;
