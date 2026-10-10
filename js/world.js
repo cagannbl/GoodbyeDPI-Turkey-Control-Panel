@@ -150,15 +150,29 @@ class World {
     // Dağlar: iç bölgede, sırt gürültüsüyle keskin zirveler
     const mf = smoothstep(0.12, 0.55, ero) * smoothstep(0.0, 0.3, cont);
     h += mf * (Math.pow(ridge, 2.4) * 58 + 6);
-    // Nehirler: bükülmüş gürültünün sıfır çizgisi; dağlarda vadi oyar
-    const rv = Math.abs(this.nRiver.fbm2(ux * 0.0021, uz * 0.0021, 2));
-    const rw = 0.03 + 0.01 * (1 - mf);
+    // Nehirler: bükülmüş gürültünün sıfır çizgisi. Yatağın iki yanında geniş, yumuşak eğimli bir vadi açılır
+    // (yaklaşık 2 blokta 1 blok yükselir); arazi vadi tabanına yumuşakça karışır, kanyon oluşmaz.
+    // Dağların içinde yatak yavaşça yükselir; nehir orada kuru, yayvan bir vadiye dönüşür.
+    const RF = 0.0021, rn = this.nRiver.fbm2(ux * RF, uz * RF, 2), rv = Math.abs(rn);
+    const rs = smoothstep(-0.25, -0.1, cont);
     let river = false;
-    if (rv < rw * 2.2 && cont > -0.25) {
-      const t = Math.min(1, rv / rw);
-      const bed = SEA - 2 - (1 - t) * 2;
-      if (t < 1) { h = Math.min(h, bed + (h - bed) * Math.pow(t, 2.2)); river = h < SEA; }
-      else { const k = (rv - rw) / (rw * 1.2); h = Math.min(h, SEA + 1 + (h - SEA - 1) * (0.35 + 0.65 * k)); }
+    if (rs > 0 && rv < 0.5) {
+      // Nehir çizgisine blok cinsinden uzaklık (gürültünün eğimiyle), böylece vadi her yerde aynı eğimde olur
+      const gx = this.nRiver.fbm2((ux + 1) * RF, uz * RF, 2) - rn, gz = this.nRiver.fbm2(ux * RF, (uz + 1) * RF, 2) - rn;
+      const dist = rv / Math.max(1e-4, Math.hypot(gx, gz));
+      const hw = 3.5 + 2.5 * (1 - mf); // yatağın yarı genişliği
+      let floor = dist < hw ? SEA - 1 - (1 - (dist / hw) ** 2) * 2.5 : SEA + (dist - hw) * (0.5 + 0.5 * mf);
+      // dağlarda yatak yükselir (kuru vadi), kıyıdan uzaklaştıkça vadi kaybolur
+      floor += smoothstep(0.3, 1, mf) * 30 + (1 - rs) * 40 + smoothstep(0.2, 0.5, rv) * 120;
+      if (floor < h) {
+        // yumuşak minimum: vadi kenarı araziye köşesiz bağlanır
+        const k = 5, q = Math.max(0, k - (h - floor)) / k;
+        h = floor - q * q * k * 0.25;
+        river = dist < hw && h < SEA;
+      } else if (floor - h < 5) {
+        const q = (5 - (floor - h)) / 5;
+        h -= q * q * 5 * 0.25;
+      }
     }
     h = Math.floor(clamp(h, 6, CH - 14));
     let biome;
@@ -240,14 +254,14 @@ class World {
           case BIOME.RIVER: top = hash2(wx >> 1, wz >> 1, seed + 14) < 0.35 ? B.GRAVEL : B.SAND; sub = top; break;
           case BIOME.MOUNTAIN:
             if (h > SEA + 44 - Math.floor(hash2(wx, wz, seed + 15) * 4)) { top = slope >= 5 ? B.STONE : B.SNOW; sub = B.STONE; }
-            else if (slope >= 3 || h > SEA + 38) { top = B.STONE; sub = B.STONE; }
+            else if (slope >= 4 || h > SEA + 38) { top = B.STONE; sub = B.STONE; }
             else { top = cold ? B.SNOWY_GRASS : B.GRASS; sub = B.DIRT; }
             break;
-          case BIOME.SNOW: top = slope >= 4 ? B.STONE : B.SNOWY_GRASS; sub = slope >= 4 ? B.STONE : B.DIRT; break;
+          case BIOME.SNOW: top = slope >= 6 ? B.STONE : B.SNOWY_GRASS; sub = slope >= 6 ? B.STONE : B.DIRT; break;
           default:
             // Sarp yamaçlar çıplak taş (yarlar), kıyı yamaçlarında toprak
-            if (slope >= 4 && h > SEA + 3) { top = B.STONE; sub = B.STONE; }
-            else if (slope >= 3 && h > SEA + 3 && hash2(wx, wz, seed + 16) < 0.5) { top = B.DIRT; sub = B.DIRT; }
+            if (slope >= 6 && h > SEA + 6) { top = B.STONE; sub = B.STONE; }
+            else if (slope >= 4 && h > SEA + 3 && hash2(wx, wz, seed + 16) < 0.5) { top = B.DIRT; sub = B.DIRT; }
             else { top = B.GRASS; sub = B.DIRT; }
         }
         b[bidx(x, 0, z)] = B.BEDROCK;
