@@ -7,9 +7,9 @@
 // - Ejderha ölünce çıkış geçidi açılır ve ejderha yumurtası belirir.
 // ---------------------------------------------------------------------------
 
-const DRAGON_C = [0.1, 0.09, 0.12], DRAGON_SPINE = [0.32, 0.3, 0.36], DRAGON_WING = [0.16, 0.14, 0.19], DRAGON_EYE = [0.85, 0.35, 1];
-MOB_TYPES.dragon = { name: 'Ender Ejderhası', hw: 2.2, h: 2.6, health: 200, speed: 0, hostile: true, boss: true, boxes: 40, sound: 'roar', parts: [] };
-MOB_TYPES.crystal = { name: 'End Kristali', hw: 0.6, h: 1.6, health: 1, speed: 0, hostile: false, boss: true, boxes: 4, sound: 'pop', parts: [] };
+const DRAGON_C = [0.1, 0.12, 0.2], DRAGON_SPINE = [0.25, 0.42, 0.5], DRAGON_WING = [0.14, 0.18, 0.3], DRAGON_EYE = [0.35, 0.9, 1];
+MOB_TYPES.dragon = { name: 'Boşluk Ejderhası', hw: 2.2, h: 2.6, health: 200, speed: 0, hostile: true, boss: true, boxes: 40, sound: 'roar', parts: [] };
+MOB_TYPES.crystal = { name: 'Boşluk Kristali', hw: 0.6, h: 1.6, health: 1, speed: 0, hostile: false, boss: true, boxes: 4, sound: 'pop', parts: [] };
 
 const DRAGON_PROTECTED = new Set([B.END_STONE, B.OBSIDIAN, B.BEDROCK, B.END_PORTAL, B.END_FRAME, B.END_FRAME_EYE, B.DRAGON_EGG, B.CRYING_OBSIDIAN]);
 
@@ -215,5 +215,5 @@ function beamMesh(out, n, from, to, cam) {
   M4.translate(m, from[0] - cam[0], from[1] - cam[1], from[2] - cam[2]);
   M4.rotY(t, Math.atan2(-dx, -dz)); M4.mul(m, m, t);
   M4.rotX(t, Math.atan2(dy, Math.hypot(dx, dz))); M4.mul(m, m, t);
-  return addBox(out, n, m, -0.06, -0.06, -len, 0.06, 0.06, 0, [1, 0.55, 0.95], 1.5);
+  return addBox(out, n, m, -0.06, -0.06, -len, 0.06, 0.06, 0, [0.5, 0.95, 1], 1.5);
 }

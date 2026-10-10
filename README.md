@@ -4,7 +4,7 @@
 
 # ⛏️ WebCraft
 
-**Tarayıcıda çalışan, sıfırdan yazılmış Minecraft tarzı blok oyunu.**
+**Tarayıcıda çalışan, sıfırdan yazılmış açık dünya blok oyunu.**
 Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazmaya başla.
 
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
@@ -12,8 +12,9 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 ![JavaScript](https://img.shields.io/badge/Saf_JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![Mobil](https://img.shields.io/badge/Telefonda_da_çalışır-5B8A4A?style=for-the-badge&logo=googlechrome&logoColor=white)
 ![Dil](https://img.shields.io/badge/Dil-Türkçe-C8102E?style=for-the-badge)
+![Lisans](https://img.shields.io/badge/Lisans-MIT-2F6FB0?style=for-the-badge)
 
-[Özellikler](#-özellikler) · [Ekran görüntüleri](#-ekran-görüntüleri) · [Nasıl oynanır](#-nasıl-oynanır) · [Kontroller](#-kontroller) · [Kod yapısı](#-kod-yapısı)
+[Özellikler](#-özellikler) · [Ekran görüntüleri](#-ekran-görüntüleri) · [Nasıl oynanır](#-nasıl-oynanır) · [Kontroller](#-kontroller) · [Kod yapısı](#-kod-yapısı) · [Lisans](#-lisans)
 
 </div>
 
@@ -24,10 +25,10 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 | | |
 | --- | --- |
 | 🌍 **Sonsuz dünya** | Tohumla üretilen kıtalar, dağlar, nehirler, mağaralar ve 9 biyom |
-| 🔥 **Üç boyut** | Overworld, Nether ve Ender Ejderhası'nın beklediği End |
+| 🔥 **Üç boyut** | Yerüstü, Cehennem ve Boşluk Ejderhası'nın beklediği Boşluk Diyarı |
 | 🏘️ **Köyler** | 8 meslekten köylü ve zümrütle ticaret |
 | ✨ **Büyü ve örs** | Tecrübe seviyesi, büyü masası, büyülü kitaplar |
-| 🔴 **Kızıltaş** | Toz, meşale, yineleyici, piston, lamba, kapılar ve TNT |
+| ⚡ **Şimşektaş devreleri** | Toz, meşale, yineleyici, piston, lamba, kapılar ve TNT |
 | 🔊 **Gerçek sesler** | Açık lisanslı kayıtlar sayfaya gömülü, internetsiz de çalar |
 | 📱 **Her cihazda** | Bilgisayarda klavye ve fare, telefonda dokunmatik kontroller |
 
@@ -44,14 +45,15 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
   </tr>
   <tr>
     <td><img src="docs/screenshots/buyu.jpg" alt="Büyü masası"><br><sub>Kitaplıklarla çevrili büyü masası</sub></td>
-    <td><img src="docs/screenshots/kiziltas.jpg" alt="Kızıltaş devresi"><br><sub>Kızıltaş devresi: şalter, tozlar, lamba ve piston</sub></td>
+    <td><img src="docs/screenshots/simsektas.jpg" alt="Şimşektaş devresi"><br><sub>Şimşektaş devresi: şalter, tozlar, lamba ve piston</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/nether.jpg" alt="Nether"><br><sub>Nether'ın kızıl ormanları</sub></td>
-    <td><img src="docs/screenshots/end.jpg" alt="Ender Ejderhası"><br><sub>End'de Ender Ejderhası</sub></td>
+    <td><img src="docs/screenshots/cehennem.jpg" alt="Cehennem"><br><sub>Cehennem'in kızıl ormanları</sub></td>
+    <td><img src="docs/screenshots/bosluk.jpg" alt="Boşluk Ejderhası"><br><sub>Boşluk Diyarı'nda Boşluk Ejderhası</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/moblar.jpg" alt="Canlılar"><br><sub>İskelet, zombi, örümcek ve diğer canlılar</sub></td>
+    <td><img src="docs/screenshots/moblar.jpg" alt="Canlılar"><br><sub>Fitil, Gölgeci, zombi, iskelet ve zombi domuzadam</sub></td>
+    <td><img src="docs/screenshots/oyuncu.jpg" alt="Oyuncu"><br><sub>Üçüncü şahıs kamerada oyuncu (F5)</sub></td>
   </tr>
 </table>
 
@@ -72,7 +74,7 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 <summary><b>🌍 Dünya ve arazi</b></summary>
 
 - Sonsuz, tohum tabanlı prosedürel dünya: ova, orman, tayga, çöl, karlı tundra, dağlar, nehir, sahil ve okyanus biyomları
-- Mağaralar, yer altı lav gölleri, kömür / demir / altın / kızıltaş / elmas / zümrüt cevherleri
+- Mağaralar, yer altı lav gölleri, kömür / demir / altın / şimşektaş / elmas / zümrüt cevherleri
 - Meşe, huş ve ladin ağaçları, kaktüsler, çiçekler, uzun çimen, balkabakları
 - **Arazi (yeni dünyalar)**: bükülmüş gürültüyle doğal kıyılar, kıtalar ve okyanuslar, sırt şeklinde sarp ve karlı
   dağlar, yumuşak eğimli vadilerde kıvrılan nehirler (soğukta donar), tayga (ladin ormanı) ve sıcaklık kuşaklarına
@@ -87,13 +89,13 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 </details>
 
 <details>
-<summary><b>🔥 Nether, End ve Ender Ejderhası</b></summary>
+<summary><b>🔥 Cehennem, Boşluk Diyarı ve Boşluk Ejderhası</b></summary>
 
-- **Nether**: kızıl ve çarpık ormanlar, ruh kumu vadileri, lav denizi, ışıktaşı, kuvars, kadim kalıntı (netherit)
-- **End**: End adası, obsidyen sütunlar, çıkış geçidi, ejderha yumurtası, koro bitkili dış adalar
-- **Ender Ejderhası**: uçan, dalış yapan, çıkış geçidine konan boss; sütunlardaki End kristalleri onu iyileştirir,
+- **Cehennem**: kızıl ve çarpık ormanlar, ruh kumu vadileri, lav denizi, ışıktaşı, kuvars, kadim kalıntı (korçelik)
+- **Boşluk Diyarı**: Boşluk adası, obsidyen sütunlar, çıkış geçidi, ejderha yumurtası, yankı bitkili dış adalar
+- **Boşluk Ejderhası**: uçan, dalış yapan, çıkış geçidine konan boss; sütunlardaki Boşluk kristalleri onu iyileştirir,
   yenilince çıkış geçidi açılır ve ejderha yumurtası belirir
-- Obsidyen çerçeve + çakmak ile Nether geçidi; 12 gözlü çerçeve ile End geçidi
+- Obsidyen çerçeve + çakmak ile Cehennem geçidi; 12 gözlü çerçeve ile Boşluk geçidi
 
 </details>
 
@@ -104,12 +106,12 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 - **Yaratıcı** mod: sınırsız blok, anında kırma, uçma (Boşluk tuşuna iki kez bas)
 - **Açlık barı**: yemek, doygunluk ve yorgunluk (koşmak, zıplamak, savaşmak); tokken can yenilenir, açken can azalır
 - **Tarım**: çapa ile tarla, tohum, 8 evreli buğday, suya yakın ıslak tarla, ekmek, kemik tozu, fidan dikip ağaç büyütme
-- **Zırh**: deri, altın, demir, elmas ve netherit miğfer/göğüslük/pantolon/botlar (Minecraft koruma formülü, dayanıklılık)
-- **Yatak**: gece uyuyup sabaha geç, doğma noktası ayarla (Nether ve End'de patlar)
+- **Zırh**: deri, altın, demir, elmas ve korçelik miğfer/göğüslük/pantolon/botlar (koruma formülü, dayanıklılık)
+- **Yatak**: gece uyuyup sabaha geç, doğma noktası ayarla (Cehennem'de ve Boşluk Diyarı'nda patlar)
 - **Yay ve ok**: gerdikçe güçlenen atış, yerdeki okları geri toplama
 - Tahta, taş, demir, altın, elmas ve netherit kazma/balta/kürek/kılıç (dayanıklılık, kazma hızı, hasar)
 - Kovalar (su + lav = obsidyen), ender incisi, yiyecekler, canlı ganimetleri
-- Minecraft tarzı envanter: 2x2 üretim, çalışma masasında 3x3 üretim, tarif kitabı, fırın, sandık, sekmeli yaratıcı envanter
+- Klasik blok oyunu envanteri: 2x2 üretim, çalışma masasında 3x3 üretim, tarif kitabı, fırın, sandık, sekmeli yaratıcı envanter
 - Dünyalar tarayıcıya otomatik kaydedilir (birden fazla dünya)
 
 </details>
@@ -118,13 +120,13 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 <summary><b>🐑 Canlılar, köyler, tecrübe ve büyüler</b></summary>
 
 - Canlılar: domuz, inek, koyun, tavuk, zombi ve ok atan iskelet (gün ışığında yanarlar), duvara tırmanan örümcek,
-  patlayan creeper, Enderman ve zombi piglin
+  patlayan Fitil, ışınlanan Gölgeci ve zombi domuzadam
 - **Köyler**: ova (meşe), karlı (ladin) ve çöl (kumtaşı) köyleri; yollar, kuyu, eğimli çatılı evler, demirci (ganimet
   sandığı), kütüphane, buğday tarlaları, saman balyaları, sokak lambaları
 - **Köylüler ve ticaret**: 8 meslek (çiftçi, çoban, okçu, kasap, rahip, kütüphaneci, zırhçı, alet ustası), zümrütle
   ticaret, günlük yenilenen stok; köylüler gündüz köyde dolaşır, gece evlerine döner
-- **Tecrübe (XP)**: canavarlardan, hayvanlardan, cevherlerden, fırından, ticaretten ve Ender Ejderhası'ndan tecrübe
-  küreleri; Minecraft seviye formülü, ölünce tecrübe yere saçılır
+- **Tecrübe (XP)**: canavarlardan, hayvanlardan, cevherlerden, fırından, ticaretten ve Boşluk Ejderhası'ndan tecrübe
+  küreleri; seviye formülü, ölünce tecrübe yere saçılır
 - **Büyüler**: büyü masası (kitaplık sayısına göre 3 seçenek, lapis + seviye bedeli, süzülen kitap ve uçan rünler),
   örs (onarım, büyü birleştirme, büyülü kitap, yeniden adlandırma, "Çok Pahalı!" sınırı, hasar gören örs);
   Koruma, Tüy Gibi Düşüş, Keskinlik, Kutsal Darbe, Geri Tepme, Alev, Ganimet, Verimlilik, İpeksi Dokunuş, Servet,
@@ -133,11 +135,11 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 </details>
 
 <details>
-<summary><b>🔴 Kızıltaş ve şekilli bloklar</b></summary>
+<summary><b>⚡ Şimşektaş devreleri ve şekilli bloklar</b></summary>
 
-- **Kızıltaş**: toz (güç 15'ten blok blok azalır, basamak çıkıp iner), kızıltaş meşalesi (ters çevirici), şalter,
-  taş düğme, basınç plakası, kızıltaş lambası, yineleyici (1-4 tik gecikme), piston (12 bloğa kadar iter, 6 yön);
-  kapılar, tuzak kapılar, çit kapıları ve TNT güçle çalışır. Güçlü/zayıf güç kuralları Minecraft'a göre sadeleştirildi
+- **Şimşektaş**: toz (güç 15'ten blok blok azalır, basamak çıkıp iner), şimşektaş meşalesi (ters çevirici), şalter,
+  taş düğme, basınç plakası, şimşektaş lambası, yineleyici (1-4 tik gecikme), piston (12 bloğa kadar iter, 6 yön);
+  kapılar, tuzak kapılar, çit kapıları ve TNT güçle çalışır. Güçlü/zayıf güç kuralları sade tutuldu
 - **Şekilli bloklar**: yarım bloklar (birleşince tam blok), basamaklar, açılır kapı, tuzak kapı, çit ve çit kapısı,
   cam panel, tırmanma merdiveni; alçak bloklara kendiliğinden çıkma
 
@@ -147,9 +149,9 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
 <summary><b>🎨 Grafik, ses ve telefon desteği</b></summary>
 
 - 185 blok türü (durumlar dahil) + 100'den fazla eşya, kodla üretilmiş keskin piksel-art dokular
-- **Minecraft tarzı grafik**: sınırlı paletli kümelenmiş piksel dokular; dokulu moblar (yüzleri, desenleri), oyuncuya
+- **Piksel grafik**: sınırlı paletli kümelenmiş piksel dokular; dokulu moblar (yüzleri, desenleri), oyuncuya
   bakan başlar, örümcek bacak ve tavuk kanat animasyonları, ot yiyen koyunlar
-- **Elde tutulan eşya**: Minecraft'ın el dönüşümleriyle 3D kabartma eşyalar, blok, çıplak kol; sallama, yeme, yay germe,
+- **Elde tutulan eşya**: 3D kabartma eşyalar, blok, çıplak kol; sallama, yeme, yay germe,
   eşya değiştirme ve kamera ataleti animasyonları
 - **Yere düşen eşyalar**: dönen/zıplayan ganimetler, toplama, birleşme, Q ile atma; **F5** ile üçüncü şahıs kamera
 - **Gerçek ses efektleri**: Minetest Game, VoxeLibre ve Kenney'den açık lisanslı kayıtlar (adım, kazma, kırma, koyma,
@@ -157,7 +159,7 @@ Kurulum yok, kütüphane yok, derleme yok. `index.html` dosyasını aç ve kazma
   sentezlenir; müzik üretken piyano. Emeği geçenler ve lisanslar: [`sounds/CREDITS.md`](sounds/CREDITS.md).
   Sesler `js/sounds-data.js` içine gömülüdür; oyun dosyaya çift tıklanarak açıldığında da çalar. Ses ekleyip
   çıkardıktan sonra `python3 tools/build_sounds_data.py` ile yeniden üret.
-- **Telefon desteği** (Chrome): Minecraft cep sürümü gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
+- **Telefon desteği** (Chrome): mobil oyunlardaki gibi dokunmatik kontroller (dokun = koy, basılı tut = kır,
   yüzen joystick), envanterde hızlı aktarma / tek tek modları, eşya çubuğunda basılı tutarak atma, tam ekran +
   yatay kilit, ekrana göre küçülen envanter, FPS'e göre otomatik çözünürlük
 
@@ -196,8 +198,8 @@ Telefonda: sol alttaki joystick ile yürü, ekrana dokunarak blok koy, basılı 
 | `js/items.js` | Eşyalar, aletler, tarifler, fırın tarifleri, kazma kuralları |
 | `js/shapes.js` | Yarım blok, basamak, kapı, çit vb. kutu modelleri (çizim + çarpışma) |
 | `js/fluids.js` | Su ve lav akış simülasyonu |
-| `js/redstone.js` | Kızıltaş devreleri: güç hesabı, toz ağları, meşale, yineleyici, lamba, kapı, piston |
-| `js/dragon.js` | Ender Ejderhası ve End kristalleri |
+| `js/redstone.js` | Şimşektaş devreleri: güç hesabı, toz ağları, meşale, yineleyici, lamba, kapı, piston |
+| `js/dragon.js` | Boşluk Ejderhası ve Boşluk kristalleri |
 | `js/villages.js` | Köy üretimi, köylüler, ticaret, sandık ganimeti |
 | `js/enchant.js` | Tecrübe formülleri, büyüler, büyü masası ve örs hesapları |
 | `js/world.js` | Parçalar, arazi/biyom/mağara/ağaç üretimi |
@@ -211,11 +213,12 @@ Telefonda: sol alttaki joystick ile yürü, ekrana dokunarak blok koy, basılı 
 | `js/ui.js` | Menüler, HUD, envanter, dokunmatik kontroller |
 | `js/main.js` | Oyun döngüsü, etkileşim, kayıt |
 
-## 🔊 Sesler ve lisanslar
+## 📜 Lisans
 
-Ses kayıtları Minetest Game, VoxeLibre ve Kenney projelerinden alınmıştır (CC0, CC BY, CC BY-SA ve MIT).
-Yazarlar ve lisanslar [`sounds/CREDITS.md`](sounds/CREDITS.md) dosyasında listelenir. Dokular, modeller ve müzik
-tamamen kodla üretilir.
+Kod, kodla üretilen dokular/modeller ve belgeler [MIT lisansı](LICENSE) ile paylaşılır.
+Ses kayıtları bu lisansa dahil değildir: Minetest Game, VoxeLibre ve Kenney projelerinden alınan her kayıt kendi
+lisansını (CC0, CC BY, CC BY-SA veya MIT) korur. Yazarlar ve lisanslar [`sounds/CREDITS.md`](sounds/CREDITS.md)
+dosyasında listelenir.
 
 <div align="center">
 

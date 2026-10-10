@@ -43,17 +43,16 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .logoWrap { position: relative; margin-bottom: 6vh; }
 .logo {
   font-size: clamp(54px, 11vw, 128px); margin: 0; letter-spacing: 6px; font-weight: normal; line-height: 1;
-  color: #d8d8d8;
-  background: linear-gradient(#f2f2f2 0%, #bdbdbd 48%, #8f8f8f 52%, #a8a8a8 100%);
+  color: #f2b23a;
+  background: linear-gradient(#fff3c4 0%, #ffd25a 40%, #f0961e 60%, #c4561a 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(4px 4px 0 #2a2a2a) drop-shadow(-1px -1px 0 #555) drop-shadow(0 6px 0 #1a1a1a);
+  filter: drop-shadow(3px 3px 0 #4a1e08) drop-shadow(-2px -2px 0 #4a1e08) drop-shadow(0 6px 0 #1f0c04);
 }
 .splash {
-  position: absolute; right: -30px; bottom: -6px; color: #ffff3f; font-size: clamp(18px, 3vw, 30px);
-  text-shadow: 2px 2px 0 #3f3f00; transform: rotate(-18deg); white-space: nowrap;
-  animation: splash 0.9s ease-in-out infinite alternate;
+  margin-top: 10px; color: #ffe7a8; font-size: clamp(18px, 2.6vw, 28px); letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #3a1a06; white-space: nowrap; animation: splash 2.4s ease-in-out infinite alternate;
 }
-@keyframes splash { from { transform: rotate(-18deg) scale(1); } to { transform: rotate(-18deg) scale(1.1); } }
+@keyframes splash { from { opacity: 0.65; } to { opacity: 1; } }
 .menuButtons { display: flex; flex-direction: column; gap: 10px; width: min(420px, 90vw); }
 .footer { position: absolute; bottom: 8px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: 20px; color: #ddd; text-shadow: 2px 2px 0 #333; }
 
