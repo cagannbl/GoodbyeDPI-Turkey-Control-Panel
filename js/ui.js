@@ -184,7 +184,7 @@ class UI {
     bindRange('setRes', 'resScale', 'resVal', (v) => Math.round(v * 100) + '%', (v) => { g.renderer.resScale = v; });
     this.g.settings.autoRes = this.g.settings.autoRes !== false;
     const bindChk = (id, key) => $(id).addEventListener('change', () => { S[key] = $(id).checked; });
-    bindChk('setClouds', 'clouds'); bindChk('setBob', 'viewBob'); bindChk('setMobs', 'mobs'); bindChk('setInvert', 'invertY'); bindChk('setAutoRes', 'autoRes');
+    bindChk('setClouds', 'clouds'); bindChk('setBob', 'viewBob'); bindChk('setMobs', 'mobs'); bindChk('setInvert', 'invertY'); bindChk('setRaw', 'rawInput'); bindChk('setAutoRes', 'autoRes');
   }
 
   syncSettings() {
@@ -192,7 +192,7 @@ class UI {
     const set = (id, v) => { $(id).value = v; $(id).dispatchEvent(new Event('input')); };
     set('setRD', S.renderDist); set('setFOV', S.fov); set('setSens', S.sensitivity); set('setGamma', S.gamma);
     set('setVol', S.volume); set('setMus', S.music); set('setRes', S.resScale);
-    $('setClouds').checked = S.clouds; $('setBob').checked = S.viewBob; $('setMobs').checked = S.mobs; $('setInvert').checked = S.invertY; $('setAutoRes').checked = S.autoRes !== false;
+    $('setClouds').checked = S.clouds; $('setBob').checked = S.viewBob; $('setMobs').checked = S.mobs; $('setInvert').checked = S.invertY; $('setRaw').checked = S.rawInput !== false; $('setAutoRes').checked = S.autoRes !== false;
   }
 
   renderWorldList() {
