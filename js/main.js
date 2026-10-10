@@ -22,7 +22,7 @@ class Game {
     this.isTouch = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
     this.settings = Object.assign({
       renderDist: this.isTouch ? 4 : 7, fov: this.isTouch ? 70 : 75, autoRes: true, sensitivity: 1, gamma: 0.2, volume: 0.7, music: 0.5, resScale: 1,
-      clouds: true, viewBob: true, mobs: true, invertY: false,
+      clouds: true, viewBob: true, mobs: true, invertY: false, rawInput: true,
     }, this.loadJSON(LS_SETTINGS) || {});
 
     initBlocks();
@@ -313,10 +313,16 @@ class Game {
   // ------------------------------------------------------------ Girişler
   requestLock() {
     if (this.isTouch) return;
+    // Ham fare girişi (Minecraft'taki "Raw Input" gibi): Windows'un fare ivmesi ve imleç ortalama
+    // adımı atlanır. Chrome'un normal yolu kilitliyken fare olaylarını arada bekletip topluca
+    // verebiliyor; kamera donup sonra bir anda yerine sıçrıyordu. Desteklenmezse normal kilit.
+    const plain = () => { this.rawLock = false; try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* yok say */ } };
+    if (!this.settings.rawInput) { plain(); return; }
     try {
-      const r = this.canvas.requestPointerLock();
-      if (r && r.catch) r.catch(() => {});
-    } catch (e) { /* yok say */ }
+      const r = this.canvas.requestPointerLock({ unadjustedMovement: true });
+      if (r && r.then) r.then(() => { this.rawLock = true; }, () => { if (!document.pointerLockElement) plain(); });
+      else this.rawLock = true;
+    } catch (e) { plain(); }
   }
 
   // Windows'ta Chrome fare kilitliyken arada tek bir olayda yüzlerce piksellik sahte hareket
@@ -326,6 +332,7 @@ class Game {
   mouseLook(dx, dy) {
     const now = performance.now(), m = Math.hypot(dx, dy);
     if (now - (this.lockT || 0) < 100) return; // kilit yeni alındı: ilk olaylar güvenilmez
+    if (this.rawLock) { this.look(dx, dy); return; } // ham girişte sahte sıçrama olmaz, filtreye gerek yok
     const h = this.lookHold;
     if (h) {
       this.lookHold = null; clearTimeout(h.timer);
@@ -635,9 +642,21 @@ class Game {
       if (e.button === 0) this.mouse.left = false;
       if (e.button === 2) this.mouse.right = false;
     });
+    // pointerrawupdate: Chrome fare hareketini ekran karesini beklemeden, geldiği anda verir.
+    // Varsa kilitliyken bakış için onu kullan (mousemove kare başına toplanıp gecikebiliyor).
+    this.rawEvents = 'onpointerrawupdate' in window; this.moveNoRaw = 0;
+    if (this.rawEvents) {
+      document.addEventListener('pointerrawupdate', (e) => {
+        if (e.pointerType !== 'mouse') return;
+        this.mouseN = (this.mouseN || 0) + 1; this.moveNoRaw = 0;
+        if (this.locked && this.state === 'playing') this.mouseLook(e.movementX, e.movementY);
+      });
+    }
     document.addEventListener('mousemove', (e) => {
-      this.mouseN = (this.mouseN || 0) + 1;
-      if (this.locked && this.state === 'playing') this.mouseLook(e.movementX, e.movementY);
+      if (!this.rawEvents) this.mouseN = (this.mouseN || 0) + 1;
+      // Tarayıcı pointerrawupdate'i destekliyor görünüp hiç göndermiyorsa mousemove'a geri dön
+      if (this.rawEvents && this.locked && ++this.moveNoRaw > 8) this.rawEvents = false;
+      if (this.locked && this.state === 'playing') { if (!this.rawEvents) this.mouseLook(e.movementX, e.movementY); }
       else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -2062,9 +2081,9 @@ class Game {
       else { w.column(Math.floor(p.pos[0]), Math.floor(p.pos[2])); biomeName = BIOME_NAMES[w._b]; }
       const hours = Math.floor(((this.dayTime + 0.25) % 1) * 24), mins = Math.floor((((this.dayTime + 0.25) % 1) * 24 % 1) * 60);
       this.ui.updateDebug([
-        `WebCraft 1.0 (${this.fps} fps, en yavaş kare ${this.worstShown || 0} ms)`,
+        `WebCraft 1.1 (${this.fps} fps, en yavaş kare ${this.worstShown || 0} ms)`,
         `Ekran kartı: ${this.renderer.gpuName || '?'}`,
-        `Çözünürlük: ${this.renderer.canvas.width}x${this.renderer.canvas.height}   Fare: ${this.mouseHz || 0} olay/sn`,
+        `Çözünürlük: ${this.renderer.canvas.width}x${this.renderer.canvas.height}   Fare: ${this.mouseHz || 0} olay/sn, ${this.rawLock ? "ham" : "normal"}${this.rawEvents ? "+anlık" : ""}`,
         `XYZ: ${p.pos[0].toFixed(2)} / ${p.pos[1].toFixed(2)} / ${p.pos[2].toFixed(2)}`,
         `Parça: ${Math.floor(p.pos[0]) >> 4}, ${Math.floor(p.pos[2]) >> 4}   Yön: ${f}`,
         `Boyut: ${{ overworld: 'Yerüstü', nether: 'Cehennem', end: 'Boşluk Diyarı' }[this.dim]}   Biyom: ${biomeName}`,
