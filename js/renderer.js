@@ -275,6 +275,11 @@ class Renderer {
     const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, powerPreference: 'high-performance' });
     if (!gl) throw new Error('WebGL2 desteklenmiyor');
     this.gl = gl;
+    // Ekran kartı adı (F3 ekranı ve yazılımsal çizim uyarısı için)
+    this.gpuName = '';
+    try { const ext = gl.getExtension('WEBGL_debug_renderer_info'); this.gpuName = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || ''); } catch (e) { /* yok say */ }
+    this.softwareGL = /swiftshader|llvmpipe|basic render|software|softpipe/i.test(this.gpuName);
+    this.maxDpr = 2;
     this.progChunk = this.program(CHUNK_VS, CHUNK_FS);
     this.progSky = this.program(SKY_VS, SKY_FS);
     this.progCloud = this.program(CLOUD_VS, CLOUD_FS);
@@ -444,7 +449,7 @@ class Renderer {
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2) * (this.resScale || 1);
+    const dpr = Math.min(window.devicePixelRatio || 1, this.maxDpr) * (this.resScale || 1);
     const w = Math.floor(this.canvas.clientWidth * dpr), h = Math.floor(this.canvas.clientHeight * dpr);
     if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
     this.gl.viewport(0, 0, w, h);
