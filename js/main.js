@@ -27,6 +27,17 @@ class Game {
 
     initBlocks();
     this.renderer = new Renderer(this.canvas);
+    // Ekran kartı sürücüsü WebGL'i sıfırlarsa (bellek, sürücü çökmesi, GPU değişimi) oyunu kaybetme:
+    // dünyayı kaydet, sayfayı yenile ve aynı dünyaya geri dön
+    this.canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      if (this.ctxLost) return;
+      this.ctxLost = true;
+      try { this.saveWorld(); if (this.meta && this.state !== 'menu') sessionStorage.setItem('webcraft_resume', this.meta.id); } catch (err) { /* yok say */ }
+      $('fatalText').textContent = 'Ekran kartı grafikleri sıfırladı. Dünyan kaydedildi, oyun yeniden başlatılıyor...';
+      $('fatal').classList.remove('hidden');
+      setTimeout(() => location.reload(), 1500);
+    });
     // Telefonda %75 ile başla; FPS yeterliyse otomatik çözünürlük ayardaki değere kadar yükseltir
     this.renderer.resScale = this.isTouch ? Math.min(this.settings.resScale, 0.75) : this.settings.resScale;
     this.audio = new GameAudio();
@@ -94,6 +105,9 @@ class Game {
     if (this.isTouch) this.ui.initTouch();
     this.openMenuWorld();
     this.ui.show('mainMenu');
+    let resume = null;
+    try { resume = sessionStorage.getItem('webcraft_resume'); sessionStorage.removeItem('webcraft_resume'); } catch (e) { /* yok say */ }
+    if (resume) this.loadWorld(resume);
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -294,10 +308,26 @@ class Game {
   // ------------------------------------------------------------ Girişler
   requestLock() {
     if (this.isTouch) return;
+    // unadjustedMovement: işletim sisteminin fare ivmesini atla (Chrome'daki ani bakış sıçramalarını da azaltır).
+    // Desteklemeyen tarayıcıda normal kilide geri dön.
+    const plain = () => { try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* yok say */ } };
     try {
-      const r = this.canvas.requestPointerLock();
-      if (r && r.catch) r.catch(() => {});
-    } catch (e) { /* yok say */ }
+      const r = this.canvas.requestPointerLock({ unadjustedMovement: true });
+      if (r && r.catch) r.catch(() => plain());
+    } catch (e) { plain(); }
+  }
+
+  // Bazı tarayıcılar (özellikle Windows'ta Chrome) fare kilitliyken arada bir tek olayda
+  // yüzlerce piksellik sahte hareket gönderir; karakter bir anda başka yere bakar.
+  // Son hareketlerin ortalamasına göre aşırı büyük tekil sıçramaları yok say.
+  lookSane(dx, dy) {
+    const now = performance.now(), m = Math.hypot(dx, dy);
+    if (now - (this.lockT || 0) < 120) return false; // kilit yeni alındı: ilk olaylar güvenilmez
+    const avg = this.lookAvg || 0, idle = now - (this.lookLastT || 0) > 80;
+    this.lookLastT = now;
+    if (m > 120 && (idle || m > avg * 6 + 40)) { this.lookAvg = avg * 0.5; return false; }
+    this.lookAvg = avg * 0.7 + m * 0.3;
+    return true;
   }
 
   look(dx, dy, mult = 1) {
@@ -564,6 +594,7 @@ class Game {
     for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, () => this.audio.init(), { capture: true, passive: true });
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === cv;
+      if (this.locked) { this.lockT = performance.now(); this.lookAvg = 0; }
       if (this.locked) $('clickToPlay').classList.add('hidden');
       else if (this.state === 'playing') {
         if (this.ignoreUnlock) this.ignoreUnlock = false;
@@ -595,7 +626,7 @@ class Game {
       if (e.button === 2) this.mouse.right = false;
     });
     document.addEventListener('mousemove', (e) => {
-      if (this.locked && this.state === 'playing') this.look(e.movementX, e.movementY);
+      if (this.locked && this.state === 'playing') { if (this.lookSane(e.movementX, e.movementY)) this.look(e.movementX, e.movementY); }
       else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1801,6 +1832,7 @@ class Game {
 
   // ------------------------------------------------------------ Döngü
   frame(t) {
+    if (this.ctxLost) return;
     const dt = Math.min(0.05, (t - this.last) / 1000);
     this.last = t;
     this.fpsAcc += dt; this.fpsN++;
@@ -1818,6 +1850,7 @@ class Game {
       else if (this.world) this.frameGame(dt);
     } catch (e) {
       console.error(e);
+      try { this.saveWorld(); } catch (err) { /* yok say */ }
       $('fatal').classList.remove('hidden');
       $('fatalText').textContent = String(e && e.stack || e);
       return;
