@@ -40,6 +40,9 @@ class Game {
     });
     // Telefonda %75 ile başla; FPS yeterliyse otomatik çözünürlük ayardaki değere kadar yükseltir
     this.renderer.resScale = this.isTouch ? Math.min(this.settings.resScale, 0.75) : this.settings.resScale;
+    // Bilgisayarda Windows ekran ölçeği (%125, %150...) çizilen piksel sayısını 1,5-2 katına çıkarıp
+    // ekran kartını boğuyordu; piksel sanatı oyunda 1:1 çizim yeterli ve çok daha akıcı
+    if (!this.isTouch) this.renderer.maxDpr = 1;
     this.audio = new GameAudio();
     this.audio.setVolume(this.settings.volume);
     this.audio.setMusic(this.settings.music > 0, this.settings.music);
@@ -284,6 +287,8 @@ class Game {
     $('modeTag').textContent = p.creative ? 'Yaratıcı' : '';
     this.ui.showItemName();
     this.ui.toast(this.isTouch ? 'Dokun: koy · Basılı tut: kır · Sürükle: bak' : this.meta.name, 3);
+    // Ekran kartı yerine işlemciyle çiziliyorsa oyun her bakışta takılır: kullanıcıyı uyar
+    if (this.renderer.softwareGL) this.ui.toast('Donanım hızlandırma kapalı, oyun takılır! Tarayıcı ayarları → Sistem → açıp yeniden başlat', 12);
     this.setupEnd();
     this.startPlaying();
     this.saveWorld();
@@ -631,6 +636,7 @@ class Game {
       if (e.button === 2) this.mouse.right = false;
     });
     document.addEventListener('mousemove', (e) => {
+      this.mouseN = (this.mouseN || 0) + 1;
       if (this.locked && this.state === 'playing') this.mouseLook(e.movementX, e.movementY);
       else if (this.drag && this.state === 'playing') { this.drag.moved += Math.abs(e.movementX) + Math.abs(e.movementY); this.look(e.movementX, e.movementY); }
     });
@@ -1845,10 +1851,16 @@ class Game {
   // ------------------------------------------------------------ Döngü
   frame(t) {
     if (this.ctxLost) return;
-    const dt = Math.min(0.05, (t - this.last) / 1000);
+    const rawMs = t - this.last;
+    const dt = Math.min(0.05, rawMs / 1000);
     this.last = t;
+    if (rawMs > (this.worstMs || 0)) this.worstMs = rawMs;
     this.fpsAcc += dt; this.fpsN++;
-    if (this.fpsAcc >= 0.5) { this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.adaptQuality(); }
+    if (this.fpsAcc >= 0.5) {
+      this.fps = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; this.adaptQuality();
+      this.worstShown = Math.round(this.worstMs || 0); this.worstMs = 0;
+      this.mouseHz = (this.mouseN || 0) * 2; this.mouseN = 0;
+    }
     if (this.isTouch) {
       // Dokunmatik kontroller sadece oyun sırasında; dikey ekranda yan çevir ipucu
       const show = this.state === 'playing';
@@ -2050,7 +2062,9 @@ class Game {
       else { w.column(Math.floor(p.pos[0]), Math.floor(p.pos[2])); biomeName = BIOME_NAMES[w._b]; }
       const hours = Math.floor(((this.dayTime + 0.25) % 1) * 24), mins = Math.floor((((this.dayTime + 0.25) % 1) * 24 % 1) * 60);
       this.ui.updateDebug([
-        `WebCraft 1.0 (${this.fps} fps)`,
+        `WebCraft 1.0 (${this.fps} fps, en yavaş kare ${this.worstShown || 0} ms)`,
+        `Ekran kartı: ${this.renderer.gpuName || '?'}`,
+        `Çözünürlük: ${this.renderer.canvas.width}x${this.renderer.canvas.height}   Fare: ${this.mouseHz || 0} olay/sn`,
         `XYZ: ${p.pos[0].toFixed(2)} / ${p.pos[1].toFixed(2)} / ${p.pos[2].toFixed(2)}`,
         `Parça: ${Math.floor(p.pos[0]) >> 4}, ${Math.floor(p.pos[2]) >> 4}   Yön: ${f}`,
         `Boyut: ${{ overworld: 'Yerüstü', nether: 'Cehennem', end: 'Boşluk Diyarı' }[this.dim]}   Biyom: ${biomeName}`,
